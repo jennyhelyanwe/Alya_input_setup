@@ -2,7 +2,7 @@ import readfunctions
 import writefunctions
 import visualisationfunctions
 import argparse
-import os, sys
+import os
 
 false = ['False', 'false', 'F', 'f']
 true = ['True', 'true', 'T', 't']
@@ -66,7 +66,7 @@ else:
 print('#######################')
 
 i = readfunctions.I(name, input_dir, input_format, save_dir, refresh)
-o = writefunctions.O(i,name, output_dir)
+o = writefunctions.O(i, name, output_dir)
 v = visualisationfunctions.V(i, name, visualisation_dir, visualisation_format)
 
 
