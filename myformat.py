@@ -1,111 +1,111 @@
-import pandas as pd
+# import pandas as pd
 import os
+import numpy as np
 
-class dictionary_to_object:
-    def __init__(self, **entries):
-        self.__dict__.update(entries)
 
-class geometry:
+class Geometry:
     def __init__(self, name):
         # Geometry initialisations
         self.name = name
         self.number_of_nodes = 0
-        self.nodes_xyz_1 = []
-        self.nodes_xyz_2 = []
-        self.nodes_xyz_3 = []
         self.number_of_elements = 0
-        self.tetrahedrons_1 = []
-        self.tetrahedrons_2 = []
-        self.tetrahedrons_3 = []
-        self.tetrahedrons_4 = []
-        self.number_of_surfaces = 0
-        self.triangles = []
+        self.number_of_triangles = 0
+        self.nodes_xyz = None
+        self.tetrahedrons = None
+        self.triangles = None
+
     def save_to_csv(self, output_dir):
         if output_dir[-1] != '/':
             output_dir = output_dir+'/'
-        dataframe = pd.DataFrame([vars(self)])
-        dataframe.to_csv(output_dir + self.name + '_geometry.csv')
+        if self.nodes_xyz:
+            np.savetxt(output_dir + self.name+'_nodes_xyz.csv', self.nodes_xyz, delimiter=',')
+        if self.tetrahedrons:
+            np.savetxt(output_dir + self.name+'_tetrahedrons.csv', self.tetrahedrons, delimiter=',')
+        if self.triangles:
+            np.savetxt(output_dir + self.name + '_triangles.csv', self.triangles, delimiter=',')
+
     def read_csv_to_attributes(self, input_dir):
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
-        df = pd.read_csv(input_dir + self.name + '_geometry.csv')
-        self = dictionary_to_object(**df.to_dict())
+        self.nodes_xyz = np.loadtxt(input_dir+self.name+'_nodes_xyz.csv', delimiter=',')
+        self.tetrahedrons = np.loadtxt(input_dir + self.name + '_tetrahedrons.csv', delimiter=',')
+        self.triangles = np.loadtxt(input_dir + self.name + '_triangles.csv', delimiter=',')
 
-class node_fields:
+
+class NodeFields:
     def __init__(self, name):
         self.name = name
         # Field initialisations
-        self.fibres_1 = []
-        self.fibres_2 = []
-        self.fibres_3 = []
-        self.sheets_1 = []
-        self.sheets_2 = []
-        self.sheets_3 = []
-        self.normal_1 = []
-        self.normal_2 = []
-        self.normal_3 = []
-        self.lvrv = []
-        self.tm = []
-        self.ab = []
-        self.rt = []
-        self.celltype = []
-        self.ab_Gks_sf = []
-        self.stimulus = []
+        self.fibre = None
+        self.sheet = None
+        self.normal = None
+        self.lvrv = None
+        self.tm = None
+        self.ab = None
+        self.rt = None
+        self.celltype = None
+        self.ab_Gks_sf = None
+        self.stimulus = None
+        self.boundaries = None
 
     def save_to_csv(self, output_dir):
         if output_dir[-1] != '/':
             output_dir = output_dir+'/'
-        dataframe = pd.DataFrame([vars(self)])
-        dataframe.to_csv(output_dir + self.name + '_node_fields.csv')
+        np.savetxt(output_dir + self.name + '_nodefield' + '_fibre.csv', self.fibre, delimiter=',')
+        np.savetxt(output_dir + self.name + '_nodefield' + '_sheet.csv', self.sheet, delimiter=',')
+        np.savetxt(output_dir + self.name + '_nodefield' + '_normal.csv', self.normal, delimiter=',')
+        np.savetxt(output_dir + self.name + '_nodefield' + '_lvrv.csv', self.lvrv, delimiter=',')
+        np.savetxt(output_dir + self.name + '_nodefield' + '_tm.csv', self.tm, delimiter=',')
+        np.savetxt(output_dir + self.name + '_nodefield' + '_ab.csv', self.ab, delimiter=',')
+        np.savetxt(output_dir + self.name + '_nodefield' + '_rt.csv', self.rt, delimiter=',')
+        np.savetxt(output_dir + self.name + '_nodefield' + '_celltype.csv', self.celltype, delimiter=',')
+        np.savetxt(output_dir + self.name + '_nodefield' + '_ab_Gks_sf.csv', self.ab_Gks_sf, delimiter=',')
+        np.savetxt(output_dir + self.name + '_nodefield' + '_stimulus.csv', self.stimulus, delimiter=',')
+        np.savetxt(output_dir + self.name + '_nodefield' + '_boundaries.csv', self.boundaries, delimiter=',')
 
     def read_csv_to_attributes(self, input_dir):
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
-        df = pd.read_csv(input_dir + self.name + '_node_fields.csv')
-        self = dictionary_to_object(**df.to_dict())
+        self.fibre = np.loadtxt(input_dir+self.name + '_nodefield' + '_fibre.csv', delimiter=',')
+        self.sheet = np.loadtxt(input_dir + self.name + '_nodefield' + '_sheet.csv', delimiter=',')
+        self.normal = np.loadtxt(input_dir + self.name + '_nodefield' + '_normal.csv', delimiter=',')
+        self.lvrv = np.loadtxt(input_dir + self.name + '_nodefield' + '_lvrv.csv', delimiter=',')
+        self.tm = np.loadtxt(input_dir + self.name + '_nodefield' + '_tm.csv', delimiter=',')
+        self.ab = np.loadtxt(input_dir + self.name + '_nodefield' + '_ab.csv', delimiter=',')
+        self.rt = np.loadtxt(input_dir + self.name + '_nodefield' + '_rt.csv', delimiter=',')
+        self.celltype = np.loadtxt(input_dir + self.name + '_nodefield' + '_celltype.csv', delimiter=',')
+        self.ab_Gks_sf = np.loadtxt(input_dir + self.name + '_nodefield' + '_ab_Gks_sf.csv', delimiter=',')
+        self.stimulus = np.loadtxt(input_dir + self.name + '_nodefield' + '_stimulus.csv', delimiter=',')
+        self.boundaries = np.loadtxt(input_dir + self.name + '_nodefield' + '_boundaries.csv', delimiter=',')
 
-class element_fields:
+
+class ElementFields:
     def __init__(self, name):
         self.name = name
-        self.materials = []
-        self.lvrv = []
+        self.materials = None
+        self.lvrv = None
+        self.boundaries = None
+
     def save_to_csv(self, output_dir):
         if output_dir[-1] != '/':
             output_dir = output_dir+'/'
-        dataframe = pd.DataFrame([vars(self)])
-        dataframe.to_csv(output_dir + self.name + '_element_fields.csv')
+        np.savetxt(output_dir + self.name + '_elementfield' + '_materials.csv', self.materials, delimiter=',')
+        np.savetxt(output_dir + self.name + '_elementfield' + '_lvrv.csv', self.lvrv, delimiter=',')
+        np.savetxt(output_dir + self.name + '_elementfield' + '_boundaries.csv', self.boundaries, delimiter=',')
 
     def read_csv_to_attributes(self, input_dir):
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
-        df = pd.read_csv(input_dir + self.name + '_element_fields.csv')
-        self = dictionary_to_object(**df.to_dict())
-
-
-class surface_fields:
-    def __init__(self, name):
-        self.name = name
-        self.boundaries = []
-    def save_to_csv(self, output_dir):
-        if output_dir[-1] != '/':
-            output_dir = output_dir+'/'
-        dataframe = pd.DataFrame([vars(self)])
-        dataframe.to_csv(output_dir + self.name + '_surface_fields.csv')
-
-    def read_csv_to_attributes(self, input_dir):
-        if input_dir[-1] != '/':
-            input_dir = input_dir + '/'
-        df = pd.read_csv(input_dir + self.name + '_surface_fields.csv')
-        self = dictionary_to_object(**df.to_dict())
+        self.materials = np.loadtxt(input_dir+self.name + '_elementfield' + '_materials.csv', delimiter=',')
+        self.lvrv = np.loadtxt(input_dir + self.name + '_elementfield' + '_lvrv.csv', delimiter=',')
+        self.boundaries = np.loadtxt(input_dir + self.name + '_elementfield' + '_boundaries.csv', delimiter=',')
 
 
 if __name__ == '__main__':
     wd = os.getcwd()
-    geometry = geometry('test')
+    geometry = Geometry('test')
     geometry.save_to_csv(wd)
-    node_fields = node_fields('test')
+    node_fields = NodeFields('test')
     node_fields.save_to_csv(wd)
-    element_fields = element_fields('test')
+    element_fields = ElementFields('test')
     element_fields.save_to_csv(wd)
-    surface_fields = surface_fields('test')
-    surface_fields.save_to_csv(wd)
