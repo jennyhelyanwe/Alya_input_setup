@@ -3,7 +3,19 @@ import os
 import numpy as np
 
 
-class Geometry:
+class MyFormat:
+    def _savetxt(self, filename, var):
+        if not var is None:
+            np.savetxt(filename, var, delimiter=',')
+
+    def _loadtxt(self, filename):
+        if os.path.exists(filename):
+            return np.loadtxt(filename, delimiter=',')
+        else:
+            return None
+
+
+class Geometry(MyFormat):
     def __init__(self, name):
         # Geometry initialisations
         self.name = name
@@ -15,16 +27,6 @@ class Geometry:
         self.triangles = None
         self.tetrahedron_centres = None
         self.edges = None
-
-    def _savetxt(self, filename, var):
-        if not var is None:
-            np.savetxt(filename, var, delimiter=',')
-
-    def _loadtxt(self, filename):
-        if os.path.exists(filename):
-            return np.loadtxt(filename, delimiter=',')
-        else:
-            return None
 
     def save_to_csv(self, output_dir):
         if output_dir[-1] != '/':
@@ -45,7 +47,7 @@ class Geometry:
         self.edges = self._loadtxt(filename=input_dir + self.name + '_edges.csv')
 
 
-class NodeFields:
+class NodeFields(MyFormat):
     def __init__(self, name):
         self.name = name
         # Field initialisations
@@ -61,15 +63,6 @@ class NodeFields:
         self.stimulus = None
         self.boundaries = None
 
-    def _savetxt(self, filename, var):
-        if not var is None:
-            np.savetxt(filename, var, delimiter=',')
-
-    def _loadtxt(self, filename):
-        if os.path.exists(filename):
-            return np.loadtxt(filename, delimiter=',')
-        else:
-            return None
 
     def save_to_csv(self, output_dir):
         if output_dir[-1] != '/':
@@ -102,22 +95,12 @@ class NodeFields:
         self.boundaries = self._loadtxt(filename=input_dir + self.name + '_nodefield' + '_boundaries.csv')
 
 
-class ElementFields:
+class ElementFields(MyFormat):
     def __init__(self, name):
         self.name = name
         self.materials = None
         self.lvrv = None
         self.boundaries = None
-
-    def _savetxt(self, filename, var):
-        if not var is None:
-            np.savetxt(filename, var, delimiter=',')
-
-    def _loadtxt(self, filename):
-        if os.path.exists(filename):
-            return np.loadtxt(filename, delimiter=',')
-        else:
-            return None
 
     def save_to_csv(self, output_dir):
         if output_dir[-1] != '/':
