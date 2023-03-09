@@ -1,30 +1,29 @@
 import vtk
 import numpy as np
-import pandas as pd
 from myformat import *
 from vtk.util import numpy_support as VN
 
 
 class VTKtoCSV:
-    def __init__(self, name, input_dir, output_dir):
+    def __init__(self, vtk_name, output_name, input_dir, output_dir):
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
         if output_dir[-1] != '/':
             output_dir = output_dir + '/'
-        self.name = name
+        self.vtk_name = vtk_name
+        self.output_name = output_name
         self.input_dir = input_dir
         self.output_dir = output_dir
-        self.geometry = Geometry(self.name)
-        self.node_fields = NodeFields(self.name)
-        self.element_fields = ElementFields(self.name)
-        self.surface_fields = SurfaceFields(self.name)
+        self.geometry = Geometry(self.output_name)
+        self.node_fields = NodeFields(self.output_name)
+        self.element_fields = ElementFields(self.output_name)
         self.read_vtk()
         self.write_to_csv()
 
     def read_vtk(self):
-        print('Reading vtk file from: ' + self.input_dir + self.name + '.vtk')
+        print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '.vtk')
         reader = vtk.vtkUnstructuredGridReader()
-        reader.SetFileName(self.input_dir + self.name + '.vtk')
+        reader.SetFileName(self.input_dir + self.vtk_name + '.vtk')
         reader.ReadAllVectorsOn()
         reader.ReadAllScalarsOn()
         reader.Update()
@@ -40,22 +39,37 @@ class VTKtoCSV:
             self.geometry.tetrahedrons[i, 3] = int(data.GetCell(i).GetPointId(3))
         nodes_xyz = VN.vtk_to_numpy(data.GetPoints().GetData())  # Convert from mm to cm
         self.geometry.nodes_xyz = nodes_xyz
-        self.element_fields.lvrv = VN.vtk_to_numpy(data.GetCellData().GetArray('ID'))
-        self.node_fields.fibres = VN.vtk_to_numpy(data.GetCellData().GetArray('fibres'))
-        self.node_fields.sheets  = VN.vtk_to_numpy(data.GetCellData().GetArray('sheets'))
+        self.geometry.edges = []
+        for element_i in range(self.geometry.number_of_elements):
+            self.geometry.edges.append([self.geometry.tetrahedrons[element_i,0], self.geometry.tetrahedrons[element_i,1]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 2]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 2], self.geometry.tetrahedrons[element_i, 3]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 3], self.geometry.tetrahedrons[element_i, 0]])
+        self.geometry.edges = np.unique(np.sort(self.geometry.edges,axis=1),axis=0)
+        self.geometry.tetrahedron_centres = (nodes_xyz[self.geometry.tetrahedrons[:,0],:] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:,1],:] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:,2],:] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:,3],:])/4.
+        self.element_fields.lvrv = VN.vtk_to_numpy(data.GetCellData().GetArray('tags'))
+        self.node_fields.fibres = VN.vtk_to_numpy(data.GetCellData().GetArray('fiber'))
+        self.node_fields.sheets  = VN.vtk_to_numpy(data.GetCellData().GetArray('sheet'))
         # Rodero mesh does not have normal vectors built in
-        self.node_fields.lvrv = list(VN.vtk_to_numpy(data.GetPointData().GetArray('V.dat')))
-        self.node_fields.tm = list(VN.vtk_to_numpy(data.GetPointData().GetArray('RHO.dat')))
-        self.node_fields.ab = list(VN.vtk_to_numpy(data.GetPointData().GetArray('Z.dat')))
-        self.node_fields.rt = list(VN.vtk_to_numpy(data.GetPointData().GetArray('PHI.dat')))
+        self.node_fields.lvrv = list(VN.vtk_to_numpy(data.GetPointData().GetArray('uvc_intraventricular')))
+        self.node_fields.tm = list(VN.vtk_to_numpy(data.GetPointData().GetArray('uvc_transmural')))
+        self.node_fields.ab = list(VN.vtk_to_numpy(data.GetPointData().GetArray('uvc_longitudinal')))
+        self.node_fields.rt = list(VN.vtk_to_numpy(data.GetPointData().GetArray('uvc_rotational')))
 
-        reader = vtkPolyDataReader()
-        reader.SetFileName(self.input_dir + self.name + '_surface_connectivity.vtk')
+        print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_surfaces_connectivity.vtk')
+        reader = vtk.vtkPolyDataReader()
+        reader.SetFileName(self.input_dir + self.vtk_name + '_surfaces_connectivity.vtk')
         reader.ReadAllVectorsOn()
         reader.ReadAllScalarsOn()
         reader.Update()
         data = reader.GetOutput()
-        elem_ids = VN.vtk_to_numpy(data.GetCellData().GetArray('Ids'))
+        # elem_ids = VN.vtk_to_numpy(data.GetCellData().GetArray('Ids'))
         node_ids = VN.vtk_to_numpy(data.GetPointData().GetArray('Ids'))
         self.element_fields.boundaries = VN.vtk_to_numpy(data.GetCellData().GetArray('RegionId'))
         self.node_fields.boundaries = VN.vtk_to_numpy(data.GetPointData().GetArray('RegionId'))
