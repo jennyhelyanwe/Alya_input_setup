@@ -1,0 +1,17 @@
+      CYCLE = <<cycle_idx>>
+        FOR_CAVITY = <<cavity_idx>>
+        TZERO = <<prestress_t>>   $ Duration of the prescribe pre-stress
+        PSTR0 = <<prestress_p>> $ Prescribed pre-stress
+        TPSTR = <<diastasis_t>>   $ Duration to reach balanaced diastasis
+        PZERO = <<diastasis_p>> $ Pressure at diastasis
+        GAINP = <<gain_error_prestress>> <<gain_derror_prestress>> $ Gain for error and derror for pre-stress
+        TENDD = <<end_diastole_t>>   $ Time to reach ED
+        PENDD = <<end_diastole_p>> $ ED pressure
+        GAINC = <<gain_error_contraction>> <<gain_derror_contraction>>  $ Gain at error and derror for IVC
+        CPRES = <<arterial_compliance>> $ Arterial compliance
+        RPRES = <<arterial_resistance>> $ Arterial resistance
+        PART0 = <<ejection_pressure_threshold>> $ Windkessel initialisation value
+        GAINR = <<gain_error_relaxation>> <<gain_derror_relaxation>>  $ Gain at error and derror for IVR
+        PPOST = <<filling_pressure_threshold>> $ Pressure at which to stop IVR
+        PERIO = <<cycle_length>> $ Cycle length
+      END_CYCLE

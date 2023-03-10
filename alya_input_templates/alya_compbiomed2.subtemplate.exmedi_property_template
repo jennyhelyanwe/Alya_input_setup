@@ -1,0 +1,14 @@
+    	MATERIAL=   <<material_idx>>
+            CONTINUUM_MODEL
+                IN_DIFFUSION=  <<diffusivities>> $ [cm/mS]
+                INITIAL_MEMBRANE_POTENTIAL= -87.00   $[mV]
+            ENDCONTINNUM_MODEL
+
+            CELL_MODEL:  <<cell_model>>
+                CM_CONST=  1.0 $[muF/cm2]
+            END_CELL_MODEL
+
+            INI_CELL, HETEROGENEOUS
+                INCLUDE <<cell_initialisation_txt_file_name>>
+            END_INI_CELL
+       END_MATERIAL

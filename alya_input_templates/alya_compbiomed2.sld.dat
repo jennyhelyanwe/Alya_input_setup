@@ -1,0 +1,42 @@
+$------------------------------------------------------------
+PHYSICAL_PROBLEM
+  PROBLEM_DEFINITION
+    TEMPORAL DYNAMIC
+  END_PROBLEM_DEFINITION
+  PROPERTIES
+    <<mechanical_properties_str>>
+  END_PROPERTIES
+
+  <<cardiac_cycle_str>>
+END_PHYSICAL_PROBLEM
+$------------------------------------------------------------
+NUMERICAL_TREATMENT
+  STEADY_STATE_TOLERANCE: -1.0
+  SAFETY_FACTOR: 1.0
+  TIME_TREATMENT: IMPLICIT
+  TIME_INTEGRATION: NEWMARK, DAMPED
+  RESIDUAL: <<solidz_residual>>
+  CONVERGENCE_TOLER: <<solidz_convergence_tolerance>>
+  MAXIMUM_ITERATION: 100
+  ALGEBRAIC_SOLVER
+    SOLVER: CG
+    CONVERGENCE: ITERA = 10000, TOLER = 1.0e-8, ADAPTIVE, RATIO = 0.01
+    OUTPUT: CONVERGENCE
+    PRECONDITIONER: DIAGONAL
+    OPTIONS: ZERO_FIXITY
+  END_ALGEBRAIC_SOLVER
+  ROTATION:          ON
+END_NUMERICAL_TREATMENT
+$------------------------------------------------------------
+OUTPUT_&_POST-PROCESS
+  START_POSTPROCESS_AT STEP: 0
+  POSTPROCESS DISPLACEMENT PERIOD=0.01
+  <<post_process_solidz_str>>
+END_OUTPUT_&_POST_PROCESS
+$------------------------------------------------------------
+BOUNDARY_CONDITIONS, TRANSIENT
+  CODES, BOUNDARIES
+   <<boundary_conditions_str>>
+  END_CODES
+END_BOUNDARY_CONDITIONS
+$------------------------------------------------------------

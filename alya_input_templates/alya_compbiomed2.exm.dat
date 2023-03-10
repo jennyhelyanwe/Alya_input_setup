@@ -1,0 +1,47 @@
+$------------------------------------------------------------
+PHYSICAL_PROBLEM
+$------------------------------------------------------------
+    PROBLEM_DEFINITION
+        STARTING_POTENTIAL, FIELD
+            CURDENSITY: FIELD= <<stimulus_field_number>>
+            T_START = <<monodomain_delay>>
+        END_STARTING_POTENTIAL
+$------------------------------------------------------------
+       GEO_COUPLING: LAGRANGIAN
+       PSEUDO_ECG= ON
+	   NUMBER_ROOT= <<number_of_ecg_electrodes>>
+	   FREQUENCY= 1
+	   COORDS
+	     <<ecg_electrodes_coordinates>>
+	END_PSEUDO
+    END_PROBLEM_DEFINITION
+
+$------------------------------------------------------------
+    PROPERTIES
+      <<exmedi_properties_str>>
+      END_PARAMETERS
+    END_PROPERTIES
+    APEX_TO_BASE:             FIELD= <<apex_to_base_field_number>>
+END_PHYSICAL_PROBLEM
+$------------------------------------------------------------
+NUMERICAL_TREATMENT
+    STEADY_STATE_TOLERANCE: -1.0
+    SAFETY_FACTOR:           1.0
+    TIME_TREATMENT:          IMPLICIT
+    ALGEBRAIC_SOLVER
+        SOLVER:              CG
+        CONVERGENCE:         ITERA = 1000, TOLER = 1.0e-6, ADAPTIVE, RATIO = 0.01
+        OUTPUT:              CONVERGENCE
+        PRECONDITIONER:      DIAGONAL
+    END_ALGEBRAIC_SOLVER
+END_NUMERICAL_TREATMENT
+$------------------------------------------------------------
+OUTPUT_&_POST_PROCESS
+    SAVE_CONVERGENCE CELL_MODEL
+    START_POSTPROCESS_AT TIME = 0.0
+    <<post_process_exmedi_str>>
+END_OUTPUT_&_POST-PROCESS
+$------------------------------------------------------------
+BOUNDARY_CONDITIONS, CONSTANT
+END_BOUNDARY_CONDITIONS
+$------------------------------------------------------------

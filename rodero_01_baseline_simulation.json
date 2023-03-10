@@ -1,0 +1,12 @@
+{
+  "name": "heart",
+  "run_type_str": "  RUNTYPE: CONTINUE\n  RUNTYPE: PRELIMINARY, FREQUENCY = 10000\n",
+  "time_start": 0,
+  "time_end": 0.8,
+  "time_function_type": "DISCRETE",
+  "time_function": [0.8, 2e-5],
+  "time_function_str": "alya_compbiomed2.subtemplate.time_function",
+  "physics": ["SOLIDZ", "EXMEDI"],
+  "iter_number_of_fields": [2, "alya_compbiomed2.subtemplate.field_initialisation_template"],
+  "field_file_names": ["heart.celltype", "heart.apex2base"],
+}
