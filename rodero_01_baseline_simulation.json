@@ -1,12 +1,21 @@
 {
   "name": "heart",
-  "run_type_str": "  RUNTYPE: CONTINUE\n  RUNTYPE: PRELIMINARY, FREQUENCY = 10000\n",
-  "time_start": 0,
+  "alya_version": "alya-compbiomed2",
+  "spatial_dimensions": 3,
+  "run_type": "PRELIMINARY",
+  "warm_start_write_out_frequency": 10000,
+  "geometry_scaling": [1.0, 1.0, 1.0],
+  "geometry_translation": [0.0, 0.0, 0.0],
+  "time_start": 0.0,
   "time_end": 0.8,
   "time_function_type": "DISCRETE",
-  "time_function": [0.8, 2e-5],
-  "time_function_str": "alya_compbiomed2.subtemplate.time_function",
+  "time_function": [[0.8, 2e-5]],
   "physics": ["SOLIDZ", "EXMEDI"],
-  "iter_number_of_fields": [2, "alya_compbiomed2.subtemplate.field_initialisation_template"],
-  "field_file_names": ["heart.celltype", "heart.apex2base"],
+
+  "x_scale": 1.0,
+  "y_scale": 1.0,
+  "z_scale": 1.0,
+  "x_translation": 0.0,
+  "y_translation": 0.0,
+  "z_translation": 0.0
 }

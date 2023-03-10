@@ -59,7 +59,7 @@ class Fields:
         list_fields = list(self.dict.keys())
         for field_i in range(self.number_of_fields):
             varname = list_fields[field_i]
-            savetxt(filename=output_dir + self.name + '_'+self.field_type+'_' + varname + '.csv', var=self.fields_dict[varname])
+            savetxt(filename=output_dir + self.name + '_'+self.field_type+'_' + varname + '.csv', var=self.dict[varname])
 
     def read_csv_to_attributes(self, input_dir):
         if input_dir[-1] != '/':

@@ -6,22 +6,22 @@ $------------------------------------------------------------
             CURDENSITY: FIELD= <<stimulus_field_number>>
             T_START = <<monodomain_delay>>
         END_STARTING_POTENTIAL
-$------------------------------------------------------------
-       GEO_COUPLING: LAGRANGIAN
-       PSEUDO_ECG= ON
-	   NUMBER_ROOT= <<number_of_ecg_electrodes>>
-	   FREQUENCY= 1
-	   COORDS
-	     <<ecg_electrodes_coordinates>>
-	END_PSEUDO
+    $------------------------------------------------------------
+        GEO_COUPLING: LAGRANGIAN
+        PSEUDO_ECG= ON
+        NUMBER_ROOT= <<number_of_ecg_electrodes>>
+        FREQUENCY= 1
+        COORDS
+        <<ecg_electrodes_coordinates>>
+    END_PSEUDO
     END_PROBLEM_DEFINITION
 
 $------------------------------------------------------------
     PROPERTIES
-      <<exmedi_properties_str>>
-      END_PARAMETERS
+        <<exmedi_properties_str>>
+        END_PARAMETERS
     END_PROPERTIES
-    APEX_TO_BASE:             FIELD= <<apex_to_base_field_number>>
+    APEX_TO_BASE:  FIELD= <<apex_to_base_field_number>>
 END_PHYSICAL_PROBLEM
 $------------------------------------------------------------
 NUMERICAL_TREATMENT

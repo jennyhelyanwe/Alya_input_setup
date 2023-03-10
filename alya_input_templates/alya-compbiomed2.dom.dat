@@ -1,0 +1,46 @@
+$------------------------------------------------------------
+DIMENSIONS
+    NODAL_POINTS:           <<number_of_nodes>>
+    ELEMENTS:               <<number_of_elements>>
+    SPACE_DIMENSIONS:       <<spatial_dimensions>>
+    NODES:                  <<number_of_nodes_per_element>>
+    BOUNDARIES:             <<number_of_boundaries>>
+    SKEW_SYSTEMS:           0
+    SLAVES:                 0
+    NO_SETS
+
+    MATERIALS = <<number_of_materials>>
+    FIELDS = <<number_of_fields>>
+    <<field_declaration_str>>
+    END_FIELDS
+
+END_DIMENSIONS
+$------------------------------------------------------------
+STRATEGY
+    INTEGRATION_RULE:          OPEN
+    DOMAIN_INTEGRATION_POINTS: 1
+    SCALE: XSCAL=<<x_scale>> YSCAL=<<y_scale>> ZSCAL=<<z_scale>>
+    TRANSLATION:  XTRAN=<<x_translation>> YTRAN=<<y_translation>> ZTRAN=<<z_translation>>
+    EXTRAPOLATE_BOUNDARY_CONDITIONS: ON
+    BOUNDARY_ELEMENT: OFF
+END_STRATEGY
+$------------------------------------------------------------
+GEOMETRY
+    INCLUDE <<geometry_file_name>>
+    INCLUDE <<surface_file_name>>
+    INCLUDE <<materials_file_name>>
+END_GEOMETRY
+
+SETS
+    INCLUDE <<sets_file_name>>
+END_SETS
+
+BOUNDARY_CONDITIONS
+    INCLUDE <<boundaries_file_name>>
+END_BOUNDARY_CONDITIONS
+
+FIELDS, NUMBER = <<number_of_fields>>
+    <<field_initialisation_str>>
+END_FIELDS
+
+

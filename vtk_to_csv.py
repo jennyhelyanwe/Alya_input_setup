@@ -15,8 +15,8 @@ class VTKtoCSV:
         self.input_dir = input_dir
         self.output_dir = output_dir
         self.geometry = Geometry(self.output_name)
-        self.node_fields = NodeFields(self.output_name)
-        self.element_fields = ElementFields(self.output_name)
+        self.node_fields = Fields(self.output_name, field_type='nodefield')
+        self.element_fields = Fields(self.output_name, field_type='elementfield')
         self.read_vtk()
         self.write_to_csv()
 

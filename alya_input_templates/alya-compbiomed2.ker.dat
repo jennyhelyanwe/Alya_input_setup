@@ -1,0 +1,25 @@
+$-------------------------------------------------------------
+PHYSICAL_PROBLEM
+    PROPERTIES
+    END_PROPERTIES
+    <<coupling_str>>
+
+    BIO_FIBER_MODEL
+        LOCATION: NODAL
+        FIBER_FIELD: <<fibre_field_number>>
+        SHEET_FIELD: <<sheet_field_number>>
+        NORMA_FIELD: <<normal_field_number>>
+    ENDBIO_FIBER_MODEL
+    CELL_TYPE FIELD = <<celltype_field_number>>
+END_PHYSICAL_PROBLEM
+$-------------------------------------------------------------
+NUMERICAL_TREATMENT
+    MESH
+        $ DIVISION=0
+    END_MESH
+END_NUMERICAL_TREATMENT
+$-------------------------------------------------------------
+OUTPUT_&_POST_PROCESS
+    ON_LAST_MESH
+END_OUTPUT_&_POST_PROCESS
+$-------------------------------------------------------------
