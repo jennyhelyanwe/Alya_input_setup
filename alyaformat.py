@@ -1,7 +1,7 @@
 from myformat import *
 import json
 from shutil import copy
-
+from evaluationfunctions import *
 
 class AlyaFormat:
     def __init__(self, name, geometry_and_fields_input_dir, simulation_json_file):
@@ -20,6 +20,8 @@ class AlyaFormat:
         self.materials = None
         self.import_geometry_and_fields()
         self.section_divider = '$------------------------------------------------------\n'
+
+    def write_alya_simulation_files(self):
         self.write_dat()
         self.write_dom_dat()
         # if 'EXMEDI' in self.simulation_dict.physics:
@@ -46,6 +48,18 @@ class AlyaFormat:
     def generate_fields(self):
         # Generate required fields for Alya simulations.
         print('Make use of field_evaluation_functions to generate Alya fields...')
+        self.node_fields.add_field(data=evaluate_celltype(number_of_nodes=self.geometry.number_of_nodes,
+                                                          uvc_transmural=self.node_fields['uvc_transmural'],
+                                                          endo_mid_divide=0.7, mid_epi_divide=0.7),
+                                   data_name='celltype', field_type='nodefield')
+        self.node_fields.add_field(data=evaluate_ab_Gks_scaling(number_of_nodes=self.geometry.number_of_nodes,
+                                                                uvc_longitudinal=self.node_fields['uvc_longitudinal'],
+                                                                max_sf=5, min_sf=0.2),
+                                   data_name='ab_Gks_scaling', field_type='nodefield')
+        self.node_fields.add_field(data=evaluate_ab_Gks_scaling(number_of_nodes=self.geometry.number_of_nodes,
+                                                                uvc_longitudinal=self.node_fields['uvc_longitudinal'],
+                                                                max_sf=5, min_sf=0.2),
+                                   data_name='ab_Gks_scaling', field_type='nodefield')
 
     def write_dat(self):
         filename = self.output_dir+self.name+'.dat'
@@ -156,7 +170,6 @@ class AlyaFormat:
     def write_exm_dat(self):
         if self.version == 'alya-compbiomed2':
             print('adfaf')
-
 
 
     def write_sld_dat(self):

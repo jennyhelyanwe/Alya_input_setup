@@ -4,7 +4,7 @@ from myformat import *
 from vtk.util import numpy_support as VN
 
 
-class VTKtoCSV:
+class VTKtoCSVEnsight:
     def __init__(self, vtk_name, output_name, input_dir, output_dir):
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
@@ -19,6 +19,7 @@ class VTKtoCSV:
         self.element_fields = Fields(self.output_name, field_type='elementfield')
         self.read_vtk()
         self.write_to_csv()
+        self.write_to_ensight()
 
     def read_vtk(self):
         print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '.vtk')
@@ -107,3 +108,9 @@ class VTKtoCSV:
         self.geometry.save_to_csv(self.output_dir)
         self.node_fields.save_to_csv(self.output_dir)
         self.element_fields.save_to_csv(self.output_dir)
+
+    def write_to_ensight(self):
+        print('Writing Ensight files to ' + self.output_dir)
+        self.geometry.save_to_ensight(self.output_dir)
+        self.node_fields.save_to_ensight(self.output_dir, casename=self.output_name+'_nodefields')
+        self.element_fields.save_to_ensight(self.output_dir, casename=self.output_name+'_elementfields')
