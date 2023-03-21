@@ -36,3 +36,9 @@ def evaluate_materials(number_of_elements, lvrv_element_field):
         else:
             materials[elem_i] = 1
     return np.array(materials)
+
+
+# def evaluate_hybrid_rodero_fibres(number_of_nodes, number_of_elements, uvc_transmural, uvc_longitudinal, fibres):
+#
+
+

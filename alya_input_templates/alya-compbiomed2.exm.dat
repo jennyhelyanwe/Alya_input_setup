@@ -21,7 +21,7 @@ $------------------------------------------------------------
         <<exmedi_properties_str>>
         END_PARAMETERS
     END_PROPERTIES
-    APEX_TO_BASE:  FIELD= <<apex_to_base_field_number>>
+    <<exmedi_scaling_factor_str>>
 END_PHYSICAL_PROBLEM
 $------------------------------------------------------------
 NUMERICAL_TREATMENT

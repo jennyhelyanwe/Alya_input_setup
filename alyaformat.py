@@ -19,6 +19,7 @@ class AlyaFormat:
         self.element_fields = None
         self.materials = None
         self.import_geometry_and_fields()
+        self.generate_fields()
         self.section_divider = '$------------------------------------------------------\n'
 
     def write_alya_simulation_files(self):
@@ -50,12 +51,8 @@ class AlyaFormat:
         print('Make use of field_evaluation_functions to generate Alya fields...')
         self.node_fields.add_field(data=evaluate_celltype(number_of_nodes=self.geometry.number_of_nodes,
                                                           uvc_transmural=self.node_fields['uvc_transmural'],
-                                                          endo_mid_divide=0.7, mid_epi_divide=0.7),
+                                                          endo_mid_divide=0.3, mid_epi_divide=0.7),
                                    data_name='celltype', field_type='nodefield')
-        self.node_fields.add_field(data=evaluate_ab_Gks_scaling(number_of_nodes=self.geometry.number_of_nodes,
-                                                                uvc_longitudinal=self.node_fields['uvc_longitudinal'],
-                                                                max_sf=5, min_sf=0.2),
-                                   data_name='ab_Gks_scaling', field_type='nodefield')
         self.node_fields.add_field(data=evaluate_ab_Gks_scaling(number_of_nodes=self.geometry.number_of_nodes,
                                                                 uvc_longitudinal=self.node_fields['uvc_longitudinal'],
                                                                 max_sf=5, min_sf=0.2),
@@ -169,7 +166,43 @@ class AlyaFormat:
 
     def write_exm_dat(self):
         if self.version == 'alya-compbiomed2':
-            print('adfaf')
+            with open(self.template_dir + self.version + '.exm.dat', 'r') as f:
+                data = f.readlines()
+            data = ''.join(data)
+            list_vars = list(self.node_fields.dict.keys())
+            data = data.replace('<<stimulus_field_number>>', str(np.where(list_vars == 'stimuli')[0]))
+            data = data.replace('<<monodomain_delay>>', str(self.simulation_dict['prestress_time']))
+            num_electrodes = np.array(self.simulation_dict['electrode_coordinates']).shape[0]
+            data = data.replace('<<number_of_ecg_electrodes>>', str(num_electrodes))
+            ecg_electrode_coordinates_str = ''
+            for i in range(num_electrodes):
+                ecg_electrode_coordinates_str = ecg_electrode_coordinates_str + \
+                                                str(self.simulation_dict['electrode_coordinates'][i][0]) + ' ' + \
+                                                str(self.simulation_dict['electrode_coordinates'][i][1]) + ' ' + \
+                                                str(self.simulation_dict['electrode_coordinates'][i][2]) + '\n'
+            data = data.replace('<ecg_electrodes_coordinates>>', ecg_electrode_coordinates_str)
+            with open(self.template_dir + self.version + '.subtemplate.exmedi_property_template', 'r') as f:
+                subdata = f.readlines()
+            exmedi_properties_str = ''
+            for material_i in range(np.amax(self.materials)):
+                str_i = subdata.replace('<<material_idx>>', str(material_i+1))
+                str_i = str_i.replace('<<diffusivities>>',
+                                      str(self.simulation_dict['sigma'][material_i][0])+','
+                                      +str(self.simulation_dict['sigma'][material_i][1])+','
+                                      +str(self.simulation_dict['sigma'][material_i][2]))
+                str_i = str_i.replace('<<cell_model>>', self.simulation_dict['cell_model'][material_i])
+                str_i = str_i.replace('<<cell_initialisation_txt_file_name>>', self.simulation_dict['cell_filename'][material_i])
+                exmedi_properties_str = exmedi_properties_str.append(str_i)
+            data = data.replace('<<exmedi_properties_str>>', exmedi_properties_str)
+            with open(self.template_dir + self.version + '.subtemplate.exmedi_property_template', 'r') as f:
+                subdata = f.readlines()
+            # TODO Count as many nodal fields as have the name 'sf_' in it, and write those out.
+            # for scaling_i in range(np.amax(self.node_fields['ionic_scalings'].shape[0])):
+            #     str_i = subdata.replace('<<scaling_name>>', self.node_fields['ionic_scaling_names'][scaling_i])
+            #     str_i = str_i.replace('<<scaling_name_field_number>>', )
+            with open(self.output_dir + self.name + '.exm.dat', 'w') as f:
+                f.write(data)
+
 
 
     def write_sld_dat(self):
@@ -187,4 +220,5 @@ class AlyaFormat:
 
     def write_job_scripts(self):
         pass
+
 

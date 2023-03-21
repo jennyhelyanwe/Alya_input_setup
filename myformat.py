@@ -14,27 +14,36 @@ def loadtxt(filename):
         return None
 
 def save_ensight_node(dir, name, field_name, var):
-    print(var)
-    print(var.shape)
-    if var.shape[1] == 1:
+    if len(var.shape) == 1:
         with open(dir + name + '.ensi.'+field_name, 'w') as f:
             f.write('Alya Ensight Gold --- Scalar per-node variables file\npart\n         1\ncoordinates\n')
             for node_i in range(0, var.shape[0]):
                 f.write(str(var[node_i]) + '\n')
     else:
-        with open(dir + name + '.ensi.' + field_name, 'w') as f:
-            f.write('Alya Ensight Gold --- Vector per-node variables file\npart\n         1\ncoordinates\n')
-            for c in range(var.shape[1]):
-                for i in range(var.shape[0]):
-                    f.write(str(var[i, c]) + '\n')
+        if var.shape[1] == 1:
+            with open(dir + name + '.ensi.' + field_name, 'w') as f:
+                f.write('Alya Ensight Gold --- Scalar per-node variables file\npart\n         1\ncoordinates\n')
+                for node_i in range(0, var.shape[0]):
+                    f.write(str(var[node_i]) + '\n')
+        else:
+            with open(dir + name + '.ensi.' + field_name, 'w') as f:
+                f.write('Alya Ensight Gold --- Vector per-node variables file\npart\n         1\ncoordinates\n')
+                for c in range(var.shape[1]):
+                    for i in range(var.shape[0]):
+                        f.write(str(var[i, c]) + '\n')
 
 def save_ensight_element(dir, name, field_name, var):
-    if var.shape[1] == 1:
+    if len(var.shape) == 1:
         with open(dir + name + '.ensi.'+field_name, 'w') as f:
             f.write('Alya Ensight Gold --- Scalar per-cell variables file\npart\n         1\ncoordinates\n')
             for elem_i in range(0, var.shape[0]):
                 f.write(str(var[elem_i]) + '\n')
     else:
+        if var.shape[1] == 1:
+            with open(dir + name + '.ensi.' + field_name, 'w') as f:
+                f.write('Alya Ensight Gold --- Scalar per-cell variables file\npart\n         1\ncoordinates\n')
+                for node_i in range(0, var.shape[0]):
+                    f.write(str(var[node_i]) + '\n')
         with open(dir + name + '.ensi.' + field_name, 'w') as f:
             f.write('Alya Ensight Gold --- Vector per-cell variables file\npart\n         1\ncoordinates\n')
             for c in range(var.shape[1]):
@@ -42,6 +51,8 @@ def save_ensight_element(dir, name, field_name, var):
                     f.write(str(var[elem_i, c]) + '\n')
 
 def save_ensight_geometry(dir, name, nodes_xyz, tetrahedrons):
+    if np.amin(tetrahedrons) == 0:
+        tetrahedrons = tetrahedrons + 1 # Ensight takes node indices starting from 1.
     with open(dir+name+'.ensi.geo', 'w') as f:
         f.write(
             'Problem name:  '+str(name)+'\nGeometry file\nnode id given\nelement id given\npart\n\t1\nVolume Mesh\ncoordinates\n' + str(
@@ -58,10 +69,10 @@ def save_ensight_geometry(dir, name, nodes_xyz, tetrahedrons):
             f.write(str(tetrahedrons[i, 0]) + '\t' + str(tetrahedrons[i, 1]) + '\t' + str(tetrahedrons[i, 2]) + '\t' + str(
                 tetrahedrons[i, 3]) + '\n')
 
-def save_ensight_case(dir, name, field_names, field_dimensions, field_type):
+def save_ensight_case(dir, name, geometry_name, field_names, field_dimensions, field_type):
     with open(dir+name+'.ensi.case', 'w') as f:
         f.write('#\n# Alya generated post-process files\n# Ensight Gold Format\n#\n# Problem name:\t'+str(name)+'\n#\n')
-        f.write('FORMAT\ntype:\tensight gold\nGEOMETRY\nmodel:\t1\t'+name+'.ensi.geo\nVARIABLE\n')
+        f.write('FORMAT\ntype:\tensight gold\nGEOMETRY\nmodel:\t1\t'+geometry_name+'.ensi.geo\nVARIABLE\n')
         for field_i in range(len(field_names)):
             field_name = field_names[field_i]
             field_dimension = field_dimensions[field_i]
@@ -71,10 +82,10 @@ def save_ensight_case(dir, name, field_names, field_dimensions, field_type):
                 ensight_field_type = 'cell'
             if field_dimension == 1:
                 f.write(
-                    'scalar per ' + ensight_field_type + ':\t' + field_dimension + '\t' + field_name + '\t' + name + '.ensi.' + field_name + '\n')
+                    'scalar per ' + ensight_field_type + ':\t' + str(field_dimension) + '\t' + field_name + '\t' + geometry_name + '.ensi.' + field_name + '\n')
             elif field_dimension > 1:
                 f.write(
-                    'vector per ' + ensight_field_type + ':\t' + field_dimension + '\t' + field_name + '\t' + name + '.ensi.' + field_name + '\n')
+                    'vector per ' + ensight_field_type + ':\t' + str(field_dimension) + '\t' + field_name + '\t' + geometry_name + '.ensi.' + field_name + '\n')
 
 
 class Geometry:
@@ -93,10 +104,10 @@ class Geometry:
     def save_to_csv(self, output_dir):
         if output_dir[-1] != '/':
             output_dir = output_dir+'/'
-        savetxt(filename=output_dir + self.name + '_nodes_xyz.csv', var=self.nodes_xyz)
-        savetxt(filename=output_dir + self.name + '_tetrahedrons.csv', var=self.tetrahedrons)
+        savetxt(filename=output_dir + self.name + '_xyz.csv', var=self.nodes_xyz)
+        savetxt(filename=output_dir + self.name + '_tri.csv', var=self.tetrahedrons)
         savetxt(filename=output_dir + self.name + '_triangles.csv', var=self.triangles)
-        savetxt(filename=output_dir + self.name + '_tetrahedron_centres.csv', var=self.tetrahedron_centres)
+        savetxt(filename=output_dir + self.name + '_tetrahedron_centers.csv', var=self.tetrahedron_centres)
         savetxt(filename=output_dir + self.name + '_edges.csv', var=self.edges)
 
 
@@ -130,27 +141,37 @@ class Fields:
         if output_dir[-1] != '/':
             output_dir = output_dir+'/'
         list_fields = list(self.dict.keys())
-        for field_i in range(self.number_of_fields):
+        self.number_of_fields = len(list_fields)
+        for field_i in range(len(list_fields)):
             varname = list_fields[field_i]
             savetxt(filename=output_dir + self.name + '_'+self.field_type+'_' + varname + '.csv', var=self.dict[varname])
 
 
-    def save_to_ensight(self, output_dir, casename):
+    def save_to_ensight(self, output_dir, casename, geometry):
         if output_dir[-1] != '/':
             output_dir = output_dir+'/'
         list_fields = list(self.dict.keys())
         field_dimensions = []
+        list_fields_output = []
         for field_i in range(self.number_of_fields):
             varname = list_fields[field_i]
-            if self.field_type == 'nodefield':
+            if (self.field_type == 'nodefield') & (self.dict[varname].shape[0] == geometry.number_of_nodes): # Don't write out fields that aren't meant for this geometry.
                 save_ensight_node(dir=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
-                field_dimensions.append(self.dict[varname].shape[1])
-            elif self.field_type == 'elementfield':
+                if len(self.dict[varname].shape) == 1:
+                    field_dimensions.append(1)
+                else:
+                    field_dimensions.append(self.dict[varname].shape[1])
+                list_fields_output.append(varname)
+            elif (self.field_type == 'elementfield') & (self.dict[varname].shape[0] == geometry.number_of_elements):  # Don't write out fields that aren't meant for this geometry.
                 save_ensight_element(dir=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
-                field_dimensions.append(self.dict[varname].shape[1])
-            else:
-                raise ValueError('save_to_ensight: Field type '+self.field_type+' not found.')
-        save_ensight_case(dir=output_dir, name=casename, field_names=list_fields, field_dimensions=field_dimensions, field_type = self.field_type)
+                if len(self.dict[varname].shape) == 1:
+                    field_dimensions.append(1)
+                else:
+                    field_dimensions.append(self.dict[varname].shape[1])
+                list_fields_output.append(varname)
+            # else:
+            #     raise ValueError('save_to_ensight: Field type '+self.field_type+' not found.')
+        save_ensight_case(dir=output_dir, name=casename, geometry_name=geometry.name, field_names=list_fields_output, field_dimensions=field_dimensions, field_type = self.field_type)
 
     def read_csv_to_attributes(self, input_dir):
         if input_dir[-1] != '/':
