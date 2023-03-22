@@ -74,6 +74,40 @@ class VTKtoCSVEnsight:
         # self.node_fields.tm = list(VN.vtk_to_numpy(data.GetPointData().GetArray('RHO.dat')))
         # self.node_fields.ab = list(VN.vtk_to_numpy(data.GetPointData().GetArray('Z.dat')))
         # self.node_fields.rt = list(VN.vtk_to_numpy(data.GetPointData().GetArray('PHI.dat')))
+        def _normalise_vector(self, vector):
+            m = np.linalg.norm(vector)
+            if m > 0:
+                return vector / m
+            else:
+                return vector
+        print('Reading ventricular coordinate vectors from: '+ self.input_dir + 'transmural_vectors.vtk')
+        reader.SetFileName(self.input_dir + 'transmural_vectors.vtk')
+        reader.ReadAllVectorsOn()
+        reader.ReadAllScalarsOn()
+        reader.Update()
+        data = reader.GetOutput()
+        transmural_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
+        transmural_vector = transmural_vector/np.linalg.norm(transmural_vector, axis=1)[:, np.newaxis]
+        print(np.amax(np.linalg.norm(transmural_vector, axis=1)))
+        print(np.amin(np.linalg.norm(transmural_vector, axis=1)))
+        quit() # TODO need to normalise vector
+        self.node_fields.add_field(transmural_vector, 'transmural_vector', 'nodefield')
+
+        reader.SetFileName(self.input_dir + 'longitudinal_vectors.vtk')
+        reader.ReadAllVectorsOn()
+        reader.ReadAllScalarsOn()
+        reader.Update()
+        data = reader.GetOutput()
+        longitudinal_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
+        self.node_fields.add_field(longitudinal_vector, 'longitudinal_vector', 'nodefield')
+
+        reader.SetFileName(self.input_dir + 'circumferential_vectors.vtk')
+        reader.ReadAllVectorsOn()
+        reader.ReadAllScalarsOn()
+        reader.Update()
+        data = reader.GetOutput()
+        circumferential_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
+        self.node_fields.add_field(circumferential_vector, 'circumferential_vector', 'nodefield')
 
         print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_surface_connectivity.vtk')
         reader = vtk.vtkPolyDataReader()
