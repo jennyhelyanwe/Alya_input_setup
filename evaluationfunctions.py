@@ -4,17 +4,17 @@ import numpy as np
 
 def evaluate_mesh_characteristics(geometry):
     tetrahedrons = geometry.tetrahedrons
-    print(tetrahedrons)
     number_of_nodes = geometry.number_of_nodes
-    edges = []
-    for i in range(0, geometry.number_of_elements):
-        edges.append([tetrahedrons[i, 0], tetrahedrons[i, 1]])
-        edges.append([tetrahedrons[i, 1], tetrahedrons[i, 2]])
-        edges.append([tetrahedrons[i, 2], tetrahedrons[i, 3]])
-        edges.append([tetrahedrons[i, 3], tetrahedrons[i, 0]])
-        edges.append([tetrahedrons[i, 1], tetrahedrons[i, 3]])
-        edges.append([tetrahedrons[i, 0], tetrahedrons[i, 2]])
-    edges = np.unique(np.sort(edges, axis=1), axis=0)
+    # edges = []
+    # for i in range(0, geometry.number_of_elements):
+    #     edges.append([tetrahedrons[i, 0], tetrahedrons[i, 1]])
+    #     edges.append([tetrahedrons[i, 1], tetrahedrons[i, 2]])
+    #     edges.append([tetrahedrons[i, 2], tetrahedrons[i, 3]])
+    #     edges.append([tetrahedrons[i, 3], tetrahedrons[i, 0]])
+    #     edges.append([tetrahedrons[i, 1], tetrahedrons[i, 3]])
+    #     edges.append([tetrahedrons[i, 0], tetrahedrons[i, 2]])
+    # edges = np.unique(np.sort(edges, axis=1), axis=0)
+    edges = geometry.edges
     unfolded_edges = np.concatenate((edges, np.flip(edges, axis=1))).astype(int)
     aux = [[] for i in range(0, number_of_nodes, 1)]
     for i in range(0, len(unfolded_edges)):
@@ -69,8 +69,10 @@ def normalise_vector(vector):
     else:
         return vector
 def evaluate_hybrid_rodero_fibres(geometry, node_fields, element_fields, neighbours):
-    transmural_vector = node_fields['transmural_vector']
-    fibres_nodes = node_fields['fibres']
+    print(node_fields.dict)
+    print(node_fields.dict.keys())
+    transmural_vector = node_fields.dict['transmural_vector']
+    fibres_nodes = node_fields.dict['fibres']
     number_of_nodes = geometry.number_of_nodes
     ortho = np.zeros([number_of_nodes, 9])
     for i in range(0, number_of_nodes):
@@ -96,7 +98,7 @@ def evaluate_hybrid_rodero_fibres(geometry, node_fields, element_fields, neighbo
 def plug_fibres(geometry, element_fields, neighbours, ortho ):
     print('Evaluating valvular plug fibre, sheet, and normal vectors...')
     # Identify all plug elements
-    lvrvbase_elems = element_fields['tv_element']
+    lvrvbase_elems = element_fields.dict['tv_element']
     elems = geometry.elems
     nodes = geometry.nodes_xyz
     nnodes = geometry.number_of_nodes

@@ -48,20 +48,19 @@ class VTKtoCSVEnsight:
         self.geometry.nodes_xyz = nodes_xyz
         self.geometry.edges = []
         for element_i in range(self.geometry.number_of_elements):
-            self.geometry.edges.append([self.geometry.tetrahedrons[element_i,0], self.geometry.tetrahedrons[element_i,1]])
-            self.geometry.edges.append(
-                [self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 2]])
-            self.geometry.edges.append(
-                [self.geometry.tetrahedrons[element_i, 2], self.geometry.tetrahedrons[element_i, 3]])
-            self.geometry.edges.append(
-                [self.geometry.tetrahedrons[element_i, 3], self.geometry.tetrahedrons[element_i, 0]])
-        self.geometry.edges = np.unique(np.sort(self.geometry.edges,axis=1),axis=0)
-        self.geometry.tetrahedron_centres = (nodes_xyz[self.geometry.tetrahedrons[:,0],:] +
-                                             nodes_xyz[self.geometry.tetrahedrons[:,1],:] +
-                                             nodes_xyz[self.geometry.tetrahedrons[:,2],:] +
-                                             nodes_xyz[self.geometry.tetrahedrons[:,3],:])/4.
+            self.geometry.edges.append([self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 1]])
+            self.geometry.edges.append([self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 2]])
+            self.geometry.edges.append([self.geometry.tetrahedrons[element_i, 2], self.geometry.tetrahedrons[element_i, 3]])
+            self.geometry.edges.append([self.geometry.tetrahedrons[element_i, 3], self.geometry.tetrahedrons[element_i, 0]])
+            self.geometry.edges.append([self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 3]])
+            self.geometry.edges.append([self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 2]])
+        self.geometry.edges = np.unique(np.sort(self.geometry.edges, axis=1), axis=0)
+        self.geometry.tetrahedron_centres = (nodes_xyz[self.geometry.tetrahedrons[:, 0], :] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:, 1], :] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:, 2], :] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:, 3], :])/4.
         # self.element_fields.lvrv = VN.vtk_to_numpy(data.GetCellData().GetArray('ID'))
-        self.element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('ID')), 'tv_element', 'elementfield')
+        self.element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('ID')), 'tv-element', 'elementfield')
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('fibres')), 'fibres', 'nodefield')
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('sheets')), 'sheets', 'nodefield')
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('V.dat')), 'tv', 'nodefield')
@@ -91,7 +90,7 @@ class VTKtoCSVEnsight:
         transmural_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
         for node_i in range(transmural_vector.shape[0]):
             transmural_vector[node_i, :] = _normalise_vector(transmural_vector[node_i,:])
-        self.node_fields.add_field(transmural_vector, 'transmural_vector', 'nodefield')
+        self.node_fields.add_field(transmural_vector, 'transmural-vector', 'nodefield')
 
         reader.SetFileName(self.input_dir + 'longitudinal_vectors.vtk')
         reader.ReadAllVectorsOn()
@@ -101,7 +100,7 @@ class VTKtoCSVEnsight:
         longitudinal_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
         for node_i in range(longitudinal_vector.shape[0]):
             longitudinal_vector[node_i, :] = _normalise_vector(longitudinal_vector[node_i,:])
-        self.node_fields.add_field(longitudinal_vector, 'longitudinal_vector', 'nodefield')
+        self.node_fields.add_field(longitudinal_vector, 'longitudinal-vector', 'nodefield')
 
         reader.SetFileName(self.input_dir + 'circumferential_vectors.vtk')
         reader.ReadAllVectorsOn()
@@ -111,7 +110,7 @@ class VTKtoCSVEnsight:
         circumferential_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
         for node_i in range(circumferential_vector.shape[0]):
             circumferential_vector[node_i, :] = _normalise_vector(circumferential_vector[node_i,:])
-        self.node_fields.add_field(circumferential_vector, 'circumferential_vector', 'nodefield')
+        self.node_fields.add_field(circumferential_vector, 'circumferential-vector', 'nodefield')
 
         print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_surface_connectivity.vtk')
         reader = vtk.vtkPolyDataReader()
@@ -121,9 +120,9 @@ class VTKtoCSVEnsight:
         reader.Update()
         data = reader.GetOutput()
         # elem_ids = VN.vtk_to_numpy(data.GetCellData().GetArray('Ids'))
-        self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('Ids')).astype(int), 'surface_node_ids', 'nodefield')
-        self.element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('RegionId')).astype(int), 'boundary_labels', 'elementfield')
-        self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('RegionId')).astype(int), 'boundary_labels', 'nodefield')
+        self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('Ids')).astype(int), 'surface-node-ids', 'nodefield')
+        self.element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('RegionId')).astype(int), 'boundary-labels', 'elementfield')
+        self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('RegionId')).astype(int), 'boundary-labels', 'nodefield')
 
         for i in range(0, len(self.element_fields.dict['boundary_labels'])):
             if self.element_fields.dict['boundary_labels'][i] == 0:

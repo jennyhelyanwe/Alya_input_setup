@@ -39,12 +39,10 @@ class AlyaFormat:
         print('Read in geometry and fields from CSV files.')
         self.geometry = Geometry(self.name)
         self.geometry.read_csv_to_attributes(self.geometry_and_fields_input_dir)
-        print(self.geometry.tetrahedrons)
-        quit()
         self.node_fields = Fields(self.name, field_type='nodefield')
-        self.node_fields.read_csv_to_attributes(self.geometry_and_fields_input_dir)
+        self.node_fields.read_csv_to_attributes(self.geometry_and_fields_input_dir, field_type='nodefield')
         self.element_fields = Fields(self.name, field_type='elementfield')
-        self.element_fields.read_csv_to_attributes(self.geometry_and_fields_input_dir)
+        self.element_fields.read_csv_to_attributes(self.geometry_and_fields_input_dir, field_type='elementfield')
         self.materials = Materials(self.name)
         self.materials.read_csv_to_attributes(self.geometry_and_fields_input_dir)
 
@@ -53,11 +51,11 @@ class AlyaFormat:
         print('Make use of field_evaluation_functions to generate Alya fields...')
         neighbours, edges, unfolded_edges = evaluate_mesh_characteristics(self.geometry)
         self.node_fields.add_field(data=evaluate_celltype(number_of_nodes=self.geometry.number_of_nodes,
-                                                          uvc_transmural=self.node_fields['uvc_transmural'],
+                                                          uvc_transmural=self.node_fields.dict['tm'],
                                                           endo_mid_divide=0.3, mid_epi_divide=0.7),
                                    data_name='celltype', field_type='nodefield')
         self.node_fields.add_field(data=evaluate_ab_Gks_scaling(number_of_nodes=self.geometry.number_of_nodes,
-                                                                uvc_longitudinal=self.node_fields['uvc_longitudinal'],
+                                                                uvc_longitudinal=self.node_fields.dict['ab'],
                                                                 max_sf=5, min_sf=0.2),
                                    data_name='ab_Gks_scaling', field_type='nodefield')
         self.node_fields.add_field(data=evaluate_hybrid_rodero_fibres(geometry=self.geometry,

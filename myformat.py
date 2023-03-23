@@ -119,9 +119,14 @@ class Geometry:
     def read_csv_to_attributes(self, input_dir):
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
-        self.nodes_xyz = loadtxt(filename=input_dir+self.name+'_nodes_xyz.csv')
-        self.tetrahedrons = loadtxt(filename=input_dir + self.name + '_tetrahedrons.csv')
+        self.nodes_xyz = loadtxt(filename=input_dir+self.name+'_xyz.csv')
+        self.tetrahedrons = loadtxt(filename=input_dir + self.name + '_tri.csv').astype(int)
+        if np.amin(self.tetrahedrons == 1):
+            self.tetrahedrons = self.tetrahedrons - 1
+        self.number_of_elements = self.tetrahedrons.shape[0]
+        self.number_of_nodes = self.nodes_xyz.shape[0]
         self.triangles = loadtxt(filename=input_dir + self.name + '_triangles.csv')
+        self.number_of_triangles = self.triangles.shape[0]
         self.tetrahedron_centres = loadtxt(filename=input_dir + self.name + '_tetrahedron_centres.csv')
         self.edges = loadtxt(filename=input_dir + self.name + '_edges.csv')
 
@@ -130,7 +135,7 @@ class Fields:
     def __init__(self, name, field_type='nodefield'):
         self.name = name
         self.field_type = field_type
-        self.dict = {'celltype': np.zeros((10))} # Placeholder.
+        self.dict = {} # Placeholder.
         self.number_of_fields = len(self.dict)
 
     def add_field(self, data, data_name, field_type):
@@ -173,13 +178,14 @@ class Fields:
             #     raise ValueError('save_to_ensight: Field type '+self.field_type+' not found.')
         save_ensight_case(dir=output_dir, name=casename, geometry_name=geometry.name, field_names=list_fields_output, field_dimensions=field_dimensions, field_type = self.field_type)
 
-    def read_csv_to_attributes(self, input_dir):
+    def read_csv_to_attributes(self, input_dir, field_type):
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
-        filenames = np.array([f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f)) and 'nodefield' in f])
+        filenames = np.array([f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f)) and '_'+field_type+'_' in f])
         for file_i in range(filenames.shape[0]):
+            print('Reading in '+input_dir+filenames[file_i])
             varname = filenames[file_i].split('_')[-1].split('.')[0]
-            self.dict[varname] = loadtxt(filename=filenames[file_i])
+            self.dict[varname] = loadtxt(filename=input_dir+ filenames[file_i])
         self.number_of_fields = len(self.dict)
 
 
