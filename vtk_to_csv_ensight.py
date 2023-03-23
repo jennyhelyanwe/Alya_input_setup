@@ -10,6 +10,8 @@ class VTKtoCSVEnsight:
             input_dir = input_dir + '/'
         if output_dir[-1] != '/':
             output_dir = output_dir + '/'
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
         self.vtk_name = vtk_name
         self.output_name = output_name
         self.input_dir = input_dir
@@ -74,7 +76,7 @@ class VTKtoCSVEnsight:
         # self.node_fields.tm = list(VN.vtk_to_numpy(data.GetPointData().GetArray('RHO.dat')))
         # self.node_fields.ab = list(VN.vtk_to_numpy(data.GetPointData().GetArray('Z.dat')))
         # self.node_fields.rt = list(VN.vtk_to_numpy(data.GetPointData().GetArray('PHI.dat')))
-        def _normalise_vector(self, vector):
+        def _normalise_vector(vector):
             m = np.linalg.norm(vector)
             if m > 0:
                 return vector / m
@@ -87,10 +89,8 @@ class VTKtoCSVEnsight:
         reader.Update()
         data = reader.GetOutput()
         transmural_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
-        transmural_vector = transmural_vector/np.linalg.norm(transmural_vector, axis=1)[:, np.newaxis]
-        print(np.amax(np.linalg.norm(transmural_vector, axis=1)))
-        print(np.amin(np.linalg.norm(transmural_vector, axis=1)))
-        quit() # TODO need to normalise vector
+        for node_i in range(transmural_vector.shape[0]):
+            transmural_vector[node_i, :] = _normalise_vector(transmural_vector[node_i,:])
         self.node_fields.add_field(transmural_vector, 'transmural_vector', 'nodefield')
 
         reader.SetFileName(self.input_dir + 'longitudinal_vectors.vtk')
@@ -99,6 +99,8 @@ class VTKtoCSVEnsight:
         reader.Update()
         data = reader.GetOutput()
         longitudinal_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
+        for node_i in range(longitudinal_vector.shape[0]):
+            longitudinal_vector[node_i, :] = _normalise_vector(longitudinal_vector[node_i,:])
         self.node_fields.add_field(longitudinal_vector, 'longitudinal_vector', 'nodefield')
 
         reader.SetFileName(self.input_dir + 'circumferential_vectors.vtk')
@@ -107,6 +109,8 @@ class VTKtoCSVEnsight:
         reader.Update()
         data = reader.GetOutput()
         circumferential_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
+        for node_i in range(circumferential_vector.shape[0]):
+            circumferential_vector[node_i, :] = _normalise_vector(circumferential_vector[node_i,:])
         self.node_fields.add_field(circumferential_vector, 'circumferential_vector', 'nodefield')
 
         print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_surface_connectivity.vtk')

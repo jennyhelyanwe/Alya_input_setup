@@ -39,6 +39,8 @@ class AlyaFormat:
         print('Read in geometry and fields from CSV files.')
         self.geometry = Geometry(self.name)
         self.geometry.read_csv_to_attributes(self.geometry_and_fields_input_dir)
+        print(self.geometry.tetrahedrons)
+        quit()
         self.node_fields = Fields(self.name, field_type='nodefield')
         self.node_fields.read_csv_to_attributes(self.geometry_and_fields_input_dir)
         self.element_fields = Fields(self.name, field_type='elementfield')
@@ -49,6 +51,7 @@ class AlyaFormat:
     def generate_fields(self):
         # Generate required fields for Alya simulations.
         print('Make use of field_evaluation_functions to generate Alya fields...')
+        neighbours, edges, unfolded_edges = evaluate_mesh_characteristics(self.geometry)
         self.node_fields.add_field(data=evaluate_celltype(number_of_nodes=self.geometry.number_of_nodes,
                                                           uvc_transmural=self.node_fields['uvc_transmural'],
                                                           endo_mid_divide=0.3, mid_epi_divide=0.7),
@@ -57,6 +60,11 @@ class AlyaFormat:
                                                                 uvc_longitudinal=self.node_fields['uvc_longitudinal'],
                                                                 max_sf=5, min_sf=0.2),
                                    data_name='ab_Gks_scaling', field_type='nodefield')
+        self.node_fields.add_field(data=evaluate_hybrid_rodero_fibres(geometry=self.geometry,
+                                                                      node_fields=self.node_fields,
+                                                                      element_fields=self.element_fields,
+                                                                      neighbours=neighbours),
+                                   data_name='fibres', field_type='nodefield')
 
     def write_dat(self):
         filename = self.output_dir+self.name+'.dat'
