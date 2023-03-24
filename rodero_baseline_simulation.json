@@ -17,6 +17,8 @@
   "x_translation": 0.0,
   "y_translation": 0.0,
   "z_translation": 0.0,
+  "field_names": ["cell-type", "endocardial-activation-times", "sf_GKr", "fibre", "sheet", "normal"],
+  "field_types" : ["nodefield", "nodefield", "nodefield", "nodefield","nodefield","nodefield"],
   "sigma": [[0.003, 0.001, 0.001], [0.00001, 0.00001, 0.00001]],
   "prestress_time": 0.02,
   "electrode_coordinates_filename": [[24.028,2.7079,18.981],
@@ -31,4 +33,5 @@
                                       [21.344,8.9434,4.4915]],
   "cell_model": ["TORORD IKCAON CONTROL", "TORORD IKCAON CONTROL"],
   "cell_filename": ["cell.txt", "cell2.txt"]
+
 }

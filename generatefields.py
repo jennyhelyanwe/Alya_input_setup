@@ -1,19 +1,37 @@
-import os, sys
-import numpy as np
+from myformat import *
+from meshstructure import MeshStructure
+class FieldGeneration(MeshStructure):
+    def __init__(self, name, geometric_data_dir, boundary_data_dir, field_data_dir, personalisation_data_dir, verbose):
+        super().__init__(name=name, geometric_data_dir=geometric_data_dir, boundary_data_dir=boundary_data_dir, field_data_dir=field_data_dir, verbose=verbose)
+        self.personalisation_data_dir = personalisation_data_dir
+        # Generate required fields for Alya simulations.
+        print('Make use of evaluationfunctions.py to generate Alya fields...')
+        neighbours, edges, unfolded_edges = evaluate_mesh_characteristics(self.geometry)
+        self.node_fields.add_field(data=evaluate_celltype(number_of_nodes=self.geometry.number_of_nodes,
+                                                          uvc_transmural=self.node_fields.dict['tm'],
+                                                          endo_mid_divide=0.3, mid_epi_divide=0.7),
+                                   data_name='cell-type', field_type='nodefield')
+        self.node_fields.save_to_csv(self.field_data_dir)
+        self.node_fields.save_to_ensight(self.field_data_dir, casename=self.name + '_nodefield',
+                                         geometry=self.geometry)
 
+        activation_time = np.loadtxt(self.personalisation_data_dir + self.name + '_inferred_lat.csv')
+        self.node_fields.add_field(data=activation_time, data_name='activation-time', field_type='nodefield')
+        # Read in ionic scaling factors
+        filenames = np.array([f for f in os.listdir(self.personalisation_data_dir) if
+                              os.path.isfile(os.path.join(self.personalisation_data_dir, f)) and '.sf_' in f and 'ensi' not in f])
+        for file_i in range(filenames.shape[0]):
+            print('Reading in ' + self.personalisation_data_dir + filenames[file_i])
+            varname = filenames[file_i].split('_')[-1].split('.')[0]
+            self.node_fields.add_field(data=loadtxt(filename=self.personalisation_data_dir + filenames[file_i]),
+                                       data_name=varname, field_type='nodefield')
+        self.node_fields.add_field(data=evaluate_endocardial_activation_map(activation_times=activation_time,
+                                                                            boundary_node_fields=self.boundary_node_fields),
+                                   data_name='endocardial-activation-times', field_type='nodefield')
+        self.save()
 
 def evaluate_mesh_characteristics(geometry):
-    tetrahedrons = geometry.tetrahedrons
     number_of_nodes = geometry.number_of_nodes
-    # edges = []
-    # for i in range(0, geometry.number_of_elements):
-    #     edges.append([tetrahedrons[i, 0], tetrahedrons[i, 1]])
-    #     edges.append([tetrahedrons[i, 1], tetrahedrons[i, 2]])
-    #     edges.append([tetrahedrons[i, 2], tetrahedrons[i, 3]])
-    #     edges.append([tetrahedrons[i, 3], tetrahedrons[i, 0]])
-    #     edges.append([tetrahedrons[i, 1], tetrahedrons[i, 3]])
-    #     edges.append([tetrahedrons[i, 0], tetrahedrons[i, 2]])
-    # edges = np.unique(np.sort(edges, axis=1), axis=0)
     edges = geometry.edges
     unfolded_edges = np.concatenate((edges, np.flip(edges, axis=1))).astype(int)
     aux = [[] for i in range(0, number_of_nodes, 1)]
@@ -22,32 +40,32 @@ def evaluate_mesh_characteristics(geometry):
     neighbours = [np.array(n) for n in aux]  # Node numbers starting 0
     return neighbours, edges, unfolded_edges
 
-
-
 def evaluate_dijkstra_endocardial_activation(number_of_nodes, number_of_faces, face_fields, root_node_locations):
     lv_endocardial_nodes = face_fields
 
+def evaluate_endocardial_activation_map(activation_times, boundary_node_fields):
+    print('Evaluating endocardial activation map')
+    lv_activation_times = activation_times[boundary_node_fields.dict['ep-lvnodes'].astype(int)]
+    rv_activation_times = activation_times[boundary_node_fields.dict['ep-rvnodes'].astype(int)]
+    boundary_node_fields.add_field(data=np.concatenate((boundary_node_fields.dict['ep-lvnodes'].astype(int), boundary_node_fields.dict['ep-rvnodes'].astype(int))), data_name='endocardial-nodes', field_type='nodefield')
+    return np.concatenate((lv_activation_times, rv_activation_times))
 
-def evaluate_endocardial_activation_map(activation_times, geometry):
-    lv_activation_times = activation_times[geometry.dict['lvnodes']]
-    rv_activation_times = activation_times[geometry.dict['rvnodes']]
-    stimulus = np.vstack((np.concatenate((geometry.dict['lvnodes'], geometry.dict['rvnodes'])), np.concatenate((lv_activation_times, rv_activation_times))))
-    print(stimulus.shape)
-    quit()
 
-def evaluate_celltype(number_of_nodes,uvc_transmural, endo_mid_divide, mid_epi_divide):
-    print('Evaluating nodal cell type...')
-    celltype = [1]*number_of_nodes
+def evaluate_celltype(number_of_nodes, uvc_transmural, endo_mid_divide, mid_epi_divide):
+    print('Evaluating nodal cell type')
+    celltype = [1] * number_of_nodes
     for node_i in range(number_of_nodes):
         if uvc_transmural[node_i] <= endo_mid_divide:
-            celltype[node_i] = 1 # Endocardial cell type in Alya.
-        if uvc_transmural[node_i] > endo_mid_divide and uvc_transmural[node_i] < mid_epi_divide: # It is possible to have no mid-myocardial cells.
-            celltype[node_i] = 2 # Midmyocardial cell type in Alya.
+            celltype[node_i] = 1  # Endocardial cell type in Alya.
+        if uvc_transmural[node_i] > endo_mid_divide and uvc_transmural[
+            node_i] < mid_epi_divide:  # It is possible to have no mid-myocardial cells.
+            celltype[node_i] = 2  # Midmyocardial cell type in Alya.
         if uvc_transmural[node_i] >= mid_epi_divide:
-            celltype[node_i] = 3 # Epicardial cell type in Alya.
+            celltype[node_i] = 3  # Epicardial cell type in Alya.
     return np.array(celltype)
 
 def evaluate_ab_Gks_scaling(number_of_nodes, uvc_longitudinal, max_sf, min_sf):
+    print('Evaluating apex to base gradient in GKs')
     gks_scaling = [0] * number_of_nodes
     for node_i in range(number_of_nodes):
         z_scale = uvc_longitudinal[node_i] * 2.0 - 1.0
@@ -56,18 +74,6 @@ def evaluate_ab_Gks_scaling(number_of_nodes, uvc_longitudinal, max_sf, min_sf):
             gks_scaling[node_i] = 0
     return np.array(gks_scaling)
 
-def evaluate_materials(number_of_elements, lvrv_element_field):
-    materials = [0] * number_of_elements
-    for elem_i in range(number_of_elements):
-        if lvrv_element_field[elem_i] == 3:
-            materials[elem_i] = 2
-        else:
-            materials[elem_i] = 1
-    return np.array(materials)
-
-
-# def evaluate_hybrid_rodero_fibres(number_of_nodes, number_of_elements, uvc_transmural, uvc_longitudinal, fibres):
-#
 
 def normalise_vector(vector):
     m = np.linalg.norm(vector)
@@ -75,6 +81,7 @@ def normalise_vector(vector):
         return vector / m
     else:
         return vector
+
 def evaluate_hybrid_rodero_fibres(geometry, node_fields, element_fields, neighbours):
     transmural_vector = node_fields.dict['transmural-vector']
     fibres_nodes = node_fields.dict['fibres']
@@ -100,7 +107,7 @@ def evaluate_hybrid_rodero_fibres(geometry, node_fields, element_fields, neighbo
     print('Number of vectors with NaNs: ', len(nan_vector_nodes))
     return ortho
 
-def plug_fibres(geometry, element_fields, neighbours, ortho ):
+def plug_fibres(geometry, element_fields, neighbours, ortho):
     print('Evaluating valvular plug fibre, sheet, and normal vectors...')
     # Identify all plug elements
     lvrvbase_elems = element_fields.dict['tv-element']
@@ -148,3 +155,4 @@ def plug_fibres(geometry, element_fields, neighbours, ortho ):
                 new_fibres[j:j + 3] = normalise_vector(new_fibres[j:j + 3])
             ortho[sorted_plug_nodes[i] - 1, :] = new_fibres
             mask[sorted_plug_nodes[i] - 1] = 1
+

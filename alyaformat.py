@@ -2,9 +2,10 @@ from myformat import *
 import json
 from shutil import copy
 from evaluationfunctions import *
-
-class AlyaFormat:
-    def __init__(self, name, geometry_and_fields_input_dir, simulation_json_file):
+from meshstructure import MeshStructure
+class AlyaFormat(MeshStructure):
+    def __init__(self, name, geometric_data_dir, boundary_data_dir, field_data_dir, personalisation_dir, simulation_json_file, verbose):
+        super().__init__(name=name, geometric_data_dir=geometric_data_dir, boundary_data_dir=boundary_data_dir, field_data_dir=field_data_dir, verbose=verbose)
         self.version = 'alya-compbiomed2' # 'Alya_multiple_BZRZ_models'
         self.template_dir = 'alya_input_templates/'
         self.name = name
@@ -13,14 +14,13 @@ class AlyaFormat:
             os.mkdir(self.output_dir)
         copy(simulation_json_file, self.output_dir)
         self.simulation_dict = json.load(open(simulation_json_file, 'r'))
-        self.geometry_and_fields_input_dir = geometry_and_fields_input_dir
-        self.geometry = None
-        self.node_fields = None
-        self.element_fields = None
-        self.materials = None
-        self.import_geometry_and_fields()
-        self.generate_fields()
-        self.section_divider = '$------------------------------------------------------\n'
+        self.geometric_data_dir = geometric_data_dir
+        self.boundary_data_dir = boundary_data_dir
+        self.field_data_dir = field_data_dir
+        self.personalisation_dir = personalisation_dir
+        self.verbose = verbose
+        self.write_alya_simulation_files()
+
 
     def write_alya_simulation_files(self):
         self.write_dat()
@@ -34,35 +34,6 @@ class AlyaFormat:
         # self.write_cell_txt()
         # self.write_job_scripts()
 
-    def import_geometry_and_fields(self):
-        # Read geometry from geometry directory CSV files
-        print('Read in geometry and fields from CSV files.')
-        self.geometry = Geometry(self.name)
-        self.geometry.read_csv_to_attributes(self.geometry_and_fields_input_dir)
-        self.node_fields = Fields(self.name, field_type='nodefield')
-        self.node_fields.read_csv_to_attributes(self.geometry_and_fields_input_dir, field_type='nodefield')
-        self.element_fields = Fields(self.name, field_type='elementfield')
-        self.element_fields.read_csv_to_attributes(self.geometry_and_fields_input_dir, field_type='elementfield')
-        self.materials = Materials(self.name)
-        self.materials.read_csv_to_attributes(self.geometry_and_fields_input_dir)
-
-    def generate_fields(self):
-        # Generate required fields for Alya simulations.
-        print('Make use of field_evaluation_functions to generate Alya fields...')
-        neighbours, edges, unfolded_edges = evaluate_mesh_characteristics(self.geometry)
-        self.node_fields.add_field(data=evaluate_celltype(number_of_nodes=self.geometry.number_of_nodes,
-                                                          uvc_transmural=self.node_fields.dict['tm'],
-                                                          endo_mid_divide=0.3, mid_epi_divide=0.7),
-                                   data_name='celltype', field_type='nodefield')
-        self.node_fields.add_field(data=evaluate_ab_Gks_scaling(number_of_nodes=self.geometry.number_of_nodes,
-                                                                uvc_longitudinal=self.node_fields.dict['ab'],
-                                                                max_sf=5, min_sf=0.2),
-                                   data_name='ab_Gks_scaling', field_type='nodefield')
-        self.node_fields.add_field(data=evaluate_hybrid_rodero_fibres(geometry=self.geometry,
-                                                                      node_fields=self.node_fields,
-                                                                      element_fields=self.element_fields,
-                                                                      neighbours=neighbours),
-                                   data_name='fibres', field_type='nodefield')
 
     def write_dat(self):
         filename = self.output_dir+self.name+'.dat'
@@ -129,22 +100,18 @@ class AlyaFormat:
             data = data.replace('<<number_of_fields>>', str(self.node_fields.number_of_fields +
                                                             self.element_fields.number_of_fields))
             field_declaration_str = ''
-            varnames = list(self.node_fields.dict.keys())
-            print(varnames)
-            for field_i in range(self.node_fields.number_of_fields):
-                varname = varnames[field_i]
-                assert self.node_fields.dict[varname].shape[0] == self.geometry.number_of_nodes, \
-                    'Field: ' + varname + ' does not match in first dimension with the number of nodes ' \
-                                          'in the geometry'
-                field_declaration_str = field_declaration_str + '\t\tFIELD = ' + str(field_i) + ', DIMENSION = ' + str(
-                    self.node_fields.dict[varname].shape[1]) + ', NODES\n'
-            for field_i in range(self.element_fields.number_of_fields):
-                varname = varnames[field_i]
-                assert self.element_fields.dict[varname].shape[0] == self.geometry.number_of_elements, \
-                    'Field: ' + varname + ' does not match in first dimension with the number of elements ' \
-                                          'in the geometry'
-                field_declaration_str = field_declaration_str + '\t\tFIELD = ' + str(field_i) + ', DIMENSION = ' + str(
-                    self.element_fields.dict[varname].shape[1]) + ', ELEMENTS\n'
+            field_names = self.simulation_dict['field_names']
+            field_types = self.simulation_dict['field_types']
+            for field_i in range(len(field_names)):
+                varname = field_names[field_i]
+                if field_types[field_i] == 'nodefield':
+                    field_declaration_str = field_declaration_str + '\t\tFIELD = ' + str(
+                        field_i) + ', DIMENSION = ' + str(
+                        self.node_fields.dict[varname].shape[1]) + ', NODES\n'
+                elif field_types[field_i] == 'elementfield':
+                    field_declaration_str = field_declaration_str + '\t\tFIELD = ' + str(
+                        field_i) + ', DIMENSION = ' + str(
+                        self.element_fields.dict[varname].shape[1]) + ', ELEMENTS\n'
             data = data.replace('<<field_declaration_str>>', field_declaration_str)
             data = data.replace('<<x_scale>>', str(self.simulation_dict['x_scale']))
             data = data.replace('<<y_scale>>', str(self.simulation_dict['y_scale']))
@@ -158,8 +125,8 @@ class AlyaFormat:
             data = data.replace('<<sets_file_name>>', self.name+'.sets')
             data = data.replace('<<boundaries_file_name>>', self.name+'.boundaries')
             field_initialisation_str = ''
-            for field_i in range(self.element_fields.number_of_fields):
-                varname = varnames[field_i]
+            for field_i in range(field_names.shape[0]):
+                varname = field_names[field_i]
                 field_initialisation_str = field_initialisation_str + '\tFIELD = ' + str(field_i) + '\n'
                 field_initialisation_str = field_initialisation_str + '\t\tINCLUDE ' + str(self.name) + '.' + varname + '\n'
                 field_initialisation_str = field_initialisation_str + '\tEND_FIELD\n'
