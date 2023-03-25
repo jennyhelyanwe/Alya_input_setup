@@ -11,8 +11,7 @@ $------------------------------------------------------------
         PSEUDO_ECG= ON
         NUMBER_ROOT= <<number_of_ecg_electrodes>>
         FREQUENCY= 1
-        COORDS
-<<ecg_electrodes_coordinates>>
+        COORDS<<ecg_electrodes_coordinates>>
     END_PSEUDO
     END_PROBLEM_DEFINITION
 
@@ -38,8 +37,7 @@ END_NUMERICAL_TREATMENT
 $------------------------------------------------------------
 OUTPUT_&_POST_PROCESS
     SAVE_CONVERGENCE CELL_MODEL
-    START_POSTPROCESS_AT TIME = 0.0
-<<post_process_exmedi_str>>
+    START_POSTPROCESS_AT TIME = 0.0 <<post_process_exmedi_str>>
 END_OUTPUT_&_POST-PROCESS
 $------------------------------------------------------------
 BOUNDARY_CONDITIONS, CONSTANT

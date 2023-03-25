@@ -1,10 +1,13 @@
 from myformat import *
+
+
 class MeshStructure:
-    def __init__(self, name,  geometric_data_dir, verbose):
+    def __init__(self, name, geometric_data_dir, verbose):
         if geometric_data_dir[-1] != '/':
             geometric_data_dir = geometric_data_dir + '/'
         if not os.path.exists(geometric_data_dir + 'ensight/'):
             os.makedirs(geometric_data_dir + 'ensight/')
+        print('Reading in mesh structure ' + name + ' from ' + geometric_data_dir)
         self.geometric_data_dir = geometric_data_dir
         self.name = name
         self.geometry = Geometry(self.name, verbose=verbose)
@@ -22,6 +25,7 @@ class MeshStructure:
         self.boundary_node_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='nodefield')
         self.boundary_element_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='elementfield')
         self.materials.read_csv_to_attributes(self.geometric_data_dir, field_type='material')
+
 
     def save(self):
         # Save to CSV
@@ -45,4 +49,3 @@ class MeshStructure:
         self.boundary_element_fields.save_to_ensight(output_dir=self.geometric_data_dir + 'ensight/',
                                                      casename=self.name + '_boundary_elementfield',
                                                      geometry=self.geometry)
-

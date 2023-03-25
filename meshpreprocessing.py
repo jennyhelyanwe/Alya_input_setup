@@ -1,7 +1,9 @@
 import vtk
-from myformat import *
 from vtk.util import numpy_support as VN
+
 from meshstructure import MeshStructure
+from myformat import *
+
 
 class MeshPreprocessing(MeshStructure):
     def __init__(self, vtk_name, name, input_dir, geometric_data_dir, verbose):
@@ -25,7 +27,6 @@ class MeshPreprocessing(MeshStructure):
         self.check_fields_for_qrs_inference()
         self.check_fields_for_twave_inference()
 
-        
     def check_fields_for_qrs_inference(self):
         assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_xyz.csv')
         assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_tetra.csv')
@@ -74,21 +75,29 @@ class MeshPreprocessing(MeshStructure):
         self.geometry.nodes_xyz = nodes_xyz
         self.geometry.edges = []
         for element_i in range(self.geometry.number_of_elements):
-            self.geometry.edges.append([self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 1]])
-            self.geometry.edges.append([self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 2]])
-            self.geometry.edges.append([self.geometry.tetrahedrons[element_i, 2], self.geometry.tetrahedrons[element_i, 3]])
-            self.geometry.edges.append([self.geometry.tetrahedrons[element_i, 3], self.geometry.tetrahedrons[element_i, 0]])
-            self.geometry.edges.append([self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 3]])
-            self.geometry.edges.append([self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 2]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 1]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 2]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 2], self.geometry.tetrahedrons[element_i, 3]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 3], self.geometry.tetrahedrons[element_i, 0]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 3]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 2]])
         self.geometry.edges = np.unique(np.sort(self.geometry.edges, axis=1), axis=0)
         self.geometry.tetrahedron_centres = (nodes_xyz[self.geometry.tetrahedrons[:, 0], :] +
                                              nodes_xyz[self.geometry.tetrahedrons[:, 1], :] +
                                              nodes_xyz[self.geometry.tetrahedrons[:, 2], :] +
-                                             nodes_xyz[self.geometry.tetrahedrons[:, 3], :])/4.
+                                             nodes_xyz[self.geometry.tetrahedrons[:, 3], :]) / 4.
         # self.element_fields.lvrv = VN.vtk_to_numpy(data.GetCellData().GetArray('ID'))
         self.element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('ID')), 'tv-element', 'elementfield')
-        self.element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('fibres')), 'fibres-element', 'elementfield')
-        self.element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('sheets')), 'sheets-element', 'elementfield')
+        self.element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('fibres')), 'fibres-element',
+                                      'elementfield')
+        self.element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('sheets')), 'sheets-element',
+                                      'elementfield')
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('V.dat')), 'tv', 'nodefield')
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('RHO.dat')), 'tm', 'nodefield')
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('Z.dat')), 'ab', 'nodefield')
@@ -106,7 +115,8 @@ class MeshPreprocessing(MeshStructure):
                 return vector / m
             else:
                 return vector
-        print('Reading vtk file from: '+ self.input_dir + 'transmural_vectors.vtk')
+
+        print('Reading vtk file from: ' + self.input_dir + 'transmural_vectors.vtk')
         reader.SetFileName(self.input_dir + 'transmural_vectors.vtk')
         reader.ReadAllVectorsOn()
         reader.ReadAllScalarsOn()
@@ -114,7 +124,7 @@ class MeshPreprocessing(MeshStructure):
         data = reader.GetOutput()
         transmural_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
         for node_i in range(transmural_vector.shape[0]):
-            transmural_vector[node_i, :] = _normalise_vector(transmural_vector[node_i,:])
+            transmural_vector[node_i, :] = _normalise_vector(transmural_vector[node_i, :])
         self.node_fields.add_field(transmural_vector, 'transmural-vector', 'nodefield')
         print('Reading vtk file from: ' + self.input_dir + 'longitudinal_vectors.vtk')
         reader.SetFileName(self.input_dir + 'longitudinal_vectors.vtk')
@@ -124,7 +134,7 @@ class MeshPreprocessing(MeshStructure):
         data = reader.GetOutput()
         longitudinal_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
         for node_i in range(longitudinal_vector.shape[0]):
-            longitudinal_vector[node_i, :] = _normalise_vector(longitudinal_vector[node_i,:])
+            longitudinal_vector[node_i, :] = _normalise_vector(longitudinal_vector[node_i, :])
         self.node_fields.add_field(longitudinal_vector, 'longitudinal-vector', 'nodefield')
         print('Reading vtk file from: ' + self.input_dir + 'circumferential_vectors.vtk')
         reader.SetFileName(self.input_dir + 'circumferential_vectors.vtk')
@@ -134,7 +144,7 @@ class MeshPreprocessing(MeshStructure):
         data = reader.GetOutput()
         circumferential_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
         for node_i in range(circumferential_vector.shape[0]):
-            circumferential_vector[node_i, :] = _normalise_vector(circumferential_vector[node_i,:])
+            circumferential_vector[node_i, :] = _normalise_vector(circumferential_vector[node_i, :])
         self.node_fields.add_field(circumferential_vector, 'circumferential-vector', 'nodefield')
 
         print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_surface_connectivity.vtk')
@@ -160,8 +170,9 @@ class MeshPreprocessing(MeshStructure):
         self.node_fields.save_to_csv(self.geometric_data_dir)
         self.element_fields.save_to_csv(self.geometric_data_dir)
         self.geometry.save_to_ensight(self.geometric_data_dir + 'ensight/')
-        self.node_fields.save_to_ensight(self.geometric_data_dir+ 'ensight/', casename=self.name + '_nodefield', geometry=self.geometry)
-        self.element_fields.save_to_ensight(self.geometric_data_dir+ 'ensight/', casename=self.name + '_elementfield',
+        self.node_fields.save_to_ensight(self.geometric_data_dir + 'ensight/', casename=self.name + '_nodefield',
+                                         geometry=self.geometry)
+        self.element_fields.save_to_ensight(self.geometric_data_dir + 'ensight/', casename=self.name + '_elementfield',
                                             geometry=self.geometry)
         materials = np.zeros(self.element_fields.dict['tv-element'].shape[0]).astype(int)
         for element_i in range(self.element_fields.dict['tv-element'].shape[0]):
@@ -171,7 +182,8 @@ class MeshPreprocessing(MeshStructure):
                 materials[element_i] = 1
         self.materials.add_field(data=materials, data_name='tetra', field_type='material')
         self.materials.save_to_csv(self.geometric_data_dir)
-        self.materials.save_to_ensight(output_dir=self.geometric_data_dir + 'ensight/', casename=self.name, geometry=self.geometry)
+        self.materials.save_to_ensight(output_dir=self.geometric_data_dir + 'ensight/', casename=self.name,
+                                       geometry=self.geometry)
 
     def generate_boundary_data_rodero(self):
         print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_surface_connectivity.vtk')
@@ -183,25 +195,25 @@ class MeshPreprocessing(MeshStructure):
         data = reader.GetOutput()
         # elem_ids = VN.vtk_to_numpy(data.GetCellData().GetArray('Ids'))
         self.boundary_element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('RegionId')).astype(int),
-                                      'boundary-label', 'elementfield')
+                                               'boundary-label', 'elementfield')
         self.boundary_node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('RegionId')).astype(int),
-                                   'boundary-label', 'nodefield')
+                                            'boundary-label', 'nodefield')
 
         for i in range(0, len(self.boundary_element_fields.dict['boundary-label'])):
             if self.boundary_element_fields.dict['boundary-label'][i] == 0:
-                self.boundary_element_fields.dict['boundary-label'][i] = self.epicardium # Epicardial
+                self.boundary_element_fields.dict['boundary-label'][i] = self.epicardium  # Epicardial
             elif self.boundary_element_fields.dict['boundary-label'][i] == 1:
-                self.boundary_element_fields.dict['boundary-label'][i] = self.lv_endocardium # LV endocardial
+                self.boundary_element_fields.dict['boundary-label'][i] = self.lv_endocardium  # LV endocardial
             elif self.boundary_element_fields.dict['boundary-label'][i] == 2:
-                self.boundary_element_fields.dict['boundary-label'][i] = self.rv_endocardium # RV endocardial
+                self.boundary_element_fields.dict['boundary-label'][i] = self.rv_endocardium  # RV endocardial
 
         for i in range(0, len(self.boundary_node_fields.dict['boundary-label'])):
             if self.boundary_node_fields.dict['boundary-label'][i] == 0:
-                self.boundary_node_fields.dict['boundary-label'][i] = self.epicardium # Epicardial
+                self.boundary_node_fields.dict['boundary-label'][i] = self.epicardium  # Epicardial
             elif self.boundary_node_fields.dict['boundary-label'][i] == 1:
-                self.boundary_node_fields.dict['boundary-label'][i] = self.lv_endocardium # LV endocardial
+                self.boundary_node_fields.dict['boundary-label'][i] = self.lv_endocardium  # LV endocardial
             elif self.boundary_node_fields.dict['boundary-label'][i] == 2:
-                self.boundary_node_fields.dict['boundary-label'][i] = self.rv_endocardium # RV endocardial
+                self.boundary_node_fields.dict['boundary-label'][i] = self.rv_endocardium  # RV endocardial
         # Save input global label
         input_node_label_global = np.zeros(self.geometry.number_of_nodes).astype(int)
         input_node_label_global[self.boundary_node_fields.dict['surface-node-id'][
@@ -219,15 +231,19 @@ class MeshPreprocessing(MeshStructure):
         ep_node_boundary_label = np.zeros(self.boundary_node_fields.dict['boundary-label'].shape)
         for i in range(0, len(self.geometry.triangles)):
             for j in range(0, 3):
-                local_index = np.nonzero(self.boundary_node_fields.dict['surface-node-id'] == self.geometry.triangles[i, j])[
+                local_index = \
+                np.nonzero(self.boundary_node_fields.dict['surface-node-id'] == self.geometry.triangles[i, j])[
                     0][0]
-                if (self.boundary_node_fields.dict['boundary-label'][local_index] == self.epicardium) & (self.node_fields.dict['tm'][self.geometry.triangles[i, j]] == -10):
+                if (self.boundary_node_fields.dict['boundary-label'][local_index] == self.epicardium) & (
+                        self.node_fields.dict['tm'][self.geometry.triangles[i, j]] == -10):
                     mechanical_node_boundary_label[local_index] = self.valve_plug
                     ep_node_boundary_label[local_index] = self.valve_plug
                     mechanical_element_boundary_label[i] = self.valve_plug
                 else:
-                    mechanical_element_boundary_label[local_index] = self.boundary_element_fields.dict['boundary-label'][local_index]
-                    ep_element_boundary_label[local_index] = self.boundary_element_fields.dict['boundary-label'][local_index]
+                    mechanical_element_boundary_label[local_index] = \
+                    self.boundary_element_fields.dict['boundary-label'][local_index]
+                    ep_element_boundary_label[local_index] = self.boundary_element_fields.dict['boundary-label'][
+                        local_index]
                     mechanical_node_boundary_label[local_index] = self.boundary_node_fields.dict['boundary-label'][
                         local_index]
                     ep_node_boundary_label[local_index] = self.boundary_node_fields.dict['boundary-label'][local_index]
@@ -235,14 +251,17 @@ class MeshPreprocessing(MeshStructure):
                     ep_node_boundary_label[local_index] = self.valve_plug
                 # Restrict mechanical epicardium to only 80% of apex-to-base axis.
                 if (self.boundary_node_fields.dict['boundary-label'][local_index] == self.epicardium) & \
-                                (self.node_fields.dict['ab'][self.geometry.triangles[i, j]] > 0.8):
-                # if (self.        self.boundary_element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('RegionId')).astype(int),.dict['boundary_label'][i] == self.epicardium) & \
-                #         (self.node_fields.dict['ab'][self.geometry.triangles[i, j]] > 0.8):
-                    mechanical_element_boundary_label[i] = self.valve_plug  # Apply epicardial spring BC only to 80% of apex-to-base
+                        (self.node_fields.dict['ab'][self.geometry.triangles[i, j]] > 0.8):
+                    # if (self.        self.boundary_element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('RegionId')).astype(int),.dict['boundary_label'][i] == self.epicardium) & \
+                    #         (self.node_fields.dict['ab'][self.geometry.triangles[i, j]] > 0.8):
+                    mechanical_element_boundary_label[
+                        i] = self.valve_plug  # Apply epicardial spring BC only to 80% of apex-to-base
                     mechanical_node_boundary_label[local_index] = self.valve_plug
-        self.boundary_node_fields.add_field(mechanical_node_boundary_label, 'mechanical-node-boundary-label', 'nodefield')
+        self.boundary_node_fields.add_field(mechanical_node_boundary_label, 'mechanical-node-boundary-label',
+                                            'nodefield')
         self.boundary_node_fields.add_field(ep_node_boundary_label, 'ep-node-boundary-label', 'nodefield')
-        self.boundary_element_fields.add_field(mechanical_element_boundary_label, 'mechanical-element-boundary-label', 'elementfield')
+        self.boundary_element_fields.add_field(mechanical_element_boundary_label, 'mechanical-element-boundary-label',
+                                               'elementfield')
         self.boundary_element_fields.add_field(ep_element_boundary_label, 'ep-element-boundary-label', 'elementfield')
 
         # Get LV and RV endocardium nodes
@@ -285,16 +304,20 @@ class MeshPreprocessing(MeshStructure):
         self.boundary_node_fields.add_field(mechanical_valvenodes, 'mechanical-valvenodes', 'nodefield')
 
         # Get LV and RV endocardium faces for Eikonal solution.
-        ep_lvfaces = self.geometry.triangles[self.boundary_element_fields.dict['ep-element-boundary-label'] == self.lv_endocardium].astype(int)
-        ep_rvfaces = self.geometry.triangles[self.boundary_element_fields.dict['ep-element-boundary-label'] == self.rv_endocardium].astype(int)
+        ep_lvfaces = self.geometry.triangles[
+            self.boundary_element_fields.dict['ep-element-boundary-label'] == self.lv_endocardium].astype(int)
+        ep_rvfaces = self.geometry.triangles[
+            self.boundary_element_fields.dict['ep-element-boundary-label'] == self.rv_endocardium].astype(int)
         self.boundary_element_fields.add_field(ep_lvfaces, 'ep-lvfaces', 'elementfield')
         self.boundary_element_fields.add_field(ep_rvfaces, 'ep-rvfaces', 'elementfield')
 
         self.boundary_node_fields.save_to_csv(self.geometric_data_dir)
         self.boundary_element_fields.save_to_csv(self.geometric_data_dir)
         self.geometry.save_to_ensight(self.geometric_data_dir + 'ensight/')
-        self.boundary_node_fields.save_to_ensight(self.geometric_data_dir + 'ensight/', casename=self.name + '_boundary_node_fields', geometry=self.geometry)
-        self.boundary_element_fields.save_to_ensight(self.geometric_data_dir + 'ensight/', casename=self.name + '_boundary_element_fields',
+        self.boundary_node_fields.save_to_ensight(self.geometric_data_dir + 'ensight/',
+                                                  casename=self.name + '_boundary_node_fields', geometry=self.geometry)
+        self.boundary_element_fields.save_to_ensight(self.geometric_data_dir + 'ensight/',
+                                                     casename=self.name + '_boundary_element_fields',
                                                      geometry=self.geometry)
 
     def generate_fibre_sheet_normal(self):
@@ -361,13 +384,13 @@ class MeshPreprocessing(MeshStructure):
             for i in range(0, len(sorted_plug_nodes)):
                 all_closest_nodes = neighbours[sorted_plug_nodes[i] - 1]
                 closest_nodes = all_closest_nodes[np.where(mask[all_closest_nodes] > 0)]
-                if (len(closest_nodes) == 0):
+                if len(closest_nodes) == 0:
                     print('No viable neighbours found for node number: ', sorted_plug_nodes[i],
                           ' plug number: ' + str(k + 1))
                     print('finding next closest nodes...')
                     temp = []
-                    for i in range(0, len(all_closest_nodes)):
-                        temp = temp + list(neighbours[all_closest_nodes[i]])
+                    for node_i in range(0, len(all_closest_nodes)):
+                        temp = temp + list(neighbours[all_closest_nodes[node_i]])
                     all_closest_nodes = np.unique(np.array(temp))
                     closest_nodes = all_closest_nodes[np.where(mask[all_closest_nodes] > 0)]
                 weight = 0.4
@@ -386,23 +409,24 @@ class MeshPreprocessing(MeshStructure):
         for i in range(rt.shape[0]):
             if (rt[i] >= 1 / 8) & (rt[i] <= 5 / 8):
                 aprt[i] = 2 * rt[i] - 1 / 4
-            elif (rt[i] >= 5 / 8):
+            elif rt[i] >= 5 / 8:
                 aprt[i] = -20 / 8 * rt[i] + 21 / 8  # (10 / 8 - rt[i]) / (1/2)
-            elif (rt[i] <= 1 / 8):
+            elif rt[i] <= 1 / 8:
                 aprt[i] = -rt[i] + 1 / 8  # (1/ 8 - rt[i]) / (1/2)
         # RVLV rotational coordinate - rvlv
         rvlv = np.zeros(rt.shape)
         for i in range(rt.shape[0]):
-            if (tv[i] == 1):
+            if tv[i] == 1:
                 rvlv[i] = 1  # Don't apply gradient on RV.
-            elif (rt[i] <= 3 / 8):
+            elif rt[i] <= 3 / 8:
                 rvlv[i] = -8 / 3 * rt[i] + 1
             elif (rt[i] >= 3 / 8) & (rt[i] <= 2 / 3):
                 rvlv[i] = 24 / 7 * rt[i] - 9 / 7
-            elif (rt[i] >= 2 / 3):
+            elif rt[i] >= 2 / 3:
                 rvlv[i] = 1
         self.node_fields.add_field(data=aprt, data_name='aprt', field_type='nodefield')
         self.node_fields.add_field(data=rvlv, data_name='rvlv', field_type='nodefield')
+
 
 def normalise_vector(vector):
     m = np.linalg.norm(vector)
