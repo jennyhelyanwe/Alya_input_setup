@@ -35,17 +35,17 @@ def save_ensight_node(dir, name, field_name, var):
 def save_ensight_element(dir, name, field_name, var):
     if len(var.shape) == 1:
         with open(dir + name + '.ensi.'+field_name, 'w') as f:
-            f.write('Alya Ensight Gold --- Scalar per-cell variables file\npart\n         1\ncoordinates\n')
+            f.write('Alya Ensight Gold --- Scalar per-cell variables file\npart\n         1\ntetra4\n')
             for elem_i in range(0, var.shape[0]):
                 f.write(str(var[elem_i]) + '\n')
     else:
         if var.shape[1] == 1:
             with open(dir + name + '.ensi.' + field_name, 'w') as f:
-                f.write('Alya Ensight Gold --- Scalar per-cell variables file\npart\n         1\ncoordinates\n')
+                f.write('Alya Ensight Gold --- Scalar per-cell variables file\npart\n         1\ntetra4\n')
                 for node_i in range(0, var.shape[0]):
                     f.write(str(var[node_i]) + '\n')
         with open(dir + name + '.ensi.' + field_name, 'w') as f:
-            f.write('Alya Ensight Gold --- Vector per-cell variables file\npart\n         1\ncoordinates\n')
+            f.write('Alya Ensight Gold --- Vector per-cell variables file\npart\n         1\ntetra4\n')
             for c in range(var.shape[1]):
                 for elem_i in range(var.shape[0]):
                     f.write(str(var[elem_i, c]) + '\n')
@@ -79,7 +79,9 @@ def save_ensight_case(dir, name, geometry_name, field_names, field_dimensions, f
             if field_type == 'nodefield':
                 ensight_field_type = 'node'
             elif field_type == 'elementfield':
-                ensight_field_type = 'cell'
+                ensight_field_type = 'element'
+            elif field_type == 'material':
+                ensight_field_type = 'element'
             if field_dimension == 1:
                 f.write(
                     'scalar per ' + ensight_field_type + ':\t' + str(field_dimension) + '\t' + field_name + '\t' + geometry_name + '.ensi.' + field_name + '\n')
@@ -89,7 +91,7 @@ def save_ensight_case(dir, name, geometry_name, field_names, field_dimensions, f
 
 
 class Geometry:
-    def __init__(self, name):
+    def __init__(self, name, verbose):
         # Geometry initialisations
         self.name = name
         self.number_of_nodes = 0
@@ -100,12 +102,13 @@ class Geometry:
         self.triangles = None
         self.tetrahedron_centres = None
         self.edges = None
+        self.verbose = verbose
 
     def save_to_csv(self, output_dir):
         if output_dir[-1] != '/':
             output_dir = output_dir+'/'
         savetxt(filename=output_dir + self.name + '_xyz.csv', var=self.nodes_xyz)
-        savetxt(filename=output_dir + self.name + '_tri.csv', var=self.tetrahedrons)
+        savetxt(filename=output_dir + self.name + '_tetra.csv', var=self.tetrahedrons)
         savetxt(filename=output_dir + self.name + '_triangles.csv', var=self.triangles)
         savetxt(filename=output_dir + self.name + '_tetrahedron_centers.csv', var=self.tetrahedron_centres)
         savetxt(filename=output_dir + self.name + '_edges.csv', var=self.edges)
@@ -117,26 +120,29 @@ class Geometry:
         save_ensight_geometry(dir=output_dir, name=self.name, nodes_xyz=self.nodes_xyz, tetrahedrons=self.tetrahedrons)
 
     def read_csv_to_attributes(self, input_dir):
+        print('Reading in geometry from ' + input_dir)
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
-        self.nodes_xyz = loadtxt(filename=input_dir+self.name+'_xyz.csv')
-        self.tetrahedrons = loadtxt(filename=input_dir + self.name + '_tri.csv').astype(int)
-        if np.amin(self.tetrahedrons == 1):
-            self.tetrahedrons = self.tetrahedrons - 1
-        self.number_of_elements = self.tetrahedrons.shape[0]
-        self.number_of_nodes = self.nodes_xyz.shape[0]
-        self.triangles = loadtxt(filename=input_dir + self.name + '_triangles.csv')
-        self.number_of_triangles = self.triangles.shape[0]
-        self.tetrahedron_centres = loadtxt(filename=input_dir + self.name + '_tetrahedron_centres.csv')
-        self.edges = loadtxt(filename=input_dir + self.name + '_edges.csv')
+        if os.path.exists(input_dir + self.name + '_xyz.csv'):
+            self.nodes_xyz = loadtxt(filename=input_dir+self.name+'_xyz.csv')
+            self.tetrahedrons = loadtxt(filename=input_dir + self.name + '_tetra.csv').astype(int)
+            if np.amin(self.tetrahedrons == 1):
+                self.tetrahedrons = self.tetrahedrons - 1
+            self.number_of_elements = self.tetrahedrons.shape[0]
+            self.number_of_nodes = self.nodes_xyz.shape[0]
+            self.triangles = loadtxt(filename=input_dir + self.name + '_triangles.csv')
+            self.number_of_triangles = self.triangles.shape[0]
+            self.tetrahedron_centres = loadtxt(filename=input_dir + self.name + '_tetrahedron_centres.csv')
+            self.edges = loadtxt(filename=input_dir + self.name + '_edges.csv')
 
 
 class Fields:
-    def __init__(self, name, field_type='nodefield'):
+    def __init__(self, name, field_type, verbose):
         self.name = name
         self.field_type = field_type
         self.dict = {} # Placeholder.
         self.number_of_fields = len(self.dict)
+        self.verbose = verbose
 
     def add_field(self, data, data_name, field_type):
         assert field_type == self.field_type, 'Input field type: '+field_type+' does not matching existing field type: '+field_type
@@ -155,27 +161,29 @@ class Fields:
     def save_to_ensight(self, output_dir, casename, geometry):
         if output_dir[-1] != '/':
             output_dir = output_dir+'/'
+        if not os.path.exists(output_dir + geometry.name+'.ensi.geo'):
+            save_ensight_geometry(dir=output_dir, name=self.name, nodes_xyz=geometry.nodes_xyz, tetrahedrons=geometry.tetrahedrons)
         list_fields = list(self.dict.keys())
         field_dimensions = []
         list_fields_output = []
         for field_i in range(self.number_of_fields):
             varname = list_fields[field_i]
-            if (self.field_type == 'nodefield') & (self.dict[varname].shape[0] == geometry.number_of_nodes): # Don't write out fields that aren't meant for this geometry.
-                save_ensight_node(dir=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
-                if len(self.dict[varname].shape) == 1:
-                    field_dimensions.append(1)
-                else:
-                    field_dimensions.append(self.dict[varname].shape[1])
-                list_fields_output.append(varname)
-            elif (self.field_type == 'elementfield') & (self.dict[varname].shape[0] == geometry.number_of_elements):  # Don't write out fields that aren't meant for this geometry.
-                save_ensight_element(dir=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
-                if len(self.dict[varname].shape) == 1:
-                    field_dimensions.append(1)
-                else:
-                    field_dimensions.append(self.dict[varname].shape[1])
-                list_fields_output.append(varname)
-            # else:
-            #     raise ValueError('save_to_ensight: Field type '+self.field_type+' not found.')
+            if self.field_type == 'nodefield':
+                if self.dict[varname].shape[0] == geometry.number_of_nodes:
+                    save_ensight_node(dir=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
+                    list_fields_output.append(varname)
+                    if len(self.dict[varname].shape) == 1:
+                        field_dimensions.append(1)
+                    else:
+                        field_dimensions.append(self.dict[varname].shape[1])
+            elif self.field_type == 'elementfield' or self.field_type == 'material':
+                if self.dict[varname].shape[0] == geometry.number_of_elements:
+                    save_ensight_element(dir=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
+                    list_fields_output.append(varname)
+                    if len(self.dict[varname].shape) == 1:
+                        field_dimensions.append(1)
+                    else:
+                        field_dimensions.append(self.dict[varname].shape[1])
         save_ensight_case(dir=output_dir, name=casename, geometry_name=geometry.name, field_names=list_fields_output, field_dimensions=field_dimensions, field_type = self.field_type)
 
     def read_csv_to_attributes(self, input_dir, field_type):
@@ -183,36 +191,23 @@ class Fields:
             input_dir = input_dir + '/'
         filenames = np.array([f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f)) and '_'+field_type+'_' in f])
         for file_i in range(filenames.shape[0]):
-            print('Reading in '+input_dir+filenames[file_i])
-            varname = filenames[file_i].split('_')[-1].split('.')[0]
+            if self.verbose:
+                print('Reading in '+input_dir+filenames[file_i])
+            varname = get_varname(filename=filenames[file_i], key=field_type)
             self.dict[varname] = loadtxt(filename=input_dir+ filenames[file_i])
         self.number_of_fields = len(self.dict)
 
 
-class Materials:
-    def __init__(self, name):
-        self.name = name
-        self.materials = None
+def get_varname(filename, key):
+    return filename.split('_'+key+'_')[-1].split('.csv')[0]
 
-    def save_to_csv(self, output_dir):
-        if output_dir[-1] != '/':
-            output_dir = output_dir + '/'
-
-        savetxt(filename=output_dir + self.name + '_materials.csv', var=self.materials)
-
-    def read_csv_to_attributes(self, input_dir):
-        if input_dir[-1] != '/':
-            input_dir = input_dir + '/'
-        self.materials = loadtxt(filename=input_dir + self.name + '_materials.csv')
 
 
 if __name__ == '__main__':
     wd = os.getcwd()
-    geometry = Geometry('test')
+    geometry = Geometry('test', verbose=False)
     geometry.save_to_csv(wd)
-    node_fields = Fields('test', field_type='nodefield')
+    node_fields = Fields('test', field_type='nodefield', verbose=False)
     node_fields.save_to_csv(wd)
-    element_fields = Fields('test', field_type='elementfield')
+    element_fields = Fields('test', field_type='elementfield', verbose=False)
     element_fields.save_to_csv(wd)
-    materials = Materials('test')
-    materials.save_to_csv(wd)

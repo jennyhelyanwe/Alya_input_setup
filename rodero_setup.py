@@ -1,14 +1,34 @@
-from vtk_to_csv_ensight import *
+from meshpreprocessing import MeshPreprocessing
+from generatefields import FieldGeneration
 from alyaformat import AlyaFormat
 
+########################################################################################################################
+# Global Settings
+mesh_number = '01'
+simulation_name = 'rodero_' + mesh_number + '_fine'
+geometric_data_dir = '/data/Personalisation_projects/meta_data/geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_fine/'
+verbose = False
 
-mesh_number = '05'
-vtk_dir = '/users/jenang/RoderoNiedererMeshHealthy/' + mesh_number
-csv_dir = '/data/Personalisation_projects/meta_data/geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_fine/'
+########################################################################################################################
+# Step 1: Save input mesh into CSV format, as prescribed in myformat.py
+vtk_dir = '/users/jenang/RoderoNiedererMeshHealthy/' + mesh_number + '/'
 vtk_name = mesh_number + '_bivent_only'
-output_name = 'rodero_' + mesh_number + '_fine'
+MeshPreprocessing(vtk_name=vtk_name, name=simulation_name, input_dir=vtk_dir, geometric_data_dir=geometric_data_dir,
+                  verbose=verbose)
 
-# vtk_reader = VTKtoCSVEnsight(vtk_name=vtk_name, output_name=output_name, input_dir=vtk_dir, output_dir=csv_dir)
+########################################################################################################################
+# Step 2: Run QRS and T inference and write personalised results to personalisation_data_dir
 
-alya = AlyaFormat(name=output_name, geometry_and_fields_input_dir=csv_dir,
-                  simulation_json_file='rodero_baseline_simulation.json')
+
+########################################################################################################################
+# Step 3: Generate fields for Alya simulation
+personalisation_data_dir = '/data/Personalisation_projects/meta_data/results/personalisation_data/rodero_'+mesh_number+'/'
+FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir, personalisation_data_dir=personalisation_data_dir, verbose=verbose)
+
+########################################################################################################################
+# Step 4: Write Alya input files according to simulation protocol saved in .json file.
+simulation_json_file = 'rodero_baseline_simulation.json'
+AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir, personalisation_dir=personalisation_data_dir,
+           simulation_json_file=simulation_json_file, verbose=verbose)
+
+

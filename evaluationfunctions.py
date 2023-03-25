@@ -28,6 +28,13 @@ def evaluate_dijkstra_endocardial_activation(number_of_nodes, number_of_faces, f
     lv_endocardial_nodes = face_fields
 
 
+def evaluate_endocardial_activation_map(activation_times, geometry):
+    lv_activation_times = activation_times[geometry.dict['lvnodes']]
+    rv_activation_times = activation_times[geometry.dict['rvnodes']]
+    stimulus = np.vstack((np.concatenate((geometry.dict['lvnodes'], geometry.dict['rvnodes'])), np.concatenate((lv_activation_times, rv_activation_times))))
+    print(stimulus.shape)
+    quit()
+
 def evaluate_celltype(number_of_nodes,uvc_transmural, endo_mid_divide, mid_epi_divide):
     print('Evaluating nodal cell type...')
     celltype = [1]*number_of_nodes
@@ -69,9 +76,7 @@ def normalise_vector(vector):
     else:
         return vector
 def evaluate_hybrid_rodero_fibres(geometry, node_fields, element_fields, neighbours):
-    print(node_fields.dict)
-    print(node_fields.dict.keys())
-    transmural_vector = node_fields.dict['transmural_vector']
+    transmural_vector = node_fields.dict['transmural-vector']
     fibres_nodes = node_fields.dict['fibres']
     number_of_nodes = geometry.number_of_nodes
     ortho = np.zeros([number_of_nodes, 9])
@@ -98,8 +103,8 @@ def evaluate_hybrid_rodero_fibres(geometry, node_fields, element_fields, neighbo
 def plug_fibres(geometry, element_fields, neighbours, ortho ):
     print('Evaluating valvular plug fibre, sheet, and normal vectors...')
     # Identify all plug elements
-    lvrvbase_elems = element_fields.dict['tv_element']
-    elems = geometry.elems
+    lvrvbase_elems = element_fields.dict['tv-element']
+    elems = geometry.tetrahedrons
     nodes = geometry.nodes_xyz
     nnodes = geometry.number_of_nodes
     for k in range(0, 4):

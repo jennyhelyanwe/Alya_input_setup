@@ -10,8 +10,7 @@ DIMENSIONS
     NO_SETS
 
     MATERIALS = <<number_of_materials>>
-    FIELDS = <<number_of_fields>>
-    <<field_declaration_str>>
+    FIELDS = <<number_of_fields>> <<field_declaration_str>>
     END_FIELDS
 
 END_DIMENSIONS
@@ -26,21 +25,33 @@ STRATEGY
 END_STRATEGY
 $------------------------------------------------------------
 GEOMETRY
-    INCLUDE <<geometry_file_name>>
-    INCLUDE <<surface_file_name>>
-    INCLUDE <<materials_file_name>>
+    ELEMENTS
+        INCLUDE <<geometry_tetrahedron_file_name>>
+    END_ELEMENTS
+    COORDINATES
+        INCLUDE <<geometry_nodes_xyz_file_name>>
+    END_COORDINATES
+    BOUNDARIES, ELEMENTS
+        INCLUDE <<surface_file_name>>
+    END_BOUNDARIES
+    MATERIALS, DEFAULT = 1, NUMBER = <<number_of_materials>>
+        INCLUDE <<materials_file_name>>
+    END_MATERIALS
 END_GEOMETRY
 
 SETS
+    BOUNDARIES
     INCLUDE <<sets_file_name>>
+    END_BOUNDARIES
 END_SETS
 
 BOUNDARY_CONDITIONS
+    ON_BOUNDARIES
     INCLUDE <<boundaries_file_name>>
+    END_ON_BOUNDARIES
 END_BOUNDARY_CONDITIONS
 
-FIELDS, NUMBER = <<number_of_fields>>
-    <<field_initialisation_str>>
+FIELDS, NUMBER = <<number_of_fields>> <<field_initialisation_str>>
 END_FIELDS
 
 

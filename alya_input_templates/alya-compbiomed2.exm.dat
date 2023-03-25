@@ -12,16 +12,16 @@ $------------------------------------------------------------
         NUMBER_ROOT= <<number_of_ecg_electrodes>>
         FREQUENCY= 1
         COORDS
-        <<ecg_electrodes_coordinates>>
+<<ecg_electrodes_coordinates>>
     END_PSEUDO
     END_PROBLEM_DEFINITION
 
 $------------------------------------------------------------
     PROPERTIES
-        <<exmedi_properties_str>>
+<<exmedi_properties_str>>
         END_PARAMETERS
     END_PROPERTIES
-    <<exmedi_scaling_factor_str>>
+<<exmedi_scaling_factor_str>>
 END_PHYSICAL_PROBLEM
 $------------------------------------------------------------
 NUMERICAL_TREATMENT
@@ -39,7 +39,7 @@ $------------------------------------------------------------
 OUTPUT_&_POST_PROCESS
     SAVE_CONVERGENCE CELL_MODEL
     START_POSTPROCESS_AT TIME = 0.0
-    <<post_process_exmedi_str>>
+<<post_process_exmedi_str>>
 END_OUTPUT_&_POST-PROCESS
 $------------------------------------------------------------
 BOUNDARY_CONDITIONS, CONSTANT
