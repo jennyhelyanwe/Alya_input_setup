@@ -4,8 +4,8 @@ from vtk.util import numpy_support as VN
 from meshstructure import MeshStructure
 
 class MeshPreprocessing(MeshStructure):
-    def __init__(self, vtk_name, name, input_dir, geometric_data_dir, boundary_data_dir, field_data_dir, verbose):
-        super().__init__(name=name, geometric_data_dir=geometric_data_dir, boundary_data_dir=boundary_data_dir, field_data_dir=field_data_dir, verbose=verbose)
+    def __init__(self, vtk_name, name, input_dir, geometric_data_dir, verbose):
+        super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
         # Read and write geometry
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
@@ -36,8 +36,8 @@ class MeshPreprocessing(MeshStructure):
         assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_nodefield_tv.csv')
         assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_material_tetra.csv')
         assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_nodefield_fibre-sheet-normal.csv')
-        assert os.path.exists(self.boundary_data_dir + self.geometry.name + '_nodefield_ep-lvnodes.csv')
-        assert os.path.exists(self.boundary_data_dir + self.geometry.name + '_nodefield_ep-rvnodes.csv')
+        assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_nodefield_ep-lvnodes.csv')
+        assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_nodefield_ep-rvnodes.csv')
         print('Everything set for QRS inference')
 
     def check_fields_for_twave_inference(self):
@@ -87,12 +87,18 @@ class MeshPreprocessing(MeshStructure):
                                              nodes_xyz[self.geometry.tetrahedrons[:, 3], :])/4.
         # self.element_fields.lvrv = VN.vtk_to_numpy(data.GetCellData().GetArray('ID'))
         self.element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('ID')), 'tv-element', 'elementfield')
-        self.node_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('fibres')), 'fibres', 'nodefield')
-        self.node_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('sheets')), 'sheets', 'nodefield')
+        self.element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('fibres')), 'fibres-element', 'elementfield')
+        self.element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('sheets')), 'sheets-element', 'elementfield')
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('V.dat')), 'tv', 'nodefield')
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('RHO.dat')), 'tm', 'nodefield')
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('Z.dat')), 'ab', 'nodefield')
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('PHI.dat')), 'rt', 'nodefield')
+        print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_fibres_at_nodes.vtk')
+        reader.SetFileName(self.input_dir + self.vtk_name + '_fibres_at_nodes.vtk')
+        reader.Update()
+        data = reader.GetOutput()
+        self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('fibres')), 'fibres', 'nodefield')
+        self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('sheets')), 'sheets', 'nodefield')
 
         def _normalise_vector(vector):
             m = np.linalg.norm(vector)
@@ -284,11 +290,11 @@ class MeshPreprocessing(MeshStructure):
         self.boundary_element_fields.add_field(ep_lvfaces, 'ep-lvfaces', 'elementfield')
         self.boundary_element_fields.add_field(ep_rvfaces, 'ep-rvfaces', 'elementfield')
 
-        self.boundary_node_fields.save_to_csv(self.boundary_data_dir)
-        self.boundary_element_fields.save_to_csv(self.boundary_data_dir)
-        self.geometry.save_to_ensight(self.boundary_data_dir)
-        self.boundary_node_fields.save_to_ensight(self.boundary_data_dir + 'ensight/', casename=self.name + '_boundary_node_fields', geometry=self.geometry)
-        self.boundary_element_fields.save_to_ensight(self.boundary_data_dir + 'ensight/', casename=self.name + '_boundary_element_fields',
+        self.boundary_node_fields.save_to_csv(self.geometric_data_dir)
+        self.boundary_element_fields.save_to_csv(self.geometric_data_dir)
+        self.geometry.save_to_ensight(self.geometric_data_dir + 'ensight/')
+        self.boundary_node_fields.save_to_ensight(self.geometric_data_dir + 'ensight/', casename=self.name + '_boundary_node_fields', geometry=self.geometry)
+        self.boundary_element_fields.save_to_ensight(self.geometric_data_dir + 'ensight/', casename=self.name + '_boundary_element_fields',
                                                      geometry=self.geometry)
 
     def generate_fibre_sheet_normal(self):
@@ -320,6 +326,9 @@ class MeshPreprocessing(MeshStructure):
         print('Number of zero normal vectors: ', len(zero_fvector_nodes))
         print('Number of vectors with NaNs: ', len(nan_vector_nodes))
         self.node_fields.add_field(data=ortho, data_name='fibre-sheet-normal', field_type='nodefield')
+        self.node_fields.add_field(data=ortho[:, 0:3], data_name='fibre', field_type='nodefield')
+        self.node_fields.add_field(data=ortho[:, 3:6], data_name='sheet', field_type='nodefield')
+        self.node_fields.add_field(data=ortho[:, 6:9], data_name='normal', field_type='nodefield')
 
     def plug_fibres(self, neighbours, ortho):
         print('Evaluating valvular plug fibre, sheet, and normal vectors...')

@@ -1,28 +1,25 @@
 from myformat import *
 from meshstructure import MeshStructure
 class FieldGeneration(MeshStructure):
-    def __init__(self, name, geometric_data_dir, boundary_data_dir, field_data_dir, personalisation_data_dir, verbose):
-        super().__init__(name=name, geometric_data_dir=geometric_data_dir, boundary_data_dir=boundary_data_dir, field_data_dir=field_data_dir, verbose=verbose)
+    def __init__(self, name, geometric_data_dir, personalisation_data_dir, verbose):
+        super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
         self.personalisation_data_dir = personalisation_data_dir
         # Generate required fields for Alya simulations.
-        print('Make use of evaluationfunctions.py to generate Alya fields...')
+        print('Generate additional Alya fields')
         neighbours, edges, unfolded_edges = evaluate_mesh_characteristics(self.geometry)
         self.node_fields.add_field(data=evaluate_celltype(number_of_nodes=self.geometry.number_of_nodes,
                                                           uvc_transmural=self.node_fields.dict['tm'],
                                                           endo_mid_divide=0.3, mid_epi_divide=0.7),
                                    data_name='cell-type', field_type='nodefield')
-        self.node_fields.save_to_csv(self.field_data_dir)
-        self.node_fields.save_to_ensight(self.field_data_dir, casename=self.name + '_nodefield',
-                                         geometry=self.geometry)
-
         activation_time = np.loadtxt(self.personalisation_data_dir + self.name + '_inferred_lat.csv')
         self.node_fields.add_field(data=activation_time, data_name='activation-time', field_type='nodefield')
         # Read in ionic scaling factors
         filenames = np.array([f for f in os.listdir(self.personalisation_data_dir) if
                               os.path.isfile(os.path.join(self.personalisation_data_dir, f)) and '.sf_' in f and 'ensi' not in f])
         for file_i in range(filenames.shape[0]):
-            print('Reading in ' + self.personalisation_data_dir + filenames[file_i])
-            varname = filenames[file_i].split('_')[-1].split('.')[0]
+            if verbose:
+                print('Reading in ' + self.personalisation_data_dir + filenames[file_i])
+            varname = filenames[file_i].split('.')[1]
             self.node_fields.add_field(data=loadtxt(filename=self.personalisation_data_dir + filenames[file_i]),
                                        data_name=varname, field_type='nodefield')
         self.node_fields.add_field(data=evaluate_endocardial_activation_map(activation_times=activation_time,
