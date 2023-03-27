@@ -1,0 +1,59 @@
+BEATS = <<cell_number_of_beats>>
+CYCLELENGTH = <<cycle_length>>
+CELLTYPE = <<cell_type_str>>
+STEADY_STATE = <<cell_steady_state_type>> TOLERANCE <<cell_steady_state_tolerance>>
+MYOCYTE = <<cell_model_modification_toggle>>
+CONDUCTANCES
+INAME = HUMAN
+$---- Gto
+<<sf_gto>>
+$---- GKs
+<<sf_gks>>
+$---- GK1
+<<sf_gk1>>
+$---- GKr
+<<sf_grk>>
+$---- GNa
+<<sf_gna>>
+$---- GNaL
+<<sf_gnal>>
+$---- GNCX
+<<sf_gncx>>
+$---- GKb
+<<sf_gkb>>
+$---- GCaL
+<<sf_gcal>>
+$---- GNaK
+<<sf_gnak>>
+$---- Calmodulin
+<<sf_cmdn>>
+$---- Jup
+<<sf_jup>>
+$---- [K+]o
+<<sf_ko>>
+$---- fkatp
+<<sf_fkatp>>
+$---- Jleak
+<<sf_jleak>>
+$---- Jrel
+<<sf_jrel>>
+$---- thL
+<<sf_thl>>
+$---- tau_cal
+<<sf_tau_cal>>
+$---- GNab
+<<sf_gnab>>
+$---- kmtrpn
+<<sf_kmtrpn>>
+$---- GKCa
+<<sf_gkca>>
+$---- GClCa
+<<sf_gclca>>
+$---- aCaMK
+<<sf_acamk>>
+$---- tau_relp
+<<sf_tau_relp>>
+$---- GCab
+<<sf_gcab>>
+END_CONDUCTANCES
+

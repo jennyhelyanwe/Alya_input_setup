@@ -14,6 +14,14 @@ class Geometry:
         self.triangles = None
         self.tetrahedron_centres = None
         self.edges = None
+        self.lv_endocardium = 3
+        self.rv_endocardium = 2
+        self.epicardium = 1
+        self.valve_plug = 4
+        self.lv = 1
+        self.rv = 2
+        self.base = 1
+        self.apex = 0
         self.verbose = verbose
 
     def save_to_csv(self, output_dir):

@@ -1,7 +1,6 @@
-    	MATERIAL=   <<material_idx>>
-            CONTINUUM_MODEL
-                IN_DIFFUSION=  <<diffusivities>> $ [cm/mS]
-                INITIAL_MEMBRANE_POTENTIAL= -87.00   $[mV]
+        MATERIAL=   <<material_idx>>
+            CONTINUUM_MODEL ORTHO
+                IN_DIFFUSION=  <<sigma_f>>, <<sigma_s>>, <<sigma_n>> $ [cm/mS]
             ENDCONTINNUM_MODEL
 
             CELL_MODEL:  <<cell_model>>
@@ -11,4 +10,4 @@
             INI_CELL, HETEROGENEOUS
                 INCLUDE <<cell_initialisation_txt_file_name>>
             END_INI_CELL
-       END_MATERIAL
+        END_MATERIAL

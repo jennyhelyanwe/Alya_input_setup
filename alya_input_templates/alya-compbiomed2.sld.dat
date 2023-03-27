@@ -5,7 +5,6 @@ PHYSICAL_PROBLEM
     END_PROBLEM_DEFINITION
     PROPERTIES<<mechanical_properties_str>>
     END_PROPERTIES
-
 <<cardiac_cycle_str>>
 END_PHYSICAL_PROBLEM
 $------------------------------------------------------------

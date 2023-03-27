@@ -19,8 +19,8 @@ $------------------------------------------------------------
     PROPERTIES
 <<exmedi_properties_str>>
         END_PARAMETERS
-    END_PROPERTIES
 <<exmedi_scaling_factor_str>>
+    END_PROPERTIES
 END_PHYSICAL_PROBLEM
 $------------------------------------------------------------
 NUMERICAL_TREATMENT

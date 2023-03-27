@@ -3,7 +3,7 @@ from myformat import *
 
 
 class FieldGeneration(MeshStructure):
-    def __init__(self, name, geometric_data_dir, personalisation_data_dir, verbose):
+    def __init__(self, name, geometric_data_dir, personalisation_data_dir, electrode_data_filename, verbose):
         super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
         self.personalisation_data_dir = personalisation_data_dir
         # Generate required fields for Alya simulations.
@@ -23,11 +23,35 @@ class FieldGeneration(MeshStructure):
             if verbose:
                 print('Reading in ' + self.personalisation_data_dir + filenames[file_i])
             varname = filenames[file_i].split('.')[1]
-            self.node_fields.add_field(data=loadtxt(filename=self.personalisation_data_dir + filenames[file_i]),
+            self.node_fields.add_field(data=load_txt(filename=self.personalisation_data_dir + filenames[file_i]),
                                        data_name=varname, field_type='nodefield')
         self.node_fields.add_field(data=evaluate_endocardial_activation_map(activation_times=activation_time,
                                                                             boundary_node_fields=self.boundary_node_fields),
                                    data_name='endocardial-activation-times', field_type='nodefield')
+        self.node_fields.add_field(data=load_txt(electrode_data_filename), data_name='electrode_xyz', field_type='nodefield')
+
+        print('Evaluate cavity landmark nodes')
+        # LV cavity landmarks
+        basal_ring_meta_idx = np.nonzero(self.node_fields.dict['ab'][self.node_fields.dict['ep-lvnodes'].astype(int)] == self.geometry.base)
+        basal_ring = self.node_fields.dict['ep-lvnodes'][basal_ring_meta_idx].astype(int)
+        rt_posterior = -np.pi/2.
+        rt_anterior = np.pi/2.
+        posterior_meta_idx = np.argmin(abs(self.node_fields.dict['rt'][basal_ring] - rt_posterior))
+        lv_posterior_node = basal_ring[posterior_meta_idx]
+        anterior_meta_idx = np.argmin(abs(self.node_fields.dict['rt'][basal_ring] - rt_anterior))
+        lv_anterior_node = basal_ring[anterior_meta_idx]
+
+        # RV cavity landmarks
+        basal_ring_meta_idx = np.nonzero(self.node_fields.dict['ab'][self.node_fields.dict['ep-rvnodes'].astype(int)] == self.geometry.base)
+        basal_ring = self.node_fields.dict['ep-rvnodes'][basal_ring_meta_idx].astype(int)
+        posterior_meta_idx = np.argmin(abs(self.node_fields.dict['rt'][basal_ring] - rt_posterior))
+        rv_posterior_node = basal_ring[posterior_meta_idx]
+        anterior_meta_idx = np.argmin(abs(self.node_fields.dict['rt'][basal_ring] - rt_anterior))
+        rv_anterior_node = basal_ring[anterior_meta_idx]
+        self.node_fields.add_field(data=np.array([lv_posterior_node, lv_anterior_node]), data_name='lv-cavity-nodes',
+                                   field_type='nodefield')
+        self.node_fields.add_field(data=np.array([rv_posterior_node, rv_anterior_node]), data_name='rv-cavity-nodes',
+                                   field_type='nodefield')
         self.save()
 
 

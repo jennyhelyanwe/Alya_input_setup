@@ -25,15 +25,8 @@ STRATEGY
 END_STRATEGY
 $------------------------------------------------------------
 GEOMETRY
-    ELEMENTS
-        INCLUDE <<geometry_tetrahedron_file_name>>
-    END_ELEMENTS
-    COORDINATES
-        INCLUDE <<geometry_nodes_xyz_file_name>>
-    END_COORDINATES
-    BOUNDARIES, ELEMENTS
-        INCLUDE <<surface_file_name>>
-    END_BOUNDARIES
+    INCLUDE <<geometry_file_name>>
+    INCLUDE <<surface_file_name>>
     MATERIALS, DEFAULT = 1, NUMBER = <<number_of_materials>>
         INCLUDE <<materials_file_name>>
     END_MATERIALS

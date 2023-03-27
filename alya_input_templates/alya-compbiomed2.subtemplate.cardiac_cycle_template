@@ -1,6 +1,6 @@
   CARDIAC_CYCLE
     <<cavities_str>>
     VARIABLE_PRESSURE
-      <<cycles_str>>
+      <<pressure_cycles_str>>
     END_VARIABLE_PRESSURE
   END_CARDIAC_CYCLE

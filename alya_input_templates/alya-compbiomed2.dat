@@ -2,8 +2,7 @@ $------------------------------------------------------------------
 RUN_DATA
     ALYA: <<name>>
     LIVE_INFO: screen
-    POSTPROCESS: domain
-    <<run_type_str>>
+    POSTPROCESS: domain<<run_type_str>>
 END_RUN_DATA
 $-------------------------------------------------------------------
 PROBLEM_DATA
@@ -12,8 +11,7 @@ PROBLEM_DATA
     TIME_INTERVAL: <<time_start>> <<time_end>>
     <<time_function_str>>
     NUMBER_OF_STEPS_(MAX): 1000000000
-$-------------------------------------------------------------------
-    <<physics_str>>
+$-------------------------------------------------------------------<<physics_str>>
     PARALL_SERVICE: ON
         OUTPUT_FILE: NO
         POSTPROCESS: MASTER

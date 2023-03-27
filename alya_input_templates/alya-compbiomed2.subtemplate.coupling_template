@@ -1,0 +1,6 @@
+    MATERIAL = <<material_idx>>
+        MODEL: <<eccoupling_model_name>>
+        CAL50: <<cal50>>
+        ORTK1: <<tref_sheet_scaling>>
+        ORTK2: <<tref_normal_scaling>>
+        CONTROL_FACTOR: <<tref_scaling>>
