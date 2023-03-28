@@ -1,8 +1,9 @@
 $-------------------------------------------------------------
 PHYSICAL_PROBLEM
     PROPERTIES
-    END_PROPERTIES<<coupling_str>>
-
+    END_PROPERTIES
+    ECCOUPLING<<coupling_str>>
+    END_ECCOUPLING
     BIO_FIBER_MODEL
         LOCATION: NODAL
         FIBER_FIELD: <<fibre_field_number>>

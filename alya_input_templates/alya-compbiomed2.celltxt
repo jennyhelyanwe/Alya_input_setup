@@ -1,59 +1,60 @@
-BEATS = <<cell_number_of_beats>>
-CYCLELENGTH = <<cycle_length>>
-CELLTYPE = <<cell_type_str>>
-STEADY_STATE = <<cell_steady_state_type>> TOLERANCE <<cell_steady_state_tolerance>>
-MYOCYTE = <<cell_model_modification_toggle>>
+BEATS <<cell_number_of_beats>>
+CYCLELENGTH <<cycle_length>>
+CELLTYPE <<cell_type_str>>
+STEADY_STATE <<cell_steady_state_type>> TOLERANCE <<cell_steady_state_tolerance>>
+MYOCYTE <<cell_model_modification_toggle>>
 CONDUCTANCES
-INAME = HUMAN
-$---- Gto
+INAME HUMAN
+$----1 Gto
 <<sf_gto>>
-$---- GKs
+$----2 GKs
 <<sf_gks>>
-$---- GK1
+$----3 GK1
 <<sf_gk1>>
-$---- GKr
+$----4 GKr
 <<sf_grk>>
-$---- GNa
+$----5 GNa
 <<sf_gna>>
-$---- GNaL
+$----6 GNaL
 <<sf_gnal>>
-$---- GNCX
+$----7 GNCX
 <<sf_gncx>>
-$---- GKb
+$----8 GKb
 <<sf_gkb>>
-$---- GCaL
+$----9 GCaL
 <<sf_gcal>>
-$---- GNaK
+$----10 PNaK
 <<sf_gnak>>
-$---- Calmodulin
+$----11 Calmodulin
 <<sf_cmdn>>
-$---- Jup
+$----12 SERCA pump Jup
 <<sf_jup>>
-$---- [K+]o
-<<sf_ko>>
-$---- fkatp
-<<sf_fkatp>>
-$---- Jleak
+$----13 Extracellular concentrations
+<<sf_extracellular-concentrations>>
+$----14 Ik_atp -> Ischemia (0 means no ischemic modelling)
+0.0 0.0 0.0
+$----15 Jleak
 <<sf_jleak>>
-$---- Jrel
+$----16 Jrel
 <<sf_jrel>>
-$---- thL
+$----17 tauHL
 <<sf_thl>>
-$---- tau_cal
+$----18 radium, tauf, taus for HCM remodelling
 <<sf_tau_cal>>
-$---- GNab
+$----19 PNab
 <<sf_gnab>>
-$---- kmtrpn
+$----20 kmtrpn troponin
 <<sf_kmtrpn>>
-$---- GKCa
+$----21 GKCa (if activated, modify IKb -> * 0.9)
 <<sf_gkca>>
-$---- GClCa
+$----22 GClCa
 <<sf_gclca>>
-$---- aCaMK
+$----23 aCaMK
 <<sf_acamk>>
-$---- tau_relp
+$----24 tau_relp
 <<sf_tau_relp>>
-$---- GCab
+$----25 PCab
 <<sf_gcab>>
-END_CONDUCTANCES
 
+END_CONDUCTANCES
+$--------------------------------------------

@@ -14,8 +14,8 @@ class MeshPreprocessing(MeshStructure):
         self.vtk_name = vtk_name
         self.input_dir = input_dir
         self.read_geometry_from_vtk_rodero()
-        self.lv_endocardium = 3
-        self.rv_endocardium = 2
+        self.lv_endocardium = 2
+        self.rv_endocardium = 3
         self.epicardium = 1
         self.valve_plug = 4
         # Generate fields

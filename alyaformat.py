@@ -44,11 +44,11 @@ class AlyaFormat(MeshStructure):
         # self.write_dom_dat()
         # if 'EXMEDI' in self.simulation_dict['physics']:
         #     self.write_exm_dat()
-        # if 'SOLIDZ' in self.simulation_dict['physics']:
-        #     self.write_sld_dat()
+        if 'SOLIDZ' in self.simulation_dict['physics']:
+            self.write_sld_dat()
         # self.write_ker_dat()
         # self.write_post_dat()
-        self.write_cell_txt()
+        # self.write_cell_txt()
         # self.write_job_scripts()
 
     def write_dat(self):
@@ -319,13 +319,13 @@ class AlyaFormat(MeshStructure):
                 if self.simulation_dict['cavity_bcs'][cavity_i] == 'LV':
                     cavity_boundary_number = self.geometry.lv_endocardium
                     insert_data.append([cavity_i + 1, cavity_boundary_number,
-                                        self.node_fields.dict['lv-cavity-nodes'][0].astype(int),
-                                        self.node_fields.dict['lv-cavity-nodes'][1].astype(int), cavity_i])
+                                        self.node_fields.dict['lv-cavity-nodes'][0].astype(int) + 1,
+                                        self.node_fields.dict['lv-cavity-nodes'][1].astype(int) + 1, cavity_i])
                 elif self.simulation_dict['cavity_bcs'][cavity_i] == 'RV':
                     cavity_boundary_number = self.geometry.rv_endocardium
                     insert_data.append([cavity_i+1, cavity_boundary_number,
-                                        self.node_fields.dict['rv-cavity-nodes'][0].astype(int),
-                                        self.node_fields.dict['rv-cavity-nodes'][1].astype(int), cavity_i])
+                                        self.node_fields.dict['rv-cavity-nodes'][0].astype(int) + 1,
+                                        self.node_fields.dict['rv-cavity-nodes'][1].astype(int) + 1, cavity_i])
             cavities_str = self.template(filename=filename, keys=keys, data=insert_data, num_duplicates=num_cavities)
             # Pressure string
             filename = self.template_dir + self.version + '.subtemplate.pressure_cycle_template'
@@ -453,15 +453,13 @@ class AlyaFormat(MeshStructure):
             for sf_key in sf_keys:
                 if sf_key in list(self.simulation_dict.keys()):
                     string = ' '.join(map(str, self.simulation_dict[sf_key][material_i]))
-                    print(string)
                     insert_data[material_i][:] = insert_data[material_i][:] + [string]
                 else:
-                    insert_data[material_i][:] = insert_data[material_i][:] + ['1 1 1']
+                    insert_data[material_i][:] = insert_data[material_i][:] + ['1.0 1.0 1.0']
             insert_data[material_i][:] = insert_data[material_i][:] + \
                                          [str(int(self.simulation_dict['cycle_length'] * 1000))]
             insert_data[material_i][:] = insert_data[material_i][:] + [cell_type_str]
         keys = keys + ["cycle_length", "cell_type_str"]
-        print(insert_data[1][:])
         # Write to txtfiles
         for material_i in range(num_materials):
             data = self.template(filename=filename, keys=keys, data=[insert_data[material_i][:]], num_duplicates=1)
@@ -491,9 +489,22 @@ class AlyaFormat(MeshStructure):
                        np.ceil(self.simulation_dict['computational_cores']/tasks_per_node).astype(int), tasks_per_node,
                        self.simulation_dict['computational_cores'], job_type]]
         data = self.template(filename, keys=keys, data=insert_data, num_duplicates=1)
-        filename = self.output_dir + 'run_job.cmd'
-        with open(filename, 'w') as f:
-            print('Writing out ' + filename)
+        output_filename = self.output_dir + 'run_job.cmd'
+        with open(output_filename, 'w') as f:
+            print('Writing out ' + output_filename)
+            f.write(data)
+        # Development job
+        job_type = ''
+        if self.job_version == 'jureca':
+            tasks_per_node = 128
+            job_type = 'dc-cpu-devel'
+        insert_data = [[self.simulation_dict['name'], str(int(np.ceil(self.simulation_dict['time_end'] * 2.))),
+                        np.ceil(128 / tasks_per_node).astype(int),
+                        tasks_per_node, 128, job_type]]
+        data = self.template(filename, keys=keys, data=insert_data, num_duplicates=1)
+        output_filename = self.output_dir + 'run_job_devel.cmd'
+        with open(output_filename, 'w') as f:
+            print('Writing out ' + output_filename)
             f.write(data)
 
 
