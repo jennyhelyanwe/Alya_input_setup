@@ -180,6 +180,17 @@ class MeshPreprocessing(MeshStructure):
             else:
                 materials[element_i] = 1
         self.materials.add_field(data=materials, data_name='tetra', field_type='material')
+        prestress_field = np.zeros(self.element_fields.dict['tv-element'].shape[0]).astype(int)
+        for element_i in range(self.element_fields.dict['tv-element'].shape[0]):
+            if (self.element_fields.dict['tv-element'][element_i] == 7) or \
+                    (self.element_fields.dict['tv-element'][element_i] == 9) or \
+                    (self.element_fields.dict['tv-element'][element_i] == 1):
+                prestress_field[element_i] = 1
+            elif self.element_fields.dict['tv-element'][element_i] == 8 or \
+                    (self.element_fields.dict['tv-element'][element_i] == 10) or \
+                    (self.element_fields.dict['tv-element'][element_i] == 2):
+                prestress_field[element_i] = 2
+        self.element_fields.add_field(data=prestress_field, data_name='prestress', field_type='elementfield')
 
 
     def convert_uvc_to_cobiveco(self):
