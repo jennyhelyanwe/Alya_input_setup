@@ -15,7 +15,7 @@ vtk_dir = '/users/jenang/RoderoNiedererMeshHealthy/' + mesh_number + '/'
 vtk_name = mesh_number + '_bivent_only'
 MeshPreprocessing(vtk_name=vtk_name, name=simulation_name, input_dir=vtk_dir, geometric_data_dir=geometric_data_dir,
                   verbose=verbose)
-
+quit()
 ########################################################################################################################
 # Step 2: Run QRS and T inference and write personalised results to personalisation_data_dir
 

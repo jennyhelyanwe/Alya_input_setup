@@ -29,6 +29,7 @@ class MeshStructure:
 
     def save(self):
         # Save to CSV
+        print('Saving geometry and fields to CSV')
         self.geometry.save_to_csv(self.geometric_data_dir)
         self.node_fields.save_to_csv(self.geometric_data_dir)
         self.element_fields.save_to_csv(self.geometric_data_dir)
@@ -36,6 +37,7 @@ class MeshStructure:
         self.boundary_node_fields.save_to_csv(self.geometric_data_dir)
         self.boundary_element_fields.save_to_csv(self.geometric_data_dir)
         # Save to ensight
+        print('Saving geometry and fields to Ensight')
         self.geometry.save_to_ensight(self.geometric_data_dir + 'ensight/')
         self.node_fields.save_to_ensight(output_dir=self.geometric_data_dir + 'ensight/',
                                          casename=self.name + '_nodefield', geometry=self.geometry)

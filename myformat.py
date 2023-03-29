@@ -22,6 +22,7 @@ class Geometry:
         self.rv = 1
         self.base = 1
         self.apex = 0
+        self.pericardial_ab_extent = 0.7
         self.verbose = verbose
 
     def save_to_csv(self, output_dir):

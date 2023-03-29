@@ -14,14 +14,13 @@ class MeshPreprocessing(MeshStructure):
         self.vtk_name = vtk_name
         self.input_dir = input_dir
         self.read_geometry_from_vtk_rodero()
-        self.lv_endocardium = 2
-        self.rv_endocardium = 3
+        self.lv_endocardium = 3
+        self.rv_endocardium = 2
         self.epicardium = 1
         self.valve_plug = 4
         # Generate fields
         self.generate_boundary_data_rodero()
         self.generate_fibre_sheet_normal()
-        self.generate_additional_vc()
 
         self.save()
         self.check_fields_for_qrs_inference()
@@ -174,14 +173,6 @@ class MeshPreprocessing(MeshStructure):
                 int(self.boundary_node_fields.dict['surface-node-id'][data.GetCell(i).GetPointId(1)]),
                 int(self.boundary_node_fields.dict['surface-node-id'][data.GetCell(i).GetPointId(2)])]
         self.geometry.triangles = self.geometry.triangles.astype(int)
-        self.geometry.save_to_csv(self.geometric_data_dir)
-        self.node_fields.save_to_csv(self.geometric_data_dir)
-        self.element_fields.save_to_csv(self.geometric_data_dir)
-        self.geometry.save_to_ensight(self.geometric_data_dir + 'ensight/')
-        self.node_fields.save_to_ensight(self.geometric_data_dir + 'ensight/', casename=self.name + '_nodefield',
-                                         geometry=self.geometry)
-        self.element_fields.save_to_ensight(self.geometric_data_dir + 'ensight/', casename=self.name + '_elementfield',
-                                            geometry=self.geometry)
         materials = np.zeros(self.element_fields.dict['tv-element'].shape[0]).astype(int)
         for element_i in range(self.element_fields.dict['tv-element'].shape[0]):
             if self.element_fields.dict['tv-element'][element_i] > 3:
@@ -189,63 +180,235 @@ class MeshPreprocessing(MeshStructure):
             else:
                 materials[element_i] = 1
         self.materials.add_field(data=materials, data_name='tetra', field_type='material')
-        self.materials.save_to_csv(self.geometric_data_dir)
-        self.materials.save_to_ensight(output_dir=self.geometric_data_dir + 'ensight/', casename=self.name,
-                                       geometry=self.geometry)
 
 
     def convert_uvc_to_cobiveco(self):
         # Map input geometry Cobiveco coordinates to output-style UVC
         cobiveco = {}
         cobiveco['ab'] = copy.deepcopy(self.node_fields.dict['ab'])
+        cobiveco['rt'] = copy.deepcopy(self.node_fields.dict['rt'])
         # Handle mapping of TV split separately:
-        cobiveco['tv'] = map_ventricular_coordinates(input_ranges=[[-1, 1]], output_ranges=[[0, 1]],
+        cobiveco['ab'] = map_ventricular_coordinates(input_ranges=[[0, 1]],
+                                                     output_ranges=[[0, 1.5]],
+                                                     input_coordinate=self.node_fields.dict['ab'])
+        cobiveco['tv'] = map_ventricular_coordinates(input_ranges=[[self.geometry.lv, self.geometry.rv]], output_ranges=[[0, 1]],
                                                      input_coordinate=self.node_fields.dict['tv'])
-        cobiveco_rv_septum_indices = []
+        cobiveco['tm'] = copy.deepcopy(self.node_fields.dict['tm'])
+        rvlv = copy.deepcopy(self.node_fields.dict['rt'])
 
         # Identify insertion points
-        mid_ventricular_nodes = np.nonzero(abs(self.node_fields.dict['ab'] - 0.6) < 0.01)[0].astype(int)
-        rv_mid_ventricular_nodes_meta_idx = np.nonzero(self.node_fields.dict['tv'][mid_ventricular_nodes] == self.geometry.rv)[0].astype(int)
-        rv_mid_ventricular_nodes = mid_ventricular_nodes[rv_mid_ventricular_nodes_meta_idx].astype(int)
-        candidate_insertion_nodes = []
-        for node_i in range(rv_mid_ventricular_nodes.shape[0]):
-            neighbours = self.neighbours[rv_mid_ventricular_nodes[node_i]]
-            meta_idx = np.nonzero(self.node_fields.dict['tv'][neighbours] == self.geometry.lv)[0]
-            if len(meta_idx) > 0:
-                candidate_insertion_nodes.append(rv_mid_ventricular_nodes[node_i])
-        candidate_insertion_nodes = np.unique(candidate_insertion_nodes).astype(int)
-        posterior_insertion_rt_meta_idx = np.argmin(self.node_fields.dict['rt'][candidate_insertion_nodes])
-        anterior_insertion_rt_meta_idx = np.argmax(self.node_fields.dict['rt'][candidate_insertion_nodes])
-        posterior_insertion_node = candidate_insertion_nodes[posterior_insertion_rt_meta_idx]
-        anterior_insertion_node = candidate_insertion_nodes[anterior_insertion_rt_meta_idx]
-        anterior_insertion_rt = self.node_fields.dict['rt'][anterior_insertion_node]
-        posterior_insertion_rt = self.node_fields.dict['rt'][posterior_insertion_node]
-        print(posterior_insertion_rt)
-        print(anterior_insertion_rt)
-        for node_i in range(cobiveco['ab'].shape[0]):
-            if (self.node_fields.dict['rt'][node_i] > posterior_insertion_rt) & (self.node_fields.dict['rt'][node_i] < anterior_insertion_rt) & (self.node_fields.dict['tv'][node_i] == -1) & (
-                    self.node_fields.dict['tm'][node_i] > 0.6):
-                cobiveco['tv'][node_i] = 1
-                cobiveco_rv_septum_indices.append(node_i)
-        cobiveco_lv_indices = np.where(cobiveco['tv'] == 0)
-        cobiveco_rv_indices = np.where(cobiveco['tv'] == 1)
-        # Translation of RT is ventricle dependent
-        cobiveco['rt'] = copy.deepcopy(self.node_fields.dict['rt'])
-        cobiveco['rt'][cobiveco_lv_indices] = map_ventricular_coordinates(
-            input_ranges=[[-np.pi, posterior_insertion_rt], [posterior_insertion_rt, 0], [0, np.pi, ]],
-            output_ranges=[[0.3, 0], [1, 0.7], [0.7, 0.3]],
-            input_coordinate=self.node_fields.dict['rt'][cobiveco_lv_indices])
-        cobiveco['rt'][cobiveco_rv_indices] = map_ventricular_coordinates(
-            input_ranges=[[0, anterior_insertion_rt], [posterior_insertion_rt, 0]],
-            output_ranges=[[0.3, 0.7], [0, 0.3]],
-            input_coordinate=self.node_fields.dict['rt'][cobiveco_rv_indices])  # RT
-        cobiveco['rt'][cobiveco_rv_septum_indices] = map_ventricular_coordinates(
-            input_ranges=[[posterior_insertion_rt, anterior_insertion_rt]],
-            output_ranges=[[1, 0.7]], input_coordinate=self.node_fields.dict['rt'][cobiveco_rv_septum_indices])
-        cobiveco['tm'] = map_ventricular_coordinates(input_ranges=[[0, 1]], output_ranges=[[1, 0]],
-                                                     input_coordinate=self.node_fields.dict['tm'])  # TM
+        prev_ab = 0.0
+        has_done_last_iteration = False
+        for current_ab in np.arange(0, 1.01, 0.01):
+        # for ab_section in [0.6]:
+            mid_ventricular_nodes = np.nonzero((self.node_fields.dict['ab'] >= prev_ab) & (self.node_fields.dict['ab'] <= current_ab))[0].astype(int)
+            rv_mid_ventricular_nodes_meta_idx = np.nonzero(self.node_fields.dict['tv'][mid_ventricular_nodes] == self.geometry.rv)[0].astype(int)
+            rv_mid_ventricular_nodes = mid_ventricular_nodes[rv_mid_ventricular_nodes_meta_idx].astype(int)
+            candidate_insertion_nodes = []
+            for node_i in range(rv_mid_ventricular_nodes.shape[0]):
+                neighbours = self.neighbours[rv_mid_ventricular_nodes[node_i]]
+                meta_idx = np.nonzero(self.node_fields.dict['tv'][neighbours] == self.geometry.lv)[0]
+                if len(meta_idx) > 0:
+                    candidate_insertion_nodes.append(rv_mid_ventricular_nodes[node_i])
+            candidate_insertion_nodes = np.unique(candidate_insertion_nodes).astype(int)
+            if (len(candidate_insertion_nodes) == 0):
+                continue
+            else:
+                negative_candidate_nodes = candidate_insertion_nodes[np.nonzero(self.node_fields.dict['rt'][candidate_insertion_nodes] < 0)[0]]
+                positive_candidate_nodes = candidate_insertion_nodes[np.nonzero(self.node_fields.dict['rt'][candidate_insertion_nodes] > 0)[0]]
+                if (len(positive_candidate_nodes) == 0) or (len(negative_candidate_nodes) == 0):
+                    continue
+                else:
+                    sorted_negative_rt = np.sort(self.node_fields.dict['rt'][negative_candidate_nodes])
+                    negative_median_rt = self.node_fields.dict['rt'][negative_candidate_nodes[int(len(sorted_negative_rt)/2)]]
+                    negative_median_meta_idx = np.nonzero(self.node_fields.dict['rt'][negative_candidate_nodes] == negative_median_rt)[0][0]
+                    posterior_insertion_node = negative_candidate_nodes[negative_median_meta_idx]
+                    sorted_positive_rt = np.sort(self.node_fields.dict['rt'][positive_candidate_nodes])
+                    positive_median_rt = self.node_fields.dict['rt'][positive_candidate_nodes[int(len(sorted_positive_rt) / 2)]]
+                    positive_median_meta_idx = np.nonzero(self.node_fields.dict['rt'][positive_candidate_nodes] == positive_median_rt)[0][0]
+                    anterior_insertion_node = positive_candidate_nodes[positive_median_meta_idx]
+                    rt_anterior_insertion = self.node_fields.dict['rt'][anterior_insertion_node]
+                    rt_posterior_insertion = self.node_fields.dict['rt'][posterior_insertion_node]
+                    cobiveco_rv_septum_indices = []
+                    for node_i in range(mid_ventricular_nodes.shape[0]):
+                        if (self.node_fields.dict['rt'][mid_ventricular_nodes[node_i]] > rt_posterior_insertion) & \
+                                (self.node_fields.dict['rt'][mid_ventricular_nodes[node_i]] < rt_anterior_insertion) & \
+                                (self.node_fields.dict['tv'][mid_ventricular_nodes[node_i]] == self.geometry.lv) & \
+                                (self.node_fields.dict['tm'][mid_ventricular_nodes[node_i]] > 0.6):
+                            cobiveco['tv'][mid_ventricular_nodes[node_i]] = 1
+                            cobiveco_rv_septum_indices.append(mid_ventricular_nodes[node_i])
+                    rt_mid_septum = 0.0
+                    rt_rv_lateral = 0.0
+                    # rt_lv_lateral = 0.0 or 1.0
+                    cobiveco_lv_indices = mid_ventricular_nodes[np.where(cobiveco['tv'][mid_ventricular_nodes] == 0)]
+                    cobiveco_rv_indices = mid_ventricular_nodes[np.where(cobiveco['tv'][mid_ventricular_nodes] == 1)]
+                    # Translation of RT is ventricle dependent
+                    cobiveco_rt_lv_lateral = 0.4
+                    cobiveco_rt_rv_lateral = 0.4
+                    cobiveco_rt_mid_septum = 0.8
+                    # cobiveco_rt_posterior_insertion = 0.0 or 1.0
+                    cobiveco_rt_anterior_insertion = (1 - (cobiveco_rt_mid_septum - cobiveco_rt_lv_lateral)) * rt_anterior_insertion/np.pi
+                    cobiveco['rt'][cobiveco_lv_indices] = map_ventricular_coordinates(
+                        input_ranges=[[-np.pi, rt_posterior_insertion],
+                                      [rt_posterior_insertion, rt_mid_septum],
+                                      [rt_mid_septum, rt_anterior_insertion],
+                                      [rt_anterior_insertion, np.pi]],
+                        output_ranges=[[cobiveco_rt_lv_lateral, 0],
+                                       [1, cobiveco_rt_mid_septum],
+                                       [cobiveco_rt_mid_septum, cobiveco_rt_anterior_insertion],
+                                       [cobiveco_rt_anterior_insertion, cobiveco_rt_lv_lateral]],
+                        input_coordinate=self.node_fields.dict['rt'][cobiveco_lv_indices])
+                    cobiveco['rt'][cobiveco_rv_indices] = map_ventricular_coordinates(
+                        input_ranges=[[rt_rv_lateral, rt_anterior_insertion],
+                                      [rt_posterior_insertion, rt_rv_lateral]],
+                        output_ranges=[[cobiveco_rt_rv_lateral, cobiveco_rt_anterior_insertion],
+                                       [0, cobiveco_rt_rv_lateral]],
+                        input_coordinate=self.node_fields.dict['rt'][cobiveco_rv_indices])  # RT
+                    cobiveco['rt'][cobiveco_rv_septum_indices] = map_ventricular_coordinates(
+                        input_ranges=[[rt_posterior_insertion, rt_anterior_insertion]],
+                        output_ranges=[[1, cobiveco_rt_anterior_insertion]],
+                        input_coordinate=self.node_fields.dict['rt'][cobiveco_rv_septum_indices])
+                    cobiveco['tm'][mid_ventricular_nodes] = map_ventricular_coordinates(input_ranges=[[0, 1]],
+                                                                 output_ranges=[[1, 0]],
+                                                                 input_coordinate=self.node_fields.dict['tm'][mid_ventricular_nodes])  # TM
+                    rvlv_lv_lateral = 1.0
+                    rvlv_rv_lateral = 0.0
+                    rvlv_posterior_insertion = 0.0
+                    rvlv_anterior_insertion = 0.0
+                    rvlv[mid_ventricular_nodes] = map_ventricular_coordinates(
+                        input_ranges=[[-np.pi, rt_posterior_insertion],
+                                      [rt_anterior_insertion, np.pi]],
+                        output_ranges=[[rvlv_lv_lateral, rvlv_posterior_insertion],
+                                       [rvlv_anterior_insertion, rvlv_lv_lateral]],
+                        input_coordinate=self.node_fields.dict['rt'][mid_ventricular_nodes])
+                    rvlv[cobiveco_rv_indices] = rvlv_rv_lateral
+                    prev_ab = current_ab
+                    if current_ab == 1.01:
+                        has_done_last_iteration = True
+        if not has_done_last_iteration:
+            current_ab = 1.01
+            for prev_ab in np.arange(prev_ab, 0.0, -0.01):
+                # for ab_section in [0.6]:
+                mid_ventricular_nodes = \
+                np.nonzero((self.node_fields.dict['ab'] >= prev_ab) & (self.node_fields.dict['ab'] <= current_ab))[
+                    0].astype(int)
+                rv_mid_ventricular_nodes_meta_idx = \
+                np.nonzero(self.node_fields.dict['tv'][mid_ventricular_nodes] == self.geometry.rv)[0].astype(int)
+                rv_mid_ventricular_nodes = mid_ventricular_nodes[rv_mid_ventricular_nodes_meta_idx].astype(int)
+                candidate_insertion_nodes = []
+                for node_i in range(rv_mid_ventricular_nodes.shape[0]):
+                    neighbours = self.neighbours[rv_mid_ventricular_nodes[node_i]]
+                    meta_idx = np.nonzero(self.node_fields.dict['tv'][neighbours] == self.geometry.lv)[0]
+                    if len(meta_idx) > 0:
+                        candidate_insertion_nodes.append(rv_mid_ventricular_nodes[node_i])
+                candidate_insertion_nodes = np.unique(candidate_insertion_nodes).astype(int)
+                if (len(candidate_insertion_nodes) == 0):
+                    continue
+                else:
+                    negative_candidate_nodes = candidate_insertion_nodes[
+                        np.nonzero(self.node_fields.dict['rt'][candidate_insertion_nodes] < 0)[0]]
+                    positive_candidate_nodes = candidate_insertion_nodes[
+                        np.nonzero(self.node_fields.dict['rt'][candidate_insertion_nodes] > 0)[0]]
+                    if (len(positive_candidate_nodes) == 0) or (len(negative_candidate_nodes) == 0):
+                        continue
+                    else:
+                        sorted_negative_rt = np.sort(self.node_fields.dict['rt'][negative_candidate_nodes])
+                        negative_median_rt = self.node_fields.dict['rt'][
+                            negative_candidate_nodes[int(len(sorted_negative_rt) / 2)]]
+                        negative_median_meta_idx = \
+                        np.nonzero(self.node_fields.dict['rt'][negative_candidate_nodes] == negative_median_rt)[0][0]
+                        posterior_insertion_node = negative_candidate_nodes[negative_median_meta_idx]
+                        sorted_positive_rt = np.sort(self.node_fields.dict['rt'][positive_candidate_nodes])
+                        positive_median_rt = self.node_fields.dict['rt'][
+                            positive_candidate_nodes[int(len(sorted_positive_rt) / 2)]]
+                        positive_median_meta_idx = \
+                        np.nonzero(self.node_fields.dict['rt'][positive_candidate_nodes] == positive_median_rt)[0][0]
+                        anterior_insertion_node = positive_candidate_nodes[positive_median_meta_idx]
+                        rt_anterior_insertion = self.node_fields.dict['rt'][anterior_insertion_node]
+                        rt_posterior_insertion = self.node_fields.dict['rt'][posterior_insertion_node]
+                        cobiveco_rv_septum_indices = []
+                        for node_i in range(mid_ventricular_nodes.shape[0]):
+                            if (self.node_fields.dict['rt'][mid_ventricular_nodes[node_i]] > rt_posterior_insertion) & \
+                                    (self.node_fields.dict['rt'][
+                                         mid_ventricular_nodes[node_i]] < rt_anterior_insertion) & \
+                                    (self.node_fields.dict['tv'][mid_ventricular_nodes[node_i]] == self.geometry.lv) & \
+                                    (self.node_fields.dict['tm'][mid_ventricular_nodes[node_i]] > 0.6):
+                                cobiveco['tv'][mid_ventricular_nodes[node_i]] = 1
+                                cobiveco_rv_septum_indices.append(mid_ventricular_nodes[node_i])
+                        rt_mid_septum = 0.0
+                        rt_rv_lateral = 0.0
+                        # rt_lv_lateral = 0.0 or 1.0
+                        cobiveco_lv_indices = mid_ventricular_nodes[
+                            np.where(cobiveco['tv'][mid_ventricular_nodes] == 0)]
+                        cobiveco_rv_indices = mid_ventricular_nodes[
+                            np.where(cobiveco['tv'][mid_ventricular_nodes] == 1)]
+                        # Translation of RT is ventricle dependent
+                        cobiveco_rt_lv_lateral = 0.4
+                        cobiveco_rt_rv_lateral = 0.4
+                        cobiveco_rt_mid_septum = 0.8
+                        # cobiveco_rt_posterior_insertion = 0.0 or 1.0
+                        cobiveco_rt_anterior_insertion = (1 - (
+                                    cobiveco_rt_mid_septum - cobiveco_rt_lv_lateral)) * rt_anterior_insertion / np.pi
+                        cobiveco['rt'][cobiveco_lv_indices] = map_ventricular_coordinates(
+                            input_ranges=[[-np.pi, rt_posterior_insertion],
+                                          [rt_posterior_insertion, rt_mid_septum],
+                                          [rt_mid_septum, rt_anterior_insertion],
+                                          [rt_anterior_insertion, np.pi]],
+                            output_ranges=[[cobiveco_rt_lv_lateral, 0],
+                                           [1, cobiveco_rt_mid_septum],
+                                           [cobiveco_rt_mid_septum, cobiveco_rt_anterior_insertion],
+                                           [cobiveco_rt_anterior_insertion, cobiveco_rt_lv_lateral]],
+                            input_coordinate=self.node_fields.dict['rt'][cobiveco_lv_indices])
+                        cobiveco['rt'][cobiveco_rv_indices] = map_ventricular_coordinates(
+                            input_ranges=[[rt_rv_lateral, rt_anterior_insertion],
+                                          [rt_posterior_insertion, rt_rv_lateral]],
+                            output_ranges=[[cobiveco_rt_rv_lateral, cobiveco_rt_anterior_insertion],
+                                           [0, cobiveco_rt_rv_lateral]],
+                            input_coordinate=self.node_fields.dict['rt'][cobiveco_rv_indices])  # RT
+                        cobiveco['rt'][cobiveco_rv_septum_indices] = map_ventricular_coordinates(
+                            input_ranges=[[rt_posterior_insertion, rt_anterior_insertion]],
+                            output_ranges=[[1, cobiveco_rt_anterior_insertion]],
+                            input_coordinate=self.node_fields.dict['rt'][cobiveco_rv_septum_indices])
+                        cobiveco['tm'][mid_ventricular_nodes] = map_ventricular_coordinates(input_ranges=[[0, 1]],
+                                                                                            output_ranges=[[1, 0]],
+                                                                                            input_coordinate=
+                                                                                            self.node_fields.dict['tm'][
+                                                                                                mid_ventricular_nodes])  # TM
+                        rvlv_lv_lateral = 1.0
+                        rvlv_rv_lateral = 0.0
+                        rvlv_posterior_insertion = 0.0
+                        rvlv_anterior_insertion = 0.0
+                        rvlv[mid_ventricular_nodes] = map_ventricular_coordinates(
+                            input_ranges=[[-np.pi, rt_posterior_insertion],
+                                          [rt_anterior_insertion, np.pi]],
+                            output_ranges=[[rvlv_lv_lateral, rvlv_posterior_insertion],
+                                           [rvlv_anterior_insertion, rvlv_lv_lateral]],
+                            input_coordinate=self.node_fields.dict['rt'][mid_ventricular_nodes])
+                        rvlv[cobiveco_rv_indices] = rvlv_rv_lateral
+                        prev_ab = current_ab
+                        break
+        rt_posterior = -np.pi/2
+        aprt_posterior = 0
+        aprt_lateral = 0.5
+        rt_anterior = np.pi/2
+        aprt_anterior = 1
+        rt_septum = 0.0
+        aprt_septum = 0.5
+        aprt = map_ventricular_coordinates(input_ranges=[[-np.pi, rt_posterior],
+                                                         [rt_posterior, rt_septum],
+                                                         [rt_septum, rt_anterior],
+                                                         [rt_anterior, np.pi]],
+                                           output_ranges=[[aprt_lateral, aprt_posterior],
+                                                          [aprt_posterior, aprt_septum],
+                                                          [aprt_septum, aprt_anterior],
+                                                          [aprt_anterior, aprt_lateral]],
+                                           input_coordinate=self.node_fields.dict['rt'])
+        self.node_fields.add_field(data=aprt, data_name='aprt', field_type='nodefield')
+        self.node_fields.add_field(data=aprt, data_name='cobiveco-aprt', field_type='nodefield')
+        self.node_fields.add_field(data=rvlv, data_name='rvlv', field_type='nodefield')
+        self.node_fields.add_field(data=rvlv, data_name='cobiveco-rvlv', field_type='nodefield')
         for key in cobiveco.keys():
-            self.node_fields.add_field(data=cobiveco[key], data_name='cobiveco_'+key, field_type='nodefield')
+            self.node_fields.add_field(data=cobiveco[key], data_name='cobiveco-'+key, field_type='nodefield')
 
 
     def generate_boundary_data_rodero(self):
@@ -292,32 +455,32 @@ class MeshPreprocessing(MeshStructure):
         ep_element_boundary_label = np.zeros(self.boundary_element_fields.dict['boundary-label'].shape)
         mechanical_node_boundary_label = np.zeros(self.boundary_node_fields.dict['boundary-label'].shape)
         ep_node_boundary_label = np.zeros(self.boundary_node_fields.dict['boundary-label'].shape)
-        for i in range(0, len(self.geometry.triangles)):
-            for j in range(0, 3):
+        for i in range(self.geometry.triangles.shape[0]):
+            for j in range(self.geometry.triangles.shape[1]):
                 local_index = \
                 np.nonzero(self.boundary_node_fields.dict['surface-node-id'] == self.geometry.triangles[i, j])[0][0]
+                # Epicardial plug surface
                 if (self.boundary_node_fields.dict['boundary-label'][local_index] == self.geometry.epicardium) & (
-                        self.node_fields.dict['tm'][local_index] == -10):
+                        self.node_fields.dict['tm'][self.geometry.triangles[i, j]] == -10):
                     mechanical_node_boundary_label[local_index] = self.valve_plug
                     ep_node_boundary_label[local_index] = self.valve_plug
                     mechanical_element_boundary_label[i] = self.valve_plug
                 else:
                     mechanical_element_boundary_label[i] = \
-                    self.boundary_element_fields.dict['boundary-label'][local_index]
-                    ep_element_boundary_label[local_index] = self.boundary_element_fields.dict['boundary-label'][
-                        local_index]
+                    self.boundary_element_fields.dict['boundary-label'][i]
+                    ep_element_boundary_label[local_index] = self.boundary_element_fields.dict['boundary-label'][i]
                     mechanical_node_boundary_label[local_index] = self.boundary_node_fields.dict['boundary-label'][
                         local_index]
                     ep_node_boundary_label[local_index] = self.boundary_node_fields.dict['boundary-label'][local_index]
+                # Endocardial plug surface is isolated for EP simulations
                 if self.node_fields.dict['tm'][self.geometry.triangles[i, j]] == -10:
                     ep_node_boundary_label[local_index] = self.valve_plug
                 # Restrict mechanical epicardium to only 80% of apex-to-base axis.
                 if (self.boundary_node_fields.dict['boundary-label'][local_index] == self.geometry.epicardium) & \
-                        (self.node_fields.dict['ab'][self.geometry.triangles[i, j]] > 0.8):
+                        (self.node_fields.dict['ab'][self.geometry.triangles[i, j]] > self.geometry.pericardial_ab_extent):
                     # if (self.        self.boundary_element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('RegionId')).astype(int),.dict['boundary_label'][i] == self.epicardium) & \
                     #         (self.node_fields.dict['ab'][self.geometry.triangles[i, j]] > 0.8):
-                    mechanical_element_boundary_label[
-                        i] = self.valve_plug  # Apply epicardial spring BC only to 80% of apex-to-base
+                    mechanical_element_boundary_label[i] = self.valve_plug  # Apply epicardial spring BC only to 80% of apex-to-base
                     mechanical_node_boundary_label[local_index] = self.valve_plug
         self.boundary_node_fields.add_field(mechanical_node_boundary_label, 'mechanical-node-boundary-label',
                                             'nodefield')
@@ -458,32 +621,6 @@ class MeshPreprocessing(MeshStructure):
                     new_fibres[j:j + 3] = normalise_vector(new_fibres[j:j + 3])
                 ortho[sorted_plug_nodes[i] - 1, :] = new_fibres
                 mask[sorted_plug_nodes[i] - 1] = 1
-
-    def generate_additional_vc(self):
-        rt = self.node_fields.dict['cobiveco_rt']
-        tv = self.node_fields.dict['cobiveco_tv']
-        aprt = np.zeros(rt.shape)
-        for i in range(rt.shape[0]):
-            if (rt[i] >= 1 / 8) & (rt[i] <= 5 / 8):
-                aprt[i] = 2 * rt[i] - 1 / 4
-            elif rt[i] >= 5 / 8:
-                aprt[i] = -20 / 8 * rt[i] + 21 / 8  # (10 / 8 - rt[i]) / (1/2)
-            elif rt[i] <= 1 / 8:
-                aprt[i] = -rt[i] + 1 / 8  # (1/ 8 - rt[i]) / (1/2)
-        # RVLV rotational coordinate - rvlv
-        rvlv = np.zeros(rt.shape)
-        for i in range(rt.shape[0]):
-            if tv[i] == 1:
-                rvlv[i] = 1  # Don't apply gradient on RV.
-            elif rt[i] <= 3 / 8:
-                rvlv[i] = -8 / 3 * rt[i] + 1
-            elif (rt[i] >= 3 / 8) & (rt[i] <= 2 / 3):
-                rvlv[i] = 24 / 7 * rt[i] - 9 / 7
-            elif rt[i] >= 2 / 3:
-                rvlv[i] = 1
-        self.node_fields.add_field(data=aprt, data_name='cobiveco_aprt', field_type='nodefield')
-        self.node_fields.add_field(data=rvlv, data_name='cobiveco_rvlv', field_type='nodefield')
-
 
 def normalise_vector(vector):
     m = np.linalg.norm(vector)
