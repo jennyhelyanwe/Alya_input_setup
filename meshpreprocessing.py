@@ -88,6 +88,12 @@ class MeshPreprocessing(MeshStructure):
             self.geometry.edges.append(
                 [self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 2]])
         self.geometry.edges = np.unique(np.sort(self.geometry.edges, axis=1), axis=0)
+        unfolded_edges = np.concatenate((self.geometry.edges, np.flip(self.geometry.edges, axis=1))).astype(int)
+        aux = [[] for i in range(0, self.geometry.number_of_nodes, 1)]
+        for i in range(0, len(unfolded_edges)):
+            aux[unfolded_edges[i, 0]].append(unfolded_edges[i, 1])
+        neighbours = [np.array(n) for n in aux]  # Node numbers starting 0
+        self.neighbours = neighbours
         self.geometry.tetrahedron_centres = (nodes_xyz[self.geometry.tetrahedrons[:, 0], :] +
                                              nodes_xyz[self.geometry.tetrahedrons[:, 1], :] +
                                              nodes_xyz[self.geometry.tetrahedrons[:, 2], :] +
@@ -187,6 +193,7 @@ class MeshPreprocessing(MeshStructure):
         self.materials.save_to_ensight(output_dir=self.geometric_data_dir + 'ensight/', casename=self.name,
                                        geometry=self.geometry)
 
+
     def convert_uvc_to_cobiveco(self):
         # Map input geometry Cobiveco coordinates to output-style UVC
         cobiveco = {}
@@ -195,8 +202,28 @@ class MeshPreprocessing(MeshStructure):
         cobiveco['tv'] = map_ventricular_coordinates(input_ranges=[[-1, 1]], output_ranges=[[0, 1]],
                                                      input_coordinate=self.node_fields.dict['tv'])
         cobiveco_rv_septum_indices = []
+
+        # Identify insertion points
+        mid_ventricular_nodes = np.nonzero(abs(self.node_fields.dict['ab'] - 0.6) < 0.01)[0].astype(int)
+        rv_mid_ventricular_nodes_meta_idx = np.nonzero(self.node_fields.dict['tv'][mid_ventricular_nodes] == self.geometry.rv)[0].astype(int)
+        rv_mid_ventricular_nodes = mid_ventricular_nodes[rv_mid_ventricular_nodes_meta_idx].astype(int)
+        candidate_insertion_nodes = []
+        for node_i in range(rv_mid_ventricular_nodes.shape[0]):
+            neighbours = self.neighbours[rv_mid_ventricular_nodes[node_i]]
+            meta_idx = np.nonzero(self.node_fields.dict['tv'][neighbours] == self.geometry.lv)[0]
+            if len(meta_idx) > 0:
+                candidate_insertion_nodes.append(rv_mid_ventricular_nodes[node_i])
+        candidate_insertion_nodes = np.unique(candidate_insertion_nodes).astype(int)
+        posterior_insertion_rt_meta_idx = np.argmin(self.node_fields.dict['rt'][candidate_insertion_nodes])
+        anterior_insertion_rt_meta_idx = np.argmax(self.node_fields.dict['rt'][candidate_insertion_nodes])
+        posterior_insertion_node = candidate_insertion_nodes[posterior_insertion_rt_meta_idx]
+        anterior_insertion_node = candidate_insertion_nodes[anterior_insertion_rt_meta_idx]
+        anterior_insertion_rt = self.node_fields.dict['rt'][anterior_insertion_node]
+        posterior_insertion_rt = self.node_fields.dict['rt'][posterior_insertion_node]
+        print(posterior_insertion_rt)
+        print(anterior_insertion_rt)
         for node_i in range(cobiveco['ab'].shape[0]):
-            if (self.node_fields.dict['rt'][node_i] > -1.66) & (self.node_fields.dict['rt'][node_i] < 1.19) & (self.node_fields.dict['tv'][node_i] == -1) & (
+            if (self.node_fields.dict['rt'][node_i] > posterior_insertion_rt) & (self.node_fields.dict['rt'][node_i] < anterior_insertion_rt) & (self.node_fields.dict['tv'][node_i] == -1) & (
                     self.node_fields.dict['tm'][node_i] > 0.6):
                 cobiveco['tv'][node_i] = 1
                 cobiveco_rv_septum_indices.append(node_i)
@@ -205,18 +232,16 @@ class MeshPreprocessing(MeshStructure):
         # Translation of RT is ventricle dependent
         cobiveco['rt'] = copy.deepcopy(self.node_fields.dict['rt'])
         cobiveco['rt'][cobiveco_lv_indices] = map_ventricular_coordinates(
-            input_ranges=[[-np.pi, -1.3], [-1.3, 0], [0, np.pi, ]],
-            # output_ranges=[[0.4, 0], [1, 0.8], [0.8, 0.4]],
-            output_ranges=[[0.3, 0], [1, 0.8], [0.8, 0.3]],
+            input_ranges=[[-np.pi, posterior_insertion_rt], [posterior_insertion_rt, 0], [0, np.pi, ]],
+            output_ranges=[[0.3, 0], [1, 0.7], [0.7, 0.3]],
             input_coordinate=self.node_fields.dict['rt'][cobiveco_lv_indices])
-        # output_ranges=[[0.4, 0], [1, 0.8], [0.8, 0.4]],
         cobiveco['rt'][cobiveco_rv_indices] = map_ventricular_coordinates(
-            input_ranges=[[0, 1.2], [-1.3, 0]],
-            output_ranges=[[0.4, 0.75], [0, 0.4]],
+            input_ranges=[[0, anterior_insertion_rt], [posterior_insertion_rt, 0]],
+            output_ranges=[[0.3, 0.7], [0, 0.3]],
             input_coordinate=self.node_fields.dict['rt'][cobiveco_rv_indices])  # RT
         cobiveco['rt'][cobiveco_rv_septum_indices] = map_ventricular_coordinates(
-            input_ranges=[[-1.3, 1.19]],
-            output_ranges=[[1, 0.6]], input_coordinate=self.node_fields.dict['rt'][cobiveco_rv_septum_indices])
+            input_ranges=[[posterior_insertion_rt, anterior_insertion_rt]],
+            output_ranges=[[1, 0.7]], input_coordinate=self.node_fields.dict['rt'][cobiveco_rv_septum_indices])
         cobiveco['tm'] = map_ventricular_coordinates(input_ranges=[[0, 1]], output_ranges=[[1, 0]],
                                                      input_coordinate=self.node_fields.dict['tm'])  # TM
         for key in cobiveco.keys():
@@ -358,11 +383,6 @@ class MeshPreprocessing(MeshStructure):
                                                      geometry=self.geometry)
 
     def generate_fibre_sheet_normal(self):
-        unfolded_edges = np.concatenate((self.geometry.edges, np.flip(self.geometry.edges, axis=1))).astype(int)
-        aux = [[] for i in range(0, self.geometry.number_of_nodes, 1)]
-        for i in range(0, len(unfolded_edges)):
-            aux[unfolded_edges[i, 0]].append(unfolded_edges[i, 1])
-        neighbours = [np.array(n) for n in aux]  # Node numbers starting 0
         transmural_vector = self.node_fields.dict['transmural-vector']
         fibres_nodes = self.node_fields.dict['fibres']
         number_of_nodes = self.geometry.number_of_nodes
@@ -374,7 +394,7 @@ class MeshPreprocessing(MeshStructure):
             n = np.cross(f, s)
             n = normalise_vector(n)
             ortho[i, :] = list(f) + list(s) + list(n)
-        self.plug_fibres(neighbours=neighbours, ortho=ortho)
+        self.plug_fibres(neighbours=self.neighbours, ortho=ortho)
         # Sanity check:
         zero_fvector_nodes = np.where(~ortho[:, 0:3].any(axis=1))[0]  # Vectors all zero
         zero_svector_nodes = np.where(~ortho[:, 3:6].any(axis=1))[0]

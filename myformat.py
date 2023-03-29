@@ -18,8 +18,8 @@ class Geometry:
         self.rv_endocardium = 2
         self.epicardium = 1
         self.valve_plug = 4
-        self.lv = 1
-        self.rv = 2
+        self.lv = -1
+        self.rv = 1
         self.base = 1
         self.apex = 0
         self.verbose = verbose
