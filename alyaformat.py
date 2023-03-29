@@ -40,16 +40,16 @@ class AlyaFormat(MeshStructure):
         return replacement_str
 
     def write_alya_simulation_files(self):
-        # self.write_dat()
-        # self.write_dom_dat()
-        # if 'EXMEDI' in self.simulation_dict['physics']:
-        #     self.write_exm_dat()
+        self.write_dat()
+        self.write_dom_dat()
+        if 'EXMEDI' in self.simulation_dict['physics']:
+            self.write_exm_dat()
         if 'SOLIDZ' in self.simulation_dict['physics']:
             self.write_sld_dat()
-        # self.write_ker_dat()
-        # self.write_post_dat()
-        # self.write_cell_txt()
-        # self.write_job_scripts()
+        self.write_ker_dat()
+        self.write_post_dat()
+        self.write_cell_txt()
+        self.write_job_scripts()
 
     def write_dat(self):
         filename = self.output_dir + self.name + '.dat'
@@ -306,12 +306,12 @@ class AlyaFormat(MeshStructure):
                                     self.simulation_dict['b'][material_i], self.simulation_dict['af'][material_i],
                                     self.simulation_dict['bf'][material_i], self.simulation_dict['as'][material_i],
                                     self.simulation_dict['bs'][material_i], self.simulation_dict['afs'][material_i],
-                                    self.simulation_dict['bfs'][material_i], self.simulation_dict['field_names'].index('tv-element')])
+                                    self.simulation_dict['bfs'][material_i], self.simulation_dict['field_names'].index('tv-element')+1])
             mechanical_properties_str = self.template(filename=filename, keys=keys, data=insert_data,
                                                       num_duplicates=num_materials)
             # Solidz cardiac cycle
             filename = self.template_dir + self.version + '.subtemplate.cavity_definition_template'
-            keys = ["cavity_idx", "cavity_boundary_number", "cavity_basal_node_1", "cavity_basal_node_2", "pressure_field_idx"]
+            keys = ["cavity_idx", "cavity_boundary_number", "cavity_basal_node_1", "cavity_basal_node_2", "prestress_field_idx"]
             num_cavities = len(self.simulation_dict['cavity_bcs'])
             insert_data = []
             for cavity_i in range(num_cavities):
@@ -320,12 +320,12 @@ class AlyaFormat(MeshStructure):
                     cavity_boundary_number = self.geometry.lv_endocardium
                     insert_data.append([cavity_i + 1, cavity_boundary_number,
                                         self.node_fields.dict['lv-cavity-nodes'][0].astype(int) + 1,
-                                        self.node_fields.dict['lv-cavity-nodes'][1].astype(int) + 1, cavity_i])
+                                        self.node_fields.dict['lv-cavity-nodes'][1].astype(int) + 1, self.geometry.lv])
                 elif self.simulation_dict['cavity_bcs'][cavity_i] == 'RV':
                     cavity_boundary_number = self.geometry.rv_endocardium
                     insert_data.append([cavity_i+1, cavity_boundary_number,
                                         self.node_fields.dict['rv-cavity-nodes'][0].astype(int) + 1,
-                                        self.node_fields.dict['rv-cavity-nodes'][1].astype(int) + 1, cavity_i])
+                                        self.node_fields.dict['rv-cavity-nodes'][1].astype(int) + 1, self.geometry.rv])
             cavities_str = self.template(filename=filename, keys=keys, data=insert_data, num_duplicates=num_cavities)
             # Pressure string
             filename = self.template_dir + self.version + '.subtemplate.pressure_cycle_template'

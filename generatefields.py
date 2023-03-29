@@ -8,7 +8,7 @@ class FieldGeneration(MeshStructure):
         self.personalisation_data_dir = personalisation_data_dir
         # Generate required fields for Alya simulations.
         print('Generate additional Alya fields')
-        neighbours, edges, unfolded_edges = evaluate_mesh_characteristics(self.geometry)
+        neighbours, unfolded_edges = evaluate_mesh_characteristics(self.geometry)
         self.node_fields.add_field(data=evaluate_celltype(number_of_nodes=self.geometry.number_of_nodes,
                                                           uvc_transmural=self.node_fields.dict['tm'],
                                                           endo_mid_divide=0.3, mid_epi_divide=0.7),
@@ -56,14 +56,12 @@ class FieldGeneration(MeshStructure):
 
 
 def evaluate_mesh_characteristics(geometry):
-    number_of_nodes = geometry.number_of_nodes
-    edges = geometry.edges
-    unfolded_edges = np.concatenate((edges, np.flip(edges, axis=1))).astype(int)
-    aux = [[] for i in range(0, number_of_nodes, 1)]
+    unfolded_edges = np.concatenate((geometry.edges, np.flip(geometry.edges, axis=1))).astype(int)
+    aux = [[] for i in range(0, geometry.number_of_nodes, 1)]
     for i in range(0, len(unfolded_edges)):
         aux[unfolded_edges[i, 0]].append(unfolded_edges[i, 1])
     neighbours = [np.array(n) for n in aux]  # Node numbers starting 0
-    return neighbours, edges, unfolded_edges
+    return neighbours, unfolded_edges
 
 
 def evaluate_dijkstra_endocardial_activation(number_of_nodes, number_of_faces, face_fields, root_node_locations):

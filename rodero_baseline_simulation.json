@@ -41,7 +41,7 @@
   "exmedi_output": ["INTRA", "CALCI"],
   "exmedi_output_period": [0.01, 0.01],
   "solidz_residual" : "TOTAL",
-  "solidz_convergence_tolerance" : 1e-6,
+  "solidz_convergence_tolerance" : 1e-4,
   "solidz_output": ["DISPL", "ACTST", "LAMBDA"],
   "solidz_output_period": [0.01, 0.01, 0.01],
   "density" : [1.1, 1.1],
