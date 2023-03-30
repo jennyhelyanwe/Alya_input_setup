@@ -1,0 +1,243 @@
+import matplotlib
+matplotlib.use('tkagg')
+import matplotlib.pyplot as pyplot
+import numpy
+from matplotlib.gridspec import GridSpec
+import matplotlib.animation as animation
+
+fig = pyplot.figure(tight_layout=True, figsize=[15,7])
+fig.suptitle('<<name>>')
+gs = GridSpec(3,6)
+ax1 = fig.add_subplot(gs[:,0])
+ax2 = fig.add_subplot(gs[0,1])
+ax3 = fig.add_subplot(gs[1,1])
+ax4 = fig.add_subplot(gs[2,1])
+
+
+ax5 = fig.add_subplot(gs[0,2])
+ax6 = fig.add_subplot(gs[1,2])
+ax7 = fig.add_subplot(gs[2,2])
+ax8 = fig.add_subplot(gs[0,3])
+ax9 = fig.add_subplot(gs[1,3])
+ax10 = fig.add_subplot(gs[2,3])
+ax11 = fig.add_subplot(gs[0,4])
+ax12 = fig.add_subplot(gs[1,4])
+ax13 = fig.add_subplot(gs[2,4])
+ax14 = fig.add_subplot(gs[0,5])
+ax15 = fig.add_subplot(gs[1,5])
+ax16 = fig.add_subplot(gs[2,5])
+
+def animate(i):
+	filename = '<<name>>-cardiac-cycle.sld.res'
+	with open(filename, 'r') as f:
+		data = f.readlines()
+	hn = 18 # Number of header lines
+	if (len(data)>hn):
+		pressure = numpy.zeros(len(data)-hn+1)
+		pressurer = numpy.zeros(len(data)-hn+1)
+		volume = numpy.zeros(len(data)-hn+1)
+		volumer = numpy.zeros(len(data)-hn+1)
+		curtime = numpy.zeros(len(data)-hn+1)
+		phase = numpy.zeros(len(data)-hn+1)
+		phaser = numpy.zeros(len(data)-hn+1)
+		volume[0] = float(data[hn].split()[5])
+		volumer[0] = float(data[hn].split()[-4])
+
+		for i in range(hn, len(data)):
+			pressure[i-hn+1] = float(data[i].split()[6])/10000
+			pressurer[i-hn+1] = float(data[i].split()[-3])/10000
+			volume[i-hn+1] = float(data[i].split()[5])
+			volumer[i-hn+1] = float(data[i].split()[-4])
+			curtime[i-hn+1] = float(data[i].split()[1])
+			phase[i-hn+1] = float(data[i].split()[4])
+			phaser[i-hn+1] = float(data[i].split()[10])
+
+		ax1.clear()
+		ax1.plot(volume,pressure,volumer,pressurer)
+
+		ax2.clear()
+		ax2.plot(curtime, pressure, curtime, pressurer)
+
+		ax3.clear()
+		ax3.plot(curtime, volume, curtime, volumer)
+
+		ax4.clear()
+		ax4.plot(curtime, phase, curtime, phaser)
+
+		LVEF = int((max(volume)-min(volume))/max(volume) * 100)
+		RVEF = int((max(volumer)-min(volumer))/max(volumer) * 100)
+
+		ax1.set_xlabel('Volume (mL)')
+		ax2.set_xlabel('Time (ms)')
+		ax3.set_xlabel('Time (ms)')
+		ax4.set_xlabel('Time (ms)')
+
+		ax1.set_ylabel('Pressure (kPa)')
+		ax2.set_ylabel('Pressure (kPa)')
+		ax3.set_ylabel('Volume (mL)')
+		ax4.set_ylabel('Phase')
+		ax4.set_ylim([0,5])
+
+		ax1.set_title('LVEF:'+str(LVEF)+'%, RVEF:'+str(RVEF)+'%')
+		ax2.set_title('Pressure transient')
+		ax3.set_title('Volume transient')
+		ax4.set_title('Cardiac cycle')
+
+	filename = '<<name>>.exm.vin'
+	with open(filename,'r') as f:
+		data = f.readlines()
+
+	# First 7 lines are header lines.
+	hn = 8
+	if len(data) > hn:
+		LA = numpy.zeros(len(data)-hn)
+		RA = numpy.zeros(len(data)-hn)
+		LL = numpy.zeros(len(data)-hn)
+		RL = numpy.zeros(len(data)-hn)
+		V1 = numpy.zeros(len(data)-hn)
+		V2 = numpy.zeros(len(data)-hn)
+		V3 = numpy.zeros(len(data)-hn)
+		V4 = numpy.zeros(len(data)-hn)
+		V5 = numpy.zeros(len(data)-hn)
+		V6 = numpy.zeros(len(data)-hn)
+		t = numpy.zeros(len(data)-hn)
+
+		for i in range(hn, len(data)):
+			t[i-hn] = float(data[i].split()[-12])
+			LA[i-hn] = float(data[i].split()[-10])
+			RA[i-hn] = float(data[i].split()[-9])
+			LL[i-hn] = float(data[i].split()[-8])
+			RL[i-hn] = float(data[i].split()[-7])
+			V1[i-hn] = float(data[i].split()[-6])
+			V2[i-hn] = float(data[i].split()[-5])
+			V3[i-hn] = float(data[i].split()[-4])
+			V4[i-hn] = float(data[i].split()[-3])
+			V5[i-hn] = float(data[i].split()[-2])
+			V6[i-hn] = float(data[i].split()[-1])
+
+		# Ealuate Wilson's central terminal
+		VW = 1.0/3.0*(RA + LA + LL)
+
+		# Evaluate simulated ECG lead traces
+		V1 = V1 - VW
+		V2 = V2 - VW
+		V3 = V3 - VW
+		V4 = V4 - VW
+		V5 = V5 - VW
+		V6 = V6 - VW
+		I = LA - RA
+		II = LL - RA
+		III = LL - LA
+		aVL = LA - (RA + LL)/2.0
+		aVF = LL - (LA + RA)/2.0
+		aVR = RA - (LA + LL)/2.0
+		all_leads = numpy.concatenate((V1,V2,V3,V4,V5,V6,I,II,III,aVR,aVL,aVF))
+		max_all_leads = max(abs(all_leads))
+
+		ax5.clear()
+		ax5.plot(t, I/max_all_leads)
+		ax6.clear()
+		ax6.plot(t, II/max_all_leads)
+		ax7.clear()
+		ax7.plot(t, III/max_all_leads)
+		ax8.clear()
+		ax8.plot(t, aVR/max_all_leads)
+		ax9.clear()
+		ax9.plot(t, aVL/max_all_leads)
+		ax10.clear()
+		ax10.plot(t, aVF/max_all_leads)
+
+		ax11.clear()
+		ax11.plot(t, V1/max_all_leads)
+		ax12.clear()
+		ax12.plot(t, V2/max_all_leads)
+		ax13.clear()
+		ax13.plot(t, V3/max_all_leads)
+		ax14.clear()
+		ax14.plot(t, V4/max_all_leads)
+		ax15.clear()
+		ax15.plot(t, V5/max_all_leads)
+		ax16.clear()
+		ax16.plot(t, V6/max_all_leads)
+
+		ax5.set_xlabel('Time (s)')
+		ax6.set_xlabel('Time (s)')
+		ax7.set_xlabel('Time (s)')
+		ax8.set_xlabel('Time (s)')
+		ax9.set_xlabel('Time (s)')
+		ax10.set_xlabel('Time (s)')
+		ax11.set_xlabel('Time (s)')
+		ax12.set_xlabel('Time (s)')
+		ax13.set_xlabel('Time (s)')
+		ax14.set_xlabel('Time (s)')
+		ax15.set_xlabel('Time (s)')
+		ax16.set_xlabel('Time (s)')
+
+		ax5.set_ylabel('Normalised ECG')
+		ax6.set_ylabel('Normalised ECG')
+		ax7.set_ylabel('Normalised ECG')
+		ax8.set_ylabel('Normalised ECG')
+		ax9.set_ylabel('Normalised ECG')
+		ax10.set_ylabel('Normalised ECG')
+		ax11.set_ylabel('Normalised ECG')
+		ax12.set_ylabel('Normalised ECG')
+		ax13.set_ylabel('Normalised ECG')
+		ax14.set_ylabel('Normalised ECG')
+		ax15.set_ylabel('Normalised ECG')
+		ax16.set_ylabel('Normalised ECG')
+
+		ax5.set_ylim(-1,1)
+		ax6.set_ylim(-1,1)
+		ax7.set_ylim(-1,1)
+		ax8.set_ylim(-1,1)
+		ax9.set_ylim(-1,1)
+		ax10.set_ylim(-1,1)
+		ax11.set_ylim(-1,1)
+		ax12.set_ylim(-1,1)
+		ax13.set_ylim(-1,1)
+		ax14.set_ylim(-1,1)
+		ax15.set_ylim(-1,1)
+		ax16.set_ylim(-1,1)
+
+		ax5.set_title('I')
+		ax6.set_title('II')
+		ax7.set_title('III')
+		ax8.set_title('aVR')
+		ax9.set_title('aVL')
+		ax10.set_title('aVF')
+		ax11.set_title('V1')
+		ax12.set_title('V2')
+		ax13.set_title('V3')
+		ax14.set_title('V4')
+		ax15.set_title('V5')
+		ax16.set_title('V6')
+
+		set_ticks(ax5)
+		set_ticks(ax6)
+		set_ticks(ax7)
+		set_ticks(ax8)
+		set_ticks(ax9)
+		set_ticks(ax10)
+		set_ticks(ax11)
+		set_ticks(ax12)
+		set_ticks(ax13)
+		set_ticks(ax14)
+		set_ticks(ax15)
+		set_ticks(ax16)
+
+def set_ticks(ax):
+	minor_ticks = numpy.linspace(0, 1, 26)
+	major_ticks = numpy.linspace(0, 1, 6)
+	ax.set_xticks(minor_ticks, minor=True)
+	ax.set_xticks(major_ticks)
+	minor_ticks = numpy.linspace(-1, 1, 21)
+	major_ticks = numpy.linspace(-1, 1, 5)
+	ax.set_yticks(minor_ticks, minor=True)
+	ax.set_yticks(major_ticks)
+
+	ax.grid(which="minor", color='r', linestyle='-', linewidth=0.5, alpha=0.3)
+	ax.grid(which="major", color='r', linestyle='-', linewidth=1, alpha=0.3)
+
+ani = animation.FuncAnimation(fig, animate, interval=1000)
+pyplot.show(block=True)
+

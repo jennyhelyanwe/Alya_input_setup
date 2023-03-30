@@ -1,7 +1,7 @@
         MATERIAL=   <<material_idx>>
             CONTINUUM_MODEL
                 ORTHO
-                IN_DIFFUSION=  <<sigma_f>>, <<sigma_s>>, <<sigma_n>> $ [cm/mS]
+                IN_DIFFUSION=  <<sigma_f>> <<sigma_s>> <<sigma_n>> $ [cm/mS]
                 INITIAL_MEMBRANE_POTENTIAL= -87.00 $ [mV]
             ENDCONTINNUM_MODEL
 

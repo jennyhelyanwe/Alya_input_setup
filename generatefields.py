@@ -13,7 +13,7 @@ class FieldGeneration(MeshStructure):
                                                           uvc_transmural=self.node_fields.dict['tm'],
                                                           endo_mid_divide=0.3, mid_epi_divide=0.7),
                                    data_name='cell-type', field_type='nodefield')
-        activation_time = np.loadtxt(self.personalisation_data_dir + self.name + '_inferred_lat.csv')
+        activation_time = np.loadtxt(self.personalisation_data_dir + self.name + '_nodefield_inferred-lat.csv')
         self.node_fields.add_field(data=activation_time, data_name='activation-time', field_type='nodefield')
         # Read in ionic scaling factors
         filenames = np.array([f for f in os.listdir(self.personalisation_data_dir) if
@@ -25,15 +25,20 @@ class FieldGeneration(MeshStructure):
             varname = filenames[file_i].split('.')[1]
             self.node_fields.add_field(data=load_txt(filename=self.personalisation_data_dir + filenames[file_i]),
                                        data_name=varname, field_type='nodefield')
-        self.node_fields.add_field(data=evaluate_endocardial_activation_map(activation_times=activation_time,
-                                                                            boundary_node_fields=self.boundary_node_fields),
-                                   data_name='endocardial-activation-times', field_type='nodefield')
+        endocardial_activation_times = evaluate_endocardial_activation_map(activation_times=activation_time,
+                                                                            boundary_node_fields=self.boundary_node_fields)
+        endocardial_activation_times = endocardial_activation_times - np.amin(endocardial_activation_times) # Remove offset
+        self.boundary_node_fields.add_field(data=endocardial_activation_times,
+                                   data_name='endocardial-activation-times', field_type='boundarynodefield')
+        stimulus_node_field = np.zeros(self.geometry.number_of_nodes)
+        stimulus_node_field[self.boundary_node_fields.dict['endocardial-nodes']] = endocardial_activation_times
+        self.node_fields.add_field(data=stimulus_node_field, data_name='stimulus', field_type='nodefield')
         self.node_fields.add_field(data=load_txt(electrode_data_filename), data_name='electrode_xyz', field_type='nodefield')
 
         print('Evaluate cavity landmark nodes')
         # LV cavity landmarks
-        basal_ring_meta_idx = np.nonzero(self.node_fields.dict['ab'][self.node_fields.dict['ep-lvnodes'].astype(int)] == self.geometry.base)
-        basal_ring = self.node_fields.dict['ep-lvnodes'][basal_ring_meta_idx].astype(int)
+        basal_ring_meta_idx = np.nonzero(self.node_fields.dict['ab'][self.boundary_node_fields.dict['ep-lvnodes'].astype(int)] == self.geometry.base)
+        basal_ring = self.boundary_node_fields.dict['ep-lvnodes'][basal_ring_meta_idx].astype(int)
         rt_posterior = -np.pi/2.
         rt_anterior = np.pi/2.
         posterior_meta_idx = np.argmin(abs(self.node_fields.dict['rt'][basal_ring] - rt_posterior))
@@ -42,8 +47,8 @@ class FieldGeneration(MeshStructure):
         lv_anterior_node = basal_ring[anterior_meta_idx]
 
         # RV cavity landmarks
-        basal_ring_meta_idx = np.nonzero(self.node_fields.dict['ab'][self.node_fields.dict['ep-rvnodes'].astype(int)] == self.geometry.base)
-        basal_ring = self.node_fields.dict['ep-rvnodes'][basal_ring_meta_idx].astype(int)
+        basal_ring_meta_idx = np.nonzero(self.node_fields.dict['ab'][self.boundary_node_fields.dict['ep-rvnodes'].astype(int)] == self.geometry.base)
+        basal_ring = self.boundary_node_fields.dict['ep-rvnodes'][basal_ring_meta_idx].astype(int)
         posterior_meta_idx = np.argmin(abs(self.node_fields.dict['rt'][basal_ring] - rt_posterior))
         rv_posterior_node = basal_ring[posterior_meta_idx]
         anterior_meta_idx = np.argmin(abs(self.node_fields.dict['rt'][basal_ring] - rt_anterior))
@@ -52,6 +57,19 @@ class FieldGeneration(MeshStructure):
                                    field_type='nodefield')
         self.node_fields.add_field(data=np.array([rv_posterior_node, rv_anterior_node]), data_name='rv-cavity-nodes',
                                    field_type='nodefield')
+        # Prestress field
+        prestress_field = np.zeros(self.element_fields.dict['tv-element'].shape[0]).astype(int)
+        for element_i in range(self.element_fields.dict['tv-element'].shape[0]):
+            if (self.element_fields.dict['tv-element'][element_i] == 7) or \
+                    (self.element_fields.dict['tv-element'][element_i] == 9) or \
+                    (self.element_fields.dict['tv-element'][element_i] == 1):
+                prestress_field[element_i] = 1
+            elif self.element_fields.dict['tv-element'][element_i] == 8 or \
+                    (self.element_fields.dict['tv-element'][element_i] == 10) or \
+                    (self.element_fields.dict['tv-element'][element_i] == 2):
+                prestress_field[element_i] = 2
+        self.element_fields.add_field(data=prestress_field, data_name='prestress', field_type='elementfield')
+
         self.save()
 
 
@@ -74,7 +92,7 @@ def evaluate_endocardial_activation_map(activation_times, boundary_node_fields):
     rv_activation_times = activation_times[boundary_node_fields.dict['ep-rvnodes'].astype(int)]
     boundary_node_fields.add_field(data=np.concatenate(
         (boundary_node_fields.dict['ep-lvnodes'].astype(int), boundary_node_fields.dict['ep-rvnodes'].astype(int))),
-                                   data_name='endocardial-nodes', field_type='nodefield')
+                                   data_name='endocardial-nodes', field_type='boundarynodefield')
     return np.concatenate((lv_activation_times, rv_activation_times))
 
 

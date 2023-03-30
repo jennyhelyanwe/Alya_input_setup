@@ -9,4 +9,4 @@
 #SBATCH --partition=<<job_type>>
 
 alyaenv
-srun -n <<computational_cores>> python main.py
+srun -n <<computational_cores>> python <<python_script_name>>

@@ -13,8 +13,8 @@ verbose = False
 # Step 1: Save input mesh into CSV format, as prescribed in myformat.py
 vtk_dir = '/users/jenang/RoderoNiedererMeshHealthy/' + mesh_number + '/'
 vtk_name = mesh_number + '_bivent_only'
-MeshPreprocessing(vtk_name=vtk_name, name=simulation_name, input_dir=vtk_dir, geometric_data_dir=geometric_data_dir,
-                  verbose=verbose)
+# MeshPreprocessing(vtk_name=vtk_name, name=simulation_name, input_dir=vtk_dir, geometric_data_dir=geometric_data_dir,
+#                   verbose=verbose)
 
 ########################################################################################################################
 # Step 2: Run QRS and T inference and write personalised results to personalisation_data_dir
@@ -29,6 +29,10 @@ FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir, ele
 
 ########################################################################################################################
 # Step 4: Write Alya input files according to simulation protocol saved in .json file.
-simulation_json_file = 'rodero_baseline_simulation.json'
-AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir, personalisation_dir=personalisation_data_dir,
-           simulation_json_file=simulation_json_file, verbose=verbose)
+simulation_json_file = 'rodero_baseline_simulation_em.json'
+alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir, personalisation_dir=personalisation_data_dir,
+           verbose=verbose)
+alya.do(simulation_json_file=simulation_json_file)
+
+simulation_json_file = 'rodero_baseline_simulation_ep.json'
+alya.do(simulation_json_file=simulation_json_file)

@@ -43,23 +43,15 @@ MPIO = None
 
 try:
     if my_rank==0:
-        import argparse
-        parser = argparse.ArgumentParser()
-        parser.add_argument("task_name", help='Name of the alya task')
-        parser.add_argument("input_folder", help='Folder with input alyabins')
-        parser.add_argument("output_folder", help='Folder for the output ensight case')
-        parser.add_argument("--format", help='Format of the data to expect: mpio, alyabin, auto(default)', default = 'auto')
-        args = parser.parse_args()
-
-        inputfolder = args.input_folder
-        project_name = args.task_name
-        outputfolder = args.output_folder
-        
-        if args.format == 'alyabin':
+        inputfolder = <<input_folder>>
+        project_name = <<task_name>>
+        outputfolder = <<output_folder>>
+        format = <<format>>
+        if format == 'alyabin':
             MPIO = False
-        elif args.format == 'mpio':
+        elif format == 'mpio':
             MPIO = True
-        elif args.format == 'auto':
+        elif format == 'auto':
             #check what kind of files are present 
             filename_mpio = os.path.join(inputfolder,project_name+'-LNODS.post.mpio.bin');
             filename_alyabin = os.path.join(inputfolder,project_name+'-LNODS.post.alyabin');
@@ -73,7 +65,7 @@ try:
                 MPIO = False
 
         else:
-            assert False, 'Unsupported format: '+str(args.format)
+            assert False, 'Unsupported format: '+str(format)
 
 	#check if input path exists
         import pathlib
@@ -850,7 +842,7 @@ if my_rank == 0:
     print(variable_info)
     print('Saving case')
     sys.stdout.flush()
-    
+
     case_file = project_name+ '.ensi.case'
     with open(os.path.join(outputfolder, case_file), 'w') as f:
         f.write('# Converted from Alya\n')
@@ -887,15 +879,15 @@ if my_rank == 0:
                 [{'varname':varname, \
                   'data':variable_info[variable_info.field==varname].sort_values(by='iteration'),\
                   'timeline':timeline_id}]
-            c=c+1        
-    
-    
+            c=c+1
+
+
         for var_data in variable_info_per_variable:
             varname = var_data['varname']
             timeline_id = var_data['timeline']
             print('Varname '+str(varname)+'\n')
             df = var_data['data'].iloc[0] #get one record with this varibale
-            line = str(df.variabletype)+' per '+str(df.association)+': '+str(timeline_id)+'\t'+str(varname)+'\t'+str(project_name)+'.ensi.'+str(varname)+'-'+'*'*iterationid_number_of_digits+'\n'   
+            line = str(df.variabletype)+' per '+str(df.association)+': '+str(timeline_id)+'\t'+str(varname)+'\t'+str(project_name)+'.ensi.'+str(varname)+'-'+'*'*iterationid_number_of_digits+'\n'
             f.write(line)
 
 
@@ -906,6 +898,7 @@ if my_rank == 0:
 
         f.write('\n')
         f.write('TIME\n')
+        counter = 1
         for timeset in timelines:
             var_data = variable_info_per_variable[ timelines[timeset]['array_loc'] ]
             f.write('time set: '+str(var_data["timeline"])+'\n')
@@ -916,6 +909,8 @@ if my_rank == 0:
             f.write('time values:\n')
             f.write(str(var_data['data'].time_real.values)[1:-1]+'\n')
 
+            np.savetxt('timeset_'+str(counter)+'.csv', var_data['data'].time_real.values, delimiter=',')
+            counter = counter + 1
 
 # In[33]:
 

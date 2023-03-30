@@ -90,7 +90,7 @@ class Fields:
         list_fields_output = []
         for field_i in range(self.number_of_fields):
             varname = list_fields[field_i]
-            if self.field_type == 'nodefield':
+            if self.field_type == 'nodefield' or self.field_type == 'boundarynodefield':
                 if self.dict[varname].shape[0] == geometry.number_of_nodes:
                     save_ensight_node(directory=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
                     list_fields_output.append(varname)
@@ -98,7 +98,7 @@ class Fields:
                         field_dimensions.append(1)
                     else:
                         field_dimensions.append(self.dict[varname].shape[1])
-            elif self.field_type == 'elementfield' or self.field_type == 'material':
+            elif self.field_type == 'elementfield' or self.field_type == 'material' or self.field_type == 'boundaryelementfield':
                 if self.dict[varname].shape[0] == geometry.number_of_elements:
                     save_ensight_element(directory=output_dir, name=self.name, field_name=varname,
                                          var=self.dict[varname])
@@ -205,9 +205,9 @@ def save_ensight_case(directory, name, geometry_name, field_names, field_dimensi
         for field_i in range(len(field_names)):
             field_name = field_names[field_i]
             field_dimension = field_dimensions[field_i]
-            if field_type == 'nodefield':
+            if field_type == 'nodefield' or field_type == 'boundarynodefield':
                 ensight_field_type = 'node'
-            elif field_type == 'elementfield':
+            elif field_type == 'elementfield' or field_type == 'boundaryelementfield':
                 ensight_field_type = 'element'
             elif field_type == 'material':
                 ensight_field_type = 'element'

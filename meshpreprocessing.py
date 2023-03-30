@@ -36,8 +36,8 @@ class MeshPreprocessing(MeshStructure):
         assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_nodefield_tv.csv')
         assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_material_tetra.csv')
         assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_nodefield_fibre-sheet-normal.csv')
-        assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_nodefield_ep-lvnodes.csv')
-        assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_nodefield_ep-rvnodes.csv')
+        assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_boundarynodefield_ep-lvnodes.csv')
+        assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_boundarynodefield_ep-rvnodes.csv')
         print('Everything set for QRS inference')
 
     def check_fields_for_twave_inference(self):
@@ -166,7 +166,7 @@ class MeshPreprocessing(MeshStructure):
         self.geometry.number_of_triangles = data.GetNumberOfCells()
         self.geometry.triangles = np.zeros([self.geometry.number_of_triangles, 3])
         self.boundary_node_fields.add_field(data=VN.vtk_to_numpy(data.GetPointData().GetArray('Ids')).astype(int),
-                                            data_name='surface-node-id', field_type='nodefield')
+                                            data_name='surface-node-id', field_type='boundarynodefield')
         for i in range(0, self.geometry.number_of_triangles):
             self.geometry.triangles[i, :] = [
                 int(self.boundary_node_fields.dict['surface-node-id'][data.GetCell(i).GetPointId(0)]),
@@ -180,18 +180,6 @@ class MeshPreprocessing(MeshStructure):
             else:
                 materials[element_i] = 1
         self.materials.add_field(data=materials, data_name='tetra', field_type='material')
-        prestress_field = np.zeros(self.element_fields.dict['tv-element'].shape[0]).astype(int)
-        for element_i in range(self.element_fields.dict['tv-element'].shape[0]):
-            if (self.element_fields.dict['tv-element'][element_i] == 7) or \
-                    (self.element_fields.dict['tv-element'][element_i] == 9) or \
-                    (self.element_fields.dict['tv-element'][element_i] == 1):
-                prestress_field[element_i] = 1
-            elif self.element_fields.dict['tv-element'][element_i] == 8 or \
-                    (self.element_fields.dict['tv-element'][element_i] == 10) or \
-                    (self.element_fields.dict['tv-element'][element_i] == 2):
-                prestress_field[element_i] = 2
-        self.element_fields.add_field(data=prestress_field, data_name='prestress', field_type='elementfield')
-
 
     def convert_uvc_to_cobiveco(self):
         # Map input geometry Cobiveco coordinates to output-style UVC
@@ -432,9 +420,9 @@ class MeshPreprocessing(MeshStructure):
         data = reader.GetOutput()
         elem_ids = VN.vtk_to_numpy(data.GetCellData().GetArray('Ids'))
         self.boundary_element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('RegionId')).astype(int),
-                                               'boundary-label', 'elementfield')
+                                               'boundary-label', 'boundaryelementfield')
         self.boundary_node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('RegionId')).astype(int),
-                                            'boundary-label', 'nodefield')
+                                            'boundary-label', 'boundarynodefield')
 
         for i in range(0, len(self.boundary_element_fields.dict['boundary-label'])):
             if self.boundary_element_fields.dict['boundary-label'][i] == 0:
@@ -459,7 +447,7 @@ class MeshPreprocessing(MeshStructure):
             self.boundary_node_fields.dict['boundary-label'] == self.geometry.rv_endocardium]] = self.geometry.rv_endocardium
         input_node_label_global[self.boundary_node_fields.dict['surface-node-id'][
             self.boundary_node_fields.dict['boundary-label'] == self.geometry.epicardium]] = self.geometry.epicardium
-        self.boundary_node_fields.add_field(input_node_label_global, 'input-boundary-label', 'nodefield')
+        self.boundary_node_fields.add_field(input_node_label_global, 'input-boundary-label', 'boundarynodefield')
 
         # Set up boundary label for EP and mechanics
         mechanical_element_boundary_label = np.zeros(self.boundary_element_fields.dict['boundary-label'].shape)
@@ -489,16 +477,14 @@ class MeshPreprocessing(MeshStructure):
                 # Restrict mechanical epicardium to only 80% of apex-to-base axis.
                 if (self.boundary_node_fields.dict['boundary-label'][local_index] == self.geometry.epicardium) & \
                         (self.node_fields.dict['ab'][self.geometry.triangles[i, j]] > self.geometry.pericardial_ab_extent):
-                    # if (self.        self.boundary_element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('RegionId')).astype(int),.dict['boundary_label'][i] == self.epicardium) & \
-                    #         (self.node_fields.dict['ab'][self.geometry.triangles[i, j]] > 0.8):
                     mechanical_element_boundary_label[i] = self.valve_plug  # Apply epicardial spring BC only to 80% of apex-to-base
                     mechanical_node_boundary_label[local_index] = self.valve_plug
         self.boundary_node_fields.add_field(mechanical_node_boundary_label, 'mechanical-node-boundary-label',
-                                            'nodefield')
-        self.boundary_node_fields.add_field(ep_node_boundary_label, 'ep-node-boundary-label', 'nodefield')
+                                            'boundarynodefield')
+        self.boundary_node_fields.add_field(ep_node_boundary_label, 'ep-node-boundary-label', 'boundarynodefield')
         self.boundary_element_fields.add_field(mechanical_element_boundary_label, 'mechanical-element-boundary-label',
-                                               'elementfield')
-        self.boundary_element_fields.add_field(ep_element_boundary_label, 'ep-element-boundary-label', 'elementfield')
+                                               'boundaryelementfield')
+        self.boundary_element_fields.add_field(ep_element_boundary_label, 'ep-element-boundary-label', 'boundaryelementfield')
 
         # Get LV and RV endocardium nodes
         ep_lvnodes = self.boundary_node_fields.dict['surface-node-id'][
@@ -514,11 +500,11 @@ class MeshPreprocessing(MeshStructure):
         ep_node_label_global[ep_rvnodes] = self.geometry.rv_endocardium
         ep_node_label_global[ep_epinodes] = self.geometry.epicardium
         ep_node_label_global[ep_valvenodes] = self.geometry.valve_plug
-        self.boundary_node_fields.add_field(ep_node_label_global, 'ep-node-label-global', 'nodefield')
-        self.boundary_node_fields.add_field(ep_lvnodes, 'ep-lvnodes', 'nodefield')
-        self.boundary_node_fields.add_field(ep_rvnodes, 'ep-rvnodes', 'nodefield')
-        self.boundary_node_fields.add_field(ep_epinodes, 'ep-epinodes', 'nodefield')
-        self.boundary_node_fields.add_field(ep_valvenodes, 'ep-valvenodes', 'nodefield')
+        self.boundary_node_fields.add_field(ep_node_label_global, 'ep-node-label-global', 'boundarynodefield')
+        self.boundary_node_fields.add_field(ep_lvnodes, 'ep-lvnodes', 'boundarynodefield')
+        self.boundary_node_fields.add_field(ep_rvnodes, 'ep-rvnodes', 'boundarynodefield')
+        self.boundary_node_fields.add_field(ep_epinodes, 'ep-epinodes', 'boundarynodefield')
+        self.boundary_node_fields.add_field(ep_valvenodes, 'ep-valvenodes', 'boundarynodefield')
 
         mechanical_lvnodes = self.boundary_node_fields.dict['surface-node-id'][
             self.boundary_node_fields.dict['mechanical-node-boundary-label'] == self.geometry.lv_endocardium].astype(int)
@@ -533,19 +519,19 @@ class MeshPreprocessing(MeshStructure):
         mechanical_node_label_global[mechanical_rvnodes] = self.geometry.rv_endocardium
         mechanical_node_label_global[mechanical_epinodes] = self.geometry.epicardium
         mechanical_node_label_global[mechanical_valvenodes] = self.geometry.valve_plug
-        self.boundary_node_fields.add_field(mechanical_node_label_global, 'mechanical-node-label-global', 'nodefield')
-        self.boundary_node_fields.add_field(mechanical_lvnodes, 'mechanical-lvnodes', 'nodefield')
-        self.boundary_node_fields.add_field(mechanical_rvnodes, 'mechanical-rvnodes', 'nodefield')
-        self.boundary_node_fields.add_field(mechanical_epinodes, 'mechanical-epinodes', 'nodefield')
-        self.boundary_node_fields.add_field(mechanical_valvenodes, 'mechanical-valvenodes', 'nodefield')
+        self.boundary_node_fields.add_field(mechanical_node_label_global, 'mechanical-node-label-global', 'boundarynodefield')
+        self.boundary_node_fields.add_field(mechanical_lvnodes, 'mechanical-lvnodes', 'boundarynodefield')
+        self.boundary_node_fields.add_field(mechanical_rvnodes, 'mechanical-rvnodes', 'boundarynodefield')
+        self.boundary_node_fields.add_field(mechanical_epinodes, 'mechanical-epinodes', 'boundarynodefield')
+        self.boundary_node_fields.add_field(mechanical_valvenodes, 'mechanical-valvenodes', 'boundarynodefield')
 
         # Get LV and RV endocardium faces for Eikonal solution.
         ep_lvfaces = self.geometry.triangles[
             self.boundary_element_fields.dict['ep-element-boundary-label'] == self.geometry.lv_endocardium].astype(int)
         ep_rvfaces = self.geometry.triangles[
             self.boundary_element_fields.dict['ep-element-boundary-label'] == self.geometry.rv_endocardium].astype(int)
-        self.boundary_element_fields.add_field(ep_lvfaces, 'ep-lvfaces', 'elementfield')
-        self.boundary_element_fields.add_field(ep_rvfaces, 'ep-rvfaces', 'elementfield')
+        self.boundary_element_fields.add_field(ep_lvfaces, 'ep-lvfaces', 'boundaryelementfield')
+        self.boundary_element_fields.add_field(ep_rvfaces, 'ep-rvfaces', 'boundaryelementfield')
 
         self.boundary_node_fields.save_to_csv(self.geometric_data_dir)
         self.boundary_element_fields.save_to_csv(self.geometric_data_dir)

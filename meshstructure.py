@@ -12,19 +12,18 @@ class MeshStructure:
         self.name = name
         self.geometry = Geometry(self.name, verbose=verbose)
         self.node_fields = Fields(self.name, field_type='nodefield', verbose=verbose)
-        self.boundary_node_fields = Fields(self.name, field_type='nodefield', verbose=verbose)
+        self.boundary_node_fields = Fields(self.name, field_type='boundarynodefield', verbose=verbose)
         self.element_fields = Fields(self.name, field_type='elementfield', verbose=verbose)
-        self.boundary_element_fields = Fields(self.name, field_type='elementfield', verbose=verbose)
+        self.boundary_element_fields = Fields(self.name, field_type='boundaryelementfield', verbose=verbose)
         self.materials = Fields(self.name, field_type='material', verbose=verbose)
         # Read in existing fields
         self.geometry.read_csv_to_attributes(self.geometric_data_dir)
         self.node_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='nodefield')
-        self.node_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='nodefield')
         self.element_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='elementfield')
-        self.element_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='elementfield')
-        self.boundary_node_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='nodefield')
-        self.boundary_element_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='elementfield')
+        self.boundary_node_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='boundarynodefield')
+        self.boundary_element_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='boundaryelementfield')
         self.materials.read_csv_to_attributes(self.geometric_data_dir, field_type='material')
+        print('done reading mesh structure. ')
 
 
     def save(self):
