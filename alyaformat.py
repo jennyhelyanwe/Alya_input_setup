@@ -24,7 +24,7 @@ class AlyaFormat(MeshStructure):
             os.mkdir(self.output_dir)
         copy(simulation_json_file, self.output_dir + self.name + '.json')
         self.simulation_dict = json.load(open(simulation_json_file, 'r'))
-        copy(self.simulation_dict['clinical_ecg_filename'], self.output_dir + self.name + '.json')
+        copy(self.simulation_dict['clinical_ecg_dir'] + self.simulation_dict['clinical_ecg_filename'], self.output_dir)
         self.check_simulation_dict_integrity()
         self.write_alya_simulation_files()
         self.add_utility_scripts()
@@ -104,12 +104,16 @@ class AlyaFormat(MeshStructure):
     def add_utility_scripts(self):
         if ('SOLIDZ' in self.simulation_dict['physics']) and ('EXMEDI' in self.simulation_dict['physics']):
             filename = 'util/monitoring/'+self.version+'.plot_live_em.template'
-            data = self.template(filename=filename, keys=['name'], data=[[self.simulation_dict['name']]], num_duplicates=1)
+            data = self.template(filename=filename, keys=['name', 'clinical_ecg_filename'],
+                                 data=[[self.simulation_dict['name'], "'" +
+                                        self.simulation_dict['clinical_ecg_filename'] + "'"]], num_duplicates=1)
             with open(self.output_dir+'plot_live_em.py', 'w') as f:
                 f.write(data)
         if 'EXMEDI' in self.simulation_dict['physics']:
             filename = 'util/monitoring/' + self.version + '.plot_live_ep.template'
-            data = self.template(filename=filename, keys=['name', 'clinical_ecg_filename'], data=[[self.simulation_dict['name'], self.simulation_dict['clinical_ecg_filename']]], num_duplicates=1)
+            data = self.template(filename=filename, keys=['name', 'clinical_ecg_filename'],
+                                 data=[[self.simulation_dict['name'], "'" +
+                                        self.simulation_dict['clinical_ecg_filename'] + "'"]], num_duplicates=1)
             with open(self.output_dir + 'plot_live_ep.py', 'w') as f:
                 f.write(data)
         filename = 'util/postprocessing/' + self.version + '.alya2csvensight_mpi.template'
