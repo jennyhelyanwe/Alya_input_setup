@@ -56,12 +56,12 @@ class AlyaFormat(MeshStructure):
                 f.write(data)
         filename = 'util/postprocessing/' + self.version + '.alya2csv_mpi.template'
         data = self.template(filename=filename, keys=['input_folder', 'task_name', 'output_folder', 'format'],
-                             data=[["'/'", "'"+self.simulation_dict['name']+"'", "'csv/'", "'alyabin'"]], num_duplicates=1)
+                             data=[["'./'", "'"+self.simulation_dict['name']+"'", "'csv/'", "'alyabin'"]], num_duplicates=1)
         with open(self.output_dir + 'alya2csv_mpi.py', 'w') as f:
             f.write(data)
         filename = 'util/postprocessing/' + self.version + '.alya2ensight_mpi.template'
         data = self.template(filename=filename, keys=['input_folder', 'task_name', 'output_folder', 'format'],
-                             data=[["'/'", "'"+self.simulation_dict['name']+"'", "'csv/'", "'alyabin'"]], num_duplicates=1)
+                             data=[["'./'", "'"+self.simulation_dict['name']+"'", "'csv/'", "'alyabin'"]], num_duplicates=1)
         with open(self.output_dir + 'alya2ensight_mpi.py', 'w') as f:
             f.write(data)
 
