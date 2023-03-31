@@ -24,9 +24,67 @@ class AlyaFormat(MeshStructure):
             os.mkdir(self.output_dir)
         copy(simulation_json_file, self.output_dir + self.name + '.json')
         self.simulation_dict = json.load(open(simulation_json_file, 'r'))
+        copy(self.simulation_dict['clinical_ecg_filename'], self.output_dir + self.name + '.json')
+        self.check_simulation_dict_integrity()
         self.write_alya_simulation_files()
         self.add_utility_scripts()
         self.add_job_scripts()
+
+    def check_simulation_dict_integrity(self):
+        print('Checking json file integrity')
+        assert len(self.simulation_dict['field_names']) == len(self.simulation_dict['field_types'])
+        assert len(self.simulation_dict['field_names']) == len(self.simulation_dict['field_dimensions'])
+        number_of_materials = np.amax(self.materials.dict['tetra'])
+        assert len(self.simulation_dict['cell_model']) == number_of_materials
+        assert len(self.simulation_dict['cell_filename']) == number_of_materials
+        assert len(self.simulation_dict['cell_number_of_beats']) == number_of_materials
+        assert len(self.simulation_dict['cell_steady_state_type']) == number_of_materials
+        assert len(self.simulation_dict['cell_steady_state_tolerance']) == number_of_materials
+        assert len(self.simulation_dict['cell_model_modification_toggle']) == number_of_materials
+        assert len(self.simulation_dict['exmedi_output']) == len(self.simulation_dict['exmedi_output_period'])
+        sf_fields = [x for x in list(self.simulation_dict.keys()) if 'sf_' in x]
+        if number_of_materials > 1:
+            assert np.array(self.simulation_dict['sigma']).shape[0] == number_of_materials
+            for key in sf_fields:
+                assert np.array(self.simulation_dict[key]).shape[0] == number_of_materials
+                assert np.array(self.simulation_dict[key]).shape[1] == 3
+            assert np.array(self.simulation_dict['sigma']).shape[1] == 3
+        else:
+            assert np.array(self.simulation_dict['sigma']).shape[0] == 3
+            for key in sf_fields:
+                assert np.array(self.simulation_dict[key]).shape[0] == 3
+        if 'SOLIDZ' in self.simulation_dict['physics']:
+            assert len(self.simulation_dict['solidz_output']) == len(self.simulation_dict['solidz_output_period'])
+            assert len(self.simulation_dict['density']) == number_of_materials
+            assert len(self.simulation_dict['Kct']) == number_of_materials
+            assert len(self.simulation_dict['a']) == number_of_materials
+            assert len(self.simulation_dict['b']) == number_of_materials
+            assert len(self.simulation_dict['af']) == number_of_materials
+            assert len(self.simulation_dict['bf']) == number_of_materials
+            assert len(self.simulation_dict['as']) == number_of_materials
+            assert len(self.simulation_dict['bs']) == number_of_materials
+            assert len(self.simulation_dict['afs']) == number_of_materials
+            assert len(self.simulation_dict['bfs']) == number_of_materials
+            assert len(self.simulation_dict['eccoupling_model_name']) == number_of_materials
+            assert len(self.simulation_dict['cal50']) == number_of_materials
+            assert len(self.simulation_dict['tref_sheet_scaling']) == number_of_materials
+            assert len(self.simulation_dict['tref_normal_scaling']) == number_of_materials
+            number_of_cavities = len(self.simulation_dict['cavity_bcs'])
+            assert len(self.simulation_dict['prestress_t']) == number_of_cavities
+            assert len(self.simulation_dict['prestress_p']) == number_of_cavities
+            assert len(self.simulation_dict['diastasis_t']) == number_of_cavities
+            assert len(self.simulation_dict['gain_error_prestress']) == number_of_cavities
+            assert len(self.simulation_dict['gain_derror_prestress']) == number_of_cavities
+            assert len(self.simulation_dict['end_diastole_t']) == number_of_cavities
+            assert len(self.simulation_dict['end_diastole_p']) == number_of_cavities
+            assert len(self.simulation_dict['gain_error_contraction']) == number_of_cavities
+            assert len(self.simulation_dict['gain_derror_contraction']) == number_of_cavities
+            assert len(self.simulation_dict['arterial_compliance']) == number_of_cavities
+            assert len(self.simulation_dict['arterial_resistance']) == number_of_cavities
+            assert len(self.simulation_dict['ejection_pressure_threshold']) == number_of_cavities
+            assert len(self.simulation_dict['gain_error_relaxation']) == number_of_cavities
+            assert len(self.simulation_dict['gain_derror_relaxation']) == number_of_cavities
+            assert len(self.simulation_dict['filling_pressure_threshold']) == number_of_cavities
 
     def template(self, filename, keys, data, num_duplicates):
         with open(filename, 'r') as f:
@@ -51,18 +109,13 @@ class AlyaFormat(MeshStructure):
                 f.write(data)
         if 'EXMEDI' in self.simulation_dict['physics']:
             filename = 'util/monitoring/' + self.version + '.plot_live_ep.template'
-            data = self.template(filename=filename, keys=['name'], data=[[self.simulation_dict['name']]], num_duplicates=1)
+            data = self.template(filename=filename, keys=['name', 'clinical_ecg_filename'], data=[[self.simulation_dict['name'], self.simulation_dict['clinical_ecg_filename']]], num_duplicates=1)
             with open(self.output_dir + 'plot_live_ep.py', 'w') as f:
                 f.write(data)
-        filename = 'util/postprocessing/' + self.version + '.alya2csv_mpi.template'
+        filename = 'util/postprocessing/' + self.version + '.alya2csvensight_mpi.template'
         data = self.template(filename=filename, keys=['input_folder', 'task_name', 'output_folder', 'format'],
-                             data=[["'./'", "'"+self.simulation_dict['name']+"'", "'csv/'", "'alyabin'"]], num_duplicates=1)
-        with open(self.output_dir + 'alya2csv_mpi.py', 'w') as f:
-            f.write(data)
-        filename = 'util/postprocessing/' + self.version + '.alya2ensight_mpi.template'
-        data = self.template(filename=filename, keys=['input_folder', 'task_name', 'output_folder', 'format'],
-                             data=[["'./'", "'"+self.simulation_dict['name']+"'", "'csv/'", "'alyabin'"]], num_duplicates=1)
-        with open(self.output_dir + 'alya2ensight_mpi.py', 'w') as f:
+                             data=[["'./'", "'"+self.simulation_dict['name']+"'", "'results'", "'alyabin'"]], num_duplicates=1)
+        with open(self.output_dir + 'alya2csvensight_mpi.py', 'w') as f:
             f.write(data)
 
     def write_alya_simulation_files(self):
@@ -128,44 +181,16 @@ class AlyaFormat(MeshStructure):
             field_declaration_str = ''
             field_names = self.simulation_dict['field_names']
             field_types = self.simulation_dict['field_types']
+            field_dimensions = self.simulation_dict['field_dimensions']
             for field_i in range(len(field_names)):
-                varname = field_names[field_i]
-                if field_types[field_i] == 'nodefield':
-                    field = self.node_fields.dict[varname]
-                    if len(field.shape) == 1:
-                        field_declaration_str = field_declaration_str + '\n\t\tFIELD = ' + str(
-                            field_i + 1) + ', DIMENSION = 1, NODES'
-                    else:
-                        field_declaration_str = field_declaration_str + '\n\t\tFIELD = ' + str(
-                            field_i + 1) + ', DIMENSION = ' + str(
-                            field.shape[1]) + ', NODES'
-                elif field_types[field_i] == 'elementfield':
-                    field = self.element_fields.dict[varname]
-                    if len(field.shape) == 1:
-                        field_declaration_str = field_declaration_str + '\n\t\tFIELD = ' + str(
-                            field_i + 1) + ', DIMENSION = 1, ELEMENTS'
-                    else:
-                        field_declaration_str = field_declaration_str + '\n\t\tFIELD = ' + str(
-                            field_i + 1) + ', DIMENSION = ' + str(
-                            field.shape[1]) + ', ELEMENTS'
-                elif field_types[field_i] == 'boundarynodefield':
-                    field = self.boundary_node_fields.dict[varname]
-                    if len(field.shape) == 1:
-                        field_declaration_str = field_declaration_str + '\n\t\tFIELD = ' + str(
-                            field_i + 1) + ', DIMENSION = 1, NODES'
-                    else:
-                        field_declaration_str = field_declaration_str + '\n\t\tFIELD = ' + str(
-                            field_i + 1) + ', DIMENSION = ' + str(
-                            field.shape[1]) + ', NODES'
-                elif field_types[field_i] == 'boundaryelementfield':
-                    field = self.boundary_element_fields.dict[varname]
-                    if len(field.shape) == 1:
-                        field_declaration_str = field_declaration_str + '\n\t\tFIELD = ' + str(
-                            field_i + 1) + ', DIMENSION = 1, ELEMENTS'
-                    else:
-                        field_declaration_str = field_declaration_str + '\n\t\tFIELD = ' + str(
-                            field_i + 1) + ', DIMENSION = ' + str(
-                            field.shape[1]) + ', ELEMENTS'
+                if field_types[field_i] == 'nodefield' or field_types[field_i] == 'boundarynodefield':
+                    field_declaration_str = field_declaration_str + '\n\t\tFIELD = ' + str(
+                        field_i + 1) + ', DIMENSION = ' \
+                                            + str(field_dimensions[field_i]) + ', NODES'
+                elif field_types[field_i] == 'elementfield' or field_types[field_i] == 'boundaryelementfield':
+                    field_declaration_str = field_declaration_str + '\n\t\tFIELD = ' + str(
+                        field_i + 1) + ', DIMENSION = ' \
+                                            + str(field_dimensions[field_i]) + ', ELEMENTS'
             field_initialisation_str = ''
             for field_i in range(len(field_names)):
                 varname = field_names[field_i]
@@ -245,7 +270,7 @@ class AlyaFormat(MeshStructure):
                 f.write('END_BOUNDARIES\n')
             write_alya_field(filename=self.output_dir + self.simulation_dict['name'] + '.materials',
                              field_idx=np.arange(1, self.materials.dict['tetra'].shape[0] + 1),
-                             field_data=self.materials.dict['tetra'])
+                             field_data=self.materials.dict['tetra'].astype(int))
             write_alya_field(filename=self.output_dir + self.simulation_dict['name'] + '.boundaries',
                              field_idx=np.arange(1, self.boundary_element_fields.dict[
                                  'mechanical-element-boundary-label'].shape[0] + 1),
@@ -460,7 +485,7 @@ class AlyaFormat(MeshStructure):
         if self.version == 'alya-compbiomed2':
             coupling_str = ''
             if ('SOLIDZ' in self.simulation_dict['physics']) and ('EXMEDI' in self.simulation_dict['physics']):
-                coupling_str = '\n\tCOUPLING\n\t\tSOLIDZ EXMEDI\n\tEND_COUPLING'
+                coupling_str = '\n\tECCOUPLING\n\tCOUPLING\n\t\tSOLIDZ EXMEDI\n\tEND_COUPLING'
                 filename = self.template_dir + self.version + '.subtemplate.coupling_template'
                 subkeys = ["eccoupling_model_name", "cal50", "tref_sheet_scaling", "tref_normal_scaling", "tref_scaling"]
                 insert_data = []
@@ -473,6 +498,7 @@ class AlyaFormat(MeshStructure):
                 keys = ["material_idx"] + subkeys
                 coupling_str_2 = self.template(filename=filename, keys=keys, data=insert_data, num_duplicates=num_materials)
                 coupling_str = coupling_str + coupling_str_2
+                coupling_str = coupling_str + '\nEND_ECCOUPLING'
             # Replace all ker.dat
             filename = self.template_dir + self.version + '.ker.dat'
             keys = ["coupling_str", "fibre_field_number", "sheet_field_number", "normal_field_number",
@@ -575,14 +601,14 @@ class AlyaFormat(MeshStructure):
             f.write(data)
         # Postprocessing job
         filename = self.job_template_dir + self.job_version + '.run_job_postprocess.cmd'
-        keys = keys + ['python_script_name2']
+        keys = ['job_name', 'job_time', 'computational_nodes', 'tasks_per_node', 'computational_cores', 'job_type']
         job_type = ''
         if self.job_version == 'jureca':
             tasks_per_node = 128
             job_type = 'dc-cpu-devel'
         insert_data = [[self.simulation_dict['name'], str(1),
                         np.ceil(128 / tasks_per_node).astype(int),
-                        tasks_per_node, 128, job_type, 'alya2ensight_mpi.py', 'alya2csv_mpi.py']]
+                        tasks_per_node, 128, job_type]]
         data = self.template(filename, keys=keys, data=insert_data, num_duplicates=1)
         output_filename = self.output_dir + 'run_job_postprocess.cmd'
         with open(output_filename, 'w') as f:

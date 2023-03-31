@@ -76,14 +76,16 @@ try:
         #path = pathlib.Path(outputfolder)
         #if not path.exists:
         #    path.mkdir()
-        if not os.path.exists(outputfolder):
-            os.mkdir(outputfolder)
+        if not os.path.exists(outputfolder + '_ensight/'):
+            os.mkdir(outputfolder + '_ensight/')
+        if not os.path.exists(outputfolder + '_csv/'):
+            os.mkdir(outputfolder + '_csv/')
         
 
         print('-------------------------------------------------------');
         print('Alya task: '+str(project_name));
         print('Input path: '+str(inputfolder));
-        print('Output path: '+str(outputfolder));
+        print('Output path: '+str(outputfolder) + '_csv/' + ' and '+str(outputfolder) + '_ensight/')
         if MPIO:
             print('Format: MPIO');
         else:
@@ -461,12 +463,57 @@ def write_geometry(number_of_blocks):
         #here -1 to transform to python array, and +1 to ensight array indexing
         connectivity[:,i] = inverse_pt_correspondence[connectivity[:,i]-1]+1
 
-    np.savetxt(os.path.join(outputfolder, project_name + '_point_coordinates.csv'), point_coordinates,
+    np.savetxt(os.path.join(outputfolder + '_csv/', project_name + '_point_coordinates.csv'), point_coordinates,
                delimiter=',')
-    np.savetxt(os.path.join(outputfolder, project_name + 'connectivity.csv'), connectivity, delimiter=',')
+    np.savetxt(os.path.join(outputfolder + '_csv/', project_name + 'connectivity.csv'), connectivity, delimiter=',')
+      #geometry ensight
+
+    with open(os.path.join(outputfolder + '_ensight/',project_name+ '.ensi.geo'),'wb') as f:
+        f.write(b'C Binary'.ljust(80))
+        f.write(b'description line 1'.ljust(80))
+        f.write(b'description line 2'.ljust(80))
+        f.write(b'node id given'.ljust(80))
+        f.write(b'element id given'.ljust(80))
+        f.write(b'part'.ljust(80))
+        f.write(np.array([1], dtype=ensight_id_type))   #int
+        f.write(b'description line 1'.ljust(80))
+        f.write(b'coordinates'.ljust(80))
+
+        number_of_points = point_coordinates.shape[0]
+        f.write(np.array([number_of_points], dtype=ensight_id_type))   #int
+        f.write(np.arange(1,number_of_points+1, dtype=ensight_id_type))
+
+        ndim = point_coordinates.shape[1]
+
+        iii = 0
+        while iii<ndim:
+            f.write( point_coordinates[:,iii].ravel().astype(ensight_float_type) )  #x coord
+            iii = iii+1
+
+        #fill the rest with 0
+        while iii<3:
+            f.write( 0*point_coordinates[:,0].ravel().astype(ensight_float_type) )  #x coord
+            iii = iii+1
 
 
+        for elem_alya_id, elem_ensi_id in element_alya2ensi.items():
+            #print("Saving elements ", elem_alya_id, " as ", elem_ensi_id)
 
+            element_locations = np.where( element_types['tuples']==elem_alya_id )[0] #returns 2 sets, take first
+
+
+            elements = connectivity[element_locations,0:elem_ensi_id['Vertices']]
+            #print("Locations: ", element_locations)
+
+
+            number_of_elements = elements.shape[0]
+            #print("Number of elements = ",number_of_elements)
+
+
+            f.write(elem_ensi_id['Name'].ljust(80))  #tetra4 or hexa8
+            f.write( np.array([number_of_elements], dtype=ensight_id_type) )   #int
+            f.write( np.array( element_locations, dtype=ensight_id_type)+1 )
+            f.write( elements.ravel().astype(ensight_id_type) )
 # In[15]:
 
 
@@ -485,10 +532,39 @@ def write_variable_percell(varname, iteration, number_of_blocks):
     if 'MATER' in varname:  # this is very particular
         data2write = data['tuples'].ravel()
         for elem_alya_id, elem_ensi_id in element_alya2ensi.items():
-            np.savetxt(os.path.join(outputfolder, fmt % (project_name, elem_ensi_id['Name'].ljust(80), varname, iteration)), data2write,
+            np.savetxt(os.path.join(outputfolder + '_csv/', fmt % (project_name, elem_ensi_id['Name'].ljust(80), varname, iteration)), data2write,
                    delimiter=',')
     else:
         assert False, 'For now only saving MATER is implmeneted, not ' + str(varname)
+
+    #variable ensight
+    fmt = '%s.ensi.%s-%0'+str(iterationid_number_of_digits)+'d'
+    with open( os.path.join(outputfolder + '_ensight/', fmt % (project_name, varname, iteration)),'wb') as f:
+        f.write(b'description line 1'.ljust(80))
+        f.write(b'part'.ljust(80))
+        f.write(np.array([1], dtype=ensight_id_type))   #int
+
+        if 'MATER' in varname:  #this is very particular
+            #data2write = np.zeros(inverse_el_correspondence.max()+1, dtype = ensight_float_type)
+            #data2write[inverse_el_correspondence] = data['values']['tuples'].ravel()
+            data2write = data['tuples'].ravel()
+
+            for elem_alya_id, elem_ensi_id in element_alya2ensi.items():
+                #print("Saving elements ", elem_alya_id, " as ", elem_ensi_id)
+
+                element_locations = np.where( element_types==elem_alya_id )[0] #returns 2 sets, take first
+
+
+                values = data2write[element_locations]
+                number_of_values = values.shape[0]
+
+
+                f.write(elem_ensi_id['Name'].ljust(80))  #tetra4 or hexa8
+                f.write( values.ravel().astype(ensight_float_type) )
+
+
+        else:
+            assert False, 'For now only saving MATER is implmeneted, not '+str(varname)
         
     return {'time_real':data['header']['Time'], 'time_int':data['header']['TimeStepNo'], \
             'variable_type':data['header']['VariableType'], 'variable_association':data['header']['Association']}
@@ -510,16 +586,45 @@ def write_variable_pernode(varname, iteration, number_of_blocks):
     if data['header']['VariableType'] == 'scalar':
         data2write = np.zeros(inverse_pt_correspondence.max() + 1, dtype=ensight_float_type)
         data2write[inverse_pt_correspondence] = data['tuples'].ravel()
-        np.savetxt(os.path.join(outputfolder, fmt % (project_name, 'scalar', varname, iteration)),data2write,
+        np.savetxt(os.path.join(outputfolder + '_csv', fmt % (project_name, 'scalar', varname, iteration)),data2write,
                    delimiter=',')
     elif data['header']['VariableType']=='vector':
         data2write = np.zeros([inverse_pt_correspondence.max() + 1, 3], dtype=ensight_float_type)
         ncomponents = data['tuples'].shape[1]  # for 1d, 2d and 3d problems
         data2write[inverse_pt_correspondence, 0:ncomponents] = data['tuples']
-        np.savetxt(os.path.join(outputfolder, fmt % (project_name, 'vector', varname, iteration)), data2write,
+        np.savetxt(os.path.join(outputfolder + '_csv', fmt % (project_name, 'vector', varname, iteration)), data2write,
                    delimiter=',')
     else:
         assert False, "Unknown varibale type: " + str(data['variabletype'])
+
+    #variable ensight
+    fmt = '%s.ensi.%s-%0'+str(iterationid_number_of_digits)+'d'
+    with open( os.path.join(outputfolder + '_ensight/', fmt % (project_name, varname, iteration)),'wb') as f:
+        f.write(b'description line 1'.ljust(80))
+        f.write(b'part'.ljust(80))
+        f.write(np.array([1], dtype=ensight_id_type))   #int
+        f.write(b'coordinates'.ljust(80))
+        if data['header']['VariableType']=='scalar':
+            data2write = np.zeros(inverse_pt_correspondence.max()+1, dtype = ensight_float_type)
+            #print('Data22write: ',data2write.shape)
+            #print('Ravel: ',data['values']['tuples'].ravel().shape)
+            #print('Corresp:',inverse_pt_correspondence.shape )
+            #print("Writing variable: ",varname)
+            data2write[inverse_pt_correspondence] = data['tuples'].ravel()
+            f.write( data2write )  #z coord
+        elif data['header']['VariableType']=='vector':
+            #data has coordinates in the order [[x,y,z],[x,y,z],...]
+            #expected order of coordinates
+            #vx_n1 vx_n2 ... vx_nn nn floats
+            #vy_n1 vy_n2 ... vy_nn nn floats
+            #vz_n1 vz_n2 ... vz_nn nn floats
+            #Rearrange the  matrix
+            data2write = np.zeros( [inverse_pt_correspondence.max()+1, 3], dtype = ensight_float_type)
+            ncomponents = data['tuples'].shape[1] #for 1d, 2d and 3d problems
+            data2write[inverse_pt_correspondence,0:ncomponents] = data['tuples']
+            f.write( data2write.ravel(order='F').astype(ensight_float_type) )  #z coord
+        else:
+            assert False, "Unknown varibale type: " + str(data['variabletype'])
         
     return {'time_real':data['header']['Time'], 'time_int':data['header']['TimeStepNo'], \
             'variable_type':data['header']['VariableType'], 'variable_association':data['header']['Association']}
@@ -844,7 +949,7 @@ if my_rank == 0:
     sys.stdout.flush()
 
     case_file = project_name+ '.ensi.case'
-    with open(os.path.join(outputfolder, case_file), 'w') as f:
+    with open(os.path.join(outputfolder + '_ensight/', case_file), 'w') as f:
         f.write('# Converted from Alya\n')
         f.write('# Ensight Gold Format\n')
         f.write('#\n')

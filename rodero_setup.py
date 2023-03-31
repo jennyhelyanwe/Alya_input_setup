@@ -4,7 +4,7 @@ from alyaformat import AlyaFormat
 
 ########################################################################################################################
 # Global Settings
-mesh_number = '01'
+mesh_number = '05'
 simulation_name = 'rodero_' + mesh_number + '_fine'
 geometric_data_dir = '/data/Personalisation_projects/meta_data/geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_fine/'
 verbose = False
@@ -21,14 +21,18 @@ vtk_name = mesh_number + '_bivent_only'
 
 
 ########################################################################################################################
-# Step 3: Generate fields for Alya simulation
+# Step 3: Calibrate conductivities to personalisation conduction velocity
+
+
+########################################################################################################################
+# Step 4: Generate fields for Alya simulation
 personalisation_data_dir = '/data/Personalisation_projects/meta_data/results/personalisation_data/rodero_'+mesh_number+'/'
 electrode_data_filename = '/data/Personalisation_projects/meta_data/geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_electrode_xyz.csv'
 FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir, electrode_data_filename=electrode_data_filename,
                 personalisation_data_dir=personalisation_data_dir, verbose=verbose)
 
 ########################################################################################################################
-# Step 4: Write Alya input files according to simulation protocol saved in .json file.
+# Step 5: Write Alya input files according to simulation protocol saved in .json file.
 simulation_json_file = 'rodero_baseline_simulation_em.json'
 alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir, personalisation_dir=personalisation_data_dir,
            verbose=verbose)

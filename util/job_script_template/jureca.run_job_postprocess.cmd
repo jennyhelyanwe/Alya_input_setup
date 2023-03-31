@@ -9,5 +9,4 @@
 #SBATCH --partition=<<job_type>>
 
 alyapostenv
-srun -n <<computational_cores>> python <<python_script_name>>
-srun -n <<computational_cores>> python <<python_script_name2>>
+srun -n <<computational_cores>> python alya2csvensight_mpi.py
