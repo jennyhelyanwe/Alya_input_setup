@@ -90,7 +90,6 @@ class Fields:
         list_fields_output = []
         for field_i in range(self.number_of_fields):
             varname = list_fields[field_i]
-            print(varname)
             if self.field_type == 'nodefield' or self.field_type == 'boundarynodefield':
                 if self.dict[varname].shape[0] == geometry.number_of_nodes:
                     save_ensight_node(directory=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
