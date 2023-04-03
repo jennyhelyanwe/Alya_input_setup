@@ -22,6 +22,8 @@ class Geometry:
         self.rv = 1
         self.base = 1
         self.apex = 0
+        self.tm_endo = 1
+        self.tm_epi = 0
         self.pericardial_ab_extent = 0.75
         self.verbose = verbose
 
@@ -90,7 +92,8 @@ class Fields:
         list_fields_output = []
         for field_i in range(self.number_of_fields):
             varname = list_fields[field_i]
-            if self.field_type == 'nodefield' or self.field_type == 'boundarynodefield':
+            if self.field_type == 'nodefield' or self.field_type == 'boundarynodefield' or \
+                    self.field_type == 'postnodefield':
                 if self.dict[varname].shape[0] == geometry.number_of_nodes:
                     save_ensight_node(directory=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
                     list_fields_output.append(varname)
@@ -98,7 +101,8 @@ class Fields:
                         field_dimensions.append(1)
                     else:
                         field_dimensions.append(self.dict[varname].shape[1])
-            elif self.field_type == 'elementfield' or self.field_type == 'material' or self.field_type == 'boundaryelementfield':
+            elif self.field_type == 'elementfield' or self.field_type == 'material' or \
+                    self.field_type == 'boundaryelementfield' or self.field_type == 'postelementfield':
                 if self.dict[varname].shape[0] == geometry.number_of_elements:
                     save_ensight_element(directory=output_dir, name=self.name, field_name=varname,
                                          var=self.dict[varname])
@@ -205,12 +209,14 @@ def save_ensight_case(directory, name, geometry_name, field_names, field_dimensi
         for field_i in range(len(field_names)):
             field_name = field_names[field_i]
             field_dimension = field_dimensions[field_i]
-            if field_type == 'nodefield' or field_type == 'boundarynodefield':
+            if field_type == 'nodefield' or field_type == 'boundarynodefield' or field_type == 'postnodefield':
                 ensight_field_type = 'node'
-            elif field_type == 'elementfield' or field_type == 'boundaryelementfield':
+            elif field_type == 'elementfield' or field_type == 'boundaryelementfield' or field_type == 'postelementfield':
                 ensight_field_type = 'element'
             elif field_type == 'material':
                 ensight_field_type = 'element'
+            else:
+                raise ValueError('Field type '+ field_type + ' not found. ')
             if field_dimension == 1:
                 f.write(
                     'scalar per ' + ensight_field_type + ':\t' + str(

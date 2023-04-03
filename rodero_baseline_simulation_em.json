@@ -52,7 +52,7 @@
   "solidz_residual" : "TOTAL",
   "solidz_convergence_tolerance" : 1e-6,
   "solidz_output": ["DISPL", "ACTST", "LAMBDA"],
-  "solidz_output_period": [0.01, 0.01, 0.01],
+  "solidz_output_period": [0.005, 0.005, 0.005],
   "density" : [1.1, 1.1],
   "Kct": [5000000, 5000000],
   "a" : [20000, 200000],

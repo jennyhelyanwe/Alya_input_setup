@@ -48,6 +48,6 @@
   "sf_gclca" : [[1.0, 1.0, 1.0], [0,0,0]],
   "sf_gcab" : [[1.0, 1.0, 1.0], [0,0,0]],
   "exmedi_output": ["INTRA", "CALCI"],
-  "exmedi_output_period": [0.01, 0.01],
+  "exmedi_output_period": [0.005, 0.005],
   "computational_cores" : 540
 }
