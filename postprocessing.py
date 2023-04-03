@@ -22,7 +22,7 @@ class PostProcessing(MeshStructure):
         if not hasattr(self.post_nodefield.dict, "lat"):
             self.lat_rt()
         self.simulation_biomarkers = {}
-        self.get_ventricular_cvs()
+        # self.get_ventricular_cvs()
         self.save()
 
     def save(self):
@@ -42,8 +42,8 @@ class PostProcessing(MeshStructure):
                                                      geometry=self.geometry)
 
     def lat_rt(self):
-        print('Reading in Vm and evaluating LAT and RT')
         if not hasattr(self.post_nodefield.dict, "INTRA"):
+            print('Reading in Vm')
             name = self.simulation_dict['name']
             self.post_nodefield.add_field(data=np.loadtxt(self.alyacsv_dir+'timeset_1.csv', delimiter=',').astype(float),
                                           data_name='time', field_type='postnodefield')
@@ -65,6 +65,7 @@ class PostProcessing(MeshStructure):
                     filename= self.alyacsv_dir + name + '.' + field_type + '.' + field_name+'-'+index+'.csv'
                     temp.append(list(np.loadtxt(filename, delimiter=',')))
                 self.post_nodefield.add_field(data=np.array(temp), data_name=field_name, field_type='postnodefield')
+        print('Evaluating LAT and RT')
         lat = evaluate_lat(time=self.post_nodefield.dict['time'], vm=self.post_nodefield.dict['INTRA'], percentage=0.7,
                            time_window=[float(self.simulation_dict['exmedi_delay_time']),
                                         float(self.simulation_dict['cycle_length'])])
@@ -107,7 +108,7 @@ class PostProcessing(MeshStructure):
 
 def evaluate_lat(time, vm, percentage, time_window):
     window_idx = np.nonzero((time > time_window[0]) & (time < time_window[1]))[0]
-    vm = vm[window_idx]
+    vm = vm[:, window_idx]
     time = time[window_idx] - time_window[0]  # Offset by beginning of time window.
     activation_map = np.zeros((vm.shape[0]))
     vm_range = np.amax(vm, axis=1) - np.amin(vm, axis=1)
@@ -120,7 +121,7 @@ def evaluate_lat(time, vm, percentage, time_window):
 
 def evaluate_rt(time, vm, percentage, time_window):
     window_idx = np.nonzero((time > time_window[0]) & (time < time_window[1]))[0]
-    vm = vm[window_idx]
+    vm = vm[:, window_idx]
     time = time[window_idx] - time_window[0] # Offset by beginning of time window.
     repolarisation_map = np.ones((vm.shape[0]))
     vm_range = np.amax(vm, axis=1) - np.amin(vm, axis=1)
