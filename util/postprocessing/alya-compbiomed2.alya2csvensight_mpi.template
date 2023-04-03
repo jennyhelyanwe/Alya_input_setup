@@ -1014,7 +1014,8 @@ if my_rank == 0:
             f.write('time values:\n')
             f.write(str(var_data['data'].time_real.values)[1:-1]+'\n')
 
-            np.savetxt('timeset_'+str(counter)+'.csv', var_data['data'].time_real.values, delimiter=',')
+            np.savetxt(outputfolder + '_csv/' + 'timeindices_'+str(counter)+'.csv', var_data['data'].time_int.values, delimiter=',')
+            np.savetxt(outputfolder + '_csv/' + 'timeset_'+str(counter)+'.csv', var_data['data'].time_real.values, delimiter=',')
             counter = counter + 1
 
 # In[33]:

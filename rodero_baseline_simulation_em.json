@@ -2,7 +2,6 @@
   "name": "heart",
   "alya_version": "alya-compbiomed2",
   "alya_exec_path" : "/p/project/icei-prace-2022-0003/wang1/alya-compbiomed2_ionic_sf_fields/Executables/unix/Alya.x",
-  "clinical_ecg_dir" : "/data/Personalisation_projects/meta_data/clinical_data/",
   "clinical_ecg_filename" : "DTI004_clinical_full_ecg.csv",
   "spatial_dimensions": 3,
   "run_type": "PRELIMINARY",

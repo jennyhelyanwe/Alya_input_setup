@@ -6,17 +6,6 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.animation as animation
 
 
-clinical_ecg = numpy.loadtxt(<<clinical_ecg_filename>>, delimiter=',')
-max_leads = numpy.amax(clinical_ecg)
-clinical_I = clinical_ecg[0,100:]/max_leads
-clinical_II = clinical_ecg[1,100:]/max_leads
-clinical_V1 = clinical_ecg[2,100:]/max_leads
-clinical_V2 = clinical_ecg[3,100:]/max_leads
-clinical_V3 = clinical_ecg[4,100:]/max_leads
-clinical_V4 = clinical_ecg[5,100:]/max_leads
-clinical_V5 = clinical_ecg[6,100:]/max_leads
-clinical_V6 = clinical_ecg[7,100:]/max_leads
-clinical_t = numpy.arange(0, len(clinical_I)*0.001, 0.001)
 
 fig = pyplot.figure(tight_layout=True, figsize=[15,7])
 fig.suptitle('<<name>>')
@@ -40,6 +29,26 @@ ax13 = fig.add_subplot(gs[2,4])
 ax14 = fig.add_subplot(gs[0,5])
 ax15 = fig.add_subplot(gs[1,5])
 ax16 = fig.add_subplot(gs[2,5])
+
+clinical_ecg = numpy.loadtxt(<<clinical_ecg_filename>>, delimiter=',')
+max_leads = numpy.amax(clinical_ecg)
+clinical_I = clinical_ecg[0,100:]/max_leads
+clinical_II = clinical_ecg[1,100:]/max_leads
+clinical_V1 = clinical_ecg[2,100:]/max_leads
+clinical_V2 = clinical_ecg[3,100:]/max_leads
+clinical_V3 = clinical_ecg[4,100:]/max_leads
+clinical_V4 = clinical_ecg[5,100:]/max_leads
+clinical_V5 = clinical_ecg[6,100:]/max_leads
+clinical_V6 = clinical_ecg[7,100:]/max_leads
+clinical_t = numpy.arange(0, len(clinical_I)*0.001, 0.001)
+ax5.plot(clinical_t, clinical_I)
+ax6.plot(clinical_t, clinical_II)
+ax7.plot(clinical_t, clinical_V1)
+ax8.plot(clinical_t, clinical_V2)
+ax9.plot(clinical_t, clinical_V3)
+ax10.plot(clinical_t, clinical_V4)
+ax11.plot(clinical_t, clinical_V5)
+ax12.plot(clinical_t, clinical_V6)
 
 def animate(i):
 	filename = '<<name>>-cardiac-cycle.sld.res'

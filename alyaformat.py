@@ -1,12 +1,11 @@
 import json
-from shutil import copy, copyfile
+from shutil import copy
 
 from meshstructure import MeshStructure
-from pre_refactoring.evaluationfunctions import *
 
 
 class AlyaFormat(MeshStructure):
-    def __init__(self, name, geometric_data_dir, personalisation_dir, verbose):
+    def __init__(self, name, geometric_data_dir, personalisation_dir, clinical_data_dir, simulation_dir, verbose):
         super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
         self.version = 'alya-compbiomed2'  # 'Alya_multiple_BZRZ_models'
         self.template_dir = 'alya_input_templates/'
@@ -14,17 +13,19 @@ class AlyaFormat(MeshStructure):
         self.job_version = 'jureca'
         self.geometric_data_dir = geometric_data_dir
         self.personalisation_dir = personalisation_dir
+        self.clinical_data_dir = clinical_data_dir
+        self.simulation_dir = simulation_dir
         self.verbose = verbose
         self.name = name
 
     def do(self, simulation_json_file):
-        self.output_dir = simulation_json_file.split('.')[0] + '_' + self.name + '/'
+        self.output_dir = self.simulation_dir + simulation_json_file.split('.')[0] + '_' + self.name + '/'
         print('Alya version: ' + self.version + ', simulation name: ', self.name, ' to: ', self.output_dir)
         if not os.path.exists(self.output_dir):
             os.mkdir(self.output_dir)
         copy(simulation_json_file, self.output_dir + self.name + '.json')
         self.simulation_dict = json.load(open(simulation_json_file, 'r'))
-        copy(self.simulation_dict['clinical_ecg_dir'] + self.simulation_dict['clinical_ecg_filename'], self.output_dir)
+        copy(self.clinical_data_dir + self.simulation_dict['clinical_ecg_filename'], self.output_dir)
         self.check_simulation_dict_integrity()
         self.write_alya_simulation_files()
         self.add_utility_scripts()
