@@ -1,4 +1,6 @@
 import json
+import os
+import numpy as np
 from shutil import copy
 
 from meshstructure import MeshStructure

@@ -119,7 +119,6 @@ def animate(i):
 		ax15.plot(t, V5/max_all_leads, clinical_t, clinical_V5)
 		ax16.clear()
 		ax16.plot(t, V6/max_all_leads, clinical_t, clinical_V6)
-		ax16.set_legend(['Simulation', 'Clinical'])
 
 		ax5.set_xlabel('Time (s)')
 		ax6.set_xlabel('Time (s)')
