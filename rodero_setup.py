@@ -43,8 +43,8 @@ personalisation_data_dir = meta_data_dir + 'results/personalisation_data/rodero_
 ########################################################################################################################
 # Step 4: Generate fields for Alya simulation
 electrode_data_filename = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_electrode_xyz.csv'
-FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir, electrode_data_filename=electrode_data_filename,
-                personalisation_data_dir=personalisation_data_dir, verbose=verbose)
+# FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir, electrode_data_filename=electrode_data_filename,
+#                 personalisation_data_dir=personalisation_data_dir, verbose=verbose)
 
 ########################################################################################################################
 # Step 5: Write Alya input files according to simulation protocol saved in .json file.

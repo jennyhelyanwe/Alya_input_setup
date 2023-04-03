@@ -3,6 +3,7 @@ import os
 import json
 # from mpi4py import MPI #needs install
 # from multiprocessing import Queue
+import pymp, multiprocessing
 
 from meshstructure import MeshStructure
 from myformat import Fields
@@ -20,7 +21,8 @@ class PostProcessing(MeshStructure):
         # Evaluate various biomarkers
         if not hasattr(self.post_nodefield.dict, "lat"):
             self.lat_rt()
-
+        self.simulation_biomarkers = {}
+        self.get_ventricular_cvs()
         self.save()
 
     def save(self):
@@ -39,13 +41,11 @@ class PostProcessing(MeshStructure):
                                                      casename=self.name + '_postelementfield',
                                                      geometry=self.geometry)
 
-
-
     def lat_rt(self):
         print('Reading in Vm and evaluating LAT and RT')
         if not hasattr(self.post_nodefield.dict, "INTRA"):
             name = self.simulation_dict['name']
-            self.post_nodefield.add_field(data=np.loadtxt(self.alyacsv_dir+'timeset_1.csv', delimiter=','),
+            self.post_nodefield.add_field(data=np.loadtxt(self.alyacsv_dir+'timeset_1.csv', delimiter=',').astype(float),
                                           data_name='time', field_type='postnodefield')
             time = self.post_nodefield.dict['time']
             time_index = np.loadtxt(self.alyacsv_dir+'timeindices_1.csv', delimiter=',').astype(int)
@@ -66,17 +66,47 @@ class PostProcessing(MeshStructure):
                     temp.append(list(np.loadtxt(filename, delimiter=',')))
                 self.post_nodefield.add_field(data=np.array(temp), data_name=field_name, field_type='postnodefield')
         lat = evaluate_lat(time=self.post_nodefield.dict['time'], vm=self.post_nodefield.dict['INTRA'], percentage=0.7,
-                           time_window=[self.simulation_dict['exmedi_delay_time'], self.simulation_dict['cycle_length']])
+                           time_window=[float(self.simulation_dict['exmedi_delay_time']),
+                                        float(self.simulation_dict['cycle_length'])])
         rt = evaluate_rt(time=self.post_nodefield.dict['time'], vm=self.post_nodefield.dict['INTRA'], percentage=0.9,
-                         time_window=[self.simulation_dict['exmedi_delay_time'], self.simulation_dict['cycle_length']])
+                         time_window=[float(self.simulation_dict['exmedi_delay_time']),
+                                      float(self.simulation_dict['cycle_length'])])
         self.post_nodefield.add_field(data=lat, data_name='lat', field_type='postnodefield')
         self.post_nodefield.add_field(data=rt, data_name='rt', field_type='postnodefield')
 
 
+    def get_ventricular_cvs(self):
+        lv_nodes = np.nonzero(self.node_fields.dict['tv'] == self.geometry.lv)[0]
+        rv_nodes = np.nonzero(self.node_fields.dict['tv'] == self.geometry.rv)[0]
+        lv_endo_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.lv_endocardium)[0]]
+        lv_epi_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.epicardium)[0]]
+        rv_endo_nodes = rv_nodes[np.nonzero(self.node_fields.dict['tm'][rv_nodes] == self.geometry.rv_endocardium)[0]]
+        rv_epi_nodes = rv_nodes[np.nonzero(self.node_fields.dict['tm'][rv_nodes] == self.geometry.epicardium)[0]]
+        lv_mapped_epi_nodes = mapIndices(points_to_map_xyz=self.geometry.nodes_xyz[lv_epi_nodes,:],
+                                       reference_points_xyz=self.geometry.nodes_xyz[lv_endo_nodes,:])
+        rv_mapped_epi_nodes = mapIndices(points_to_map_xyz=self.geometry.nodes_xyz[rv_epi_nodes,:],
+                                       reference_points_xyz=self.geometry.nodes_xyz[rv_endo_nodes,:])
+        lv_transmural_cvs = (self.geometry.nodes_xyz[lv_mapped_epi_nodes] -
+                             self.geometry.nodes_xyz[lv_endo_nodes]) / \
+                             (self.post_nodefield.dict['lat'][lv_mapped_epi_nodes] -
+                             self.post_nodefield.dict['lat'][lv_endo_nodes]) # [cm/s]
+        rv_transmural_cvs = (self.geometry.nodes_xyz[rv_mapped_epi_nodes] -
+                             self.geometry.nodes_xyz[rv_endo_nodes]) / \
+                             (self.post_nodefield.dict['lat'][rv_mapped_epi_nodes] -
+                             self.post_nodefield.dict['lat'][rv_endo_nodes]) # [cm/s]
+
+        cvs = np.zeros(self.geometry.number_of_nodes)
+        cvs[lv_endo_nodes] = lv_transmural_cvs
+        cvs[rv_endo_nodes] = rv_transmural_cvs
+        self.post_nodefield.add_field(data=cvs, data_name='transmural_cvs', field_type='postnodefield')
+        self.simulation_biomarkers['mean_lv_transmural_cv'] = np.mean(lv_transmural_cvs)
+        self.simulation_biomarkers['mean_rv_transmural_cv'] = np.mean(rv_transmural_cvs)
+        print(self.simulation_biomarkers['mean_lv_transmural_cv'])
+
+
 
 def evaluate_lat(time, vm, percentage, time_window):
-    print(time)
-    window_idx = np.nonzero(time > time_window[0] & time < time_window[1])[0]
+    window_idx = np.nonzero((time > time_window[0]) & (time < time_window[1]))[0]
     vm = vm[window_idx]
     time = time[window_idx] - time_window[0]  # Offset by beginning of time window.
     activation_map = np.zeros((vm.shape[0]))
@@ -89,7 +119,7 @@ def evaluate_lat(time, vm, percentage, time_window):
     return activation_map
 
 def evaluate_rt(time, vm, percentage, time_window):
-    window_idx = np.nonzero(time > time_window[0] & time < time_window[1])[0]
+    window_idx = np.nonzero((time > time_window[0]) & (time < time_window[1]))[0]
     vm = vm[window_idx]
     time = time[window_idx] - time_window[0] # Offset by beginning of time window.
     repolarisation_map = np.ones((vm.shape[0]))
@@ -103,3 +133,15 @@ def evaluate_rt(time, vm, percentage, time_window):
         index = local_vm.shape[0] - fliped_index - 1
         repolarisation_map[node_i] = time[index + vm_max_idx[node_i]]
     return repolarisation_map
+
+def mapIndices(points_to_map_xyz, reference_points_xyz, return_unique_only=False):  # TODO the unique should be done after this function
+    mapped_indexes = pymp.shared.array((points_to_map_xyz.shape[0]),dtype=int)
+    threadsNum = multiprocessing.cpu_count()
+    with pymp.Parallel(min(threadsNum, points_to_map_xyz.shape[0])) as p1:
+        for conf_i in p1.range(points_to_map_xyz.shape[0]):
+            mapped_indexes[conf_i] = np.argmin(
+                np.linalg.norm(reference_points_xyz - points_to_map_xyz[conf_i, :], ord=2, axis=1)).astype(int)
+    if return_unique_only: # use the unique function without sorting the contents of the array (meta_indexes)
+        unique_meta_indexes = np.unique(mapped_indexes, axis=0, return_index=True)[1] # indexes to the indexes (meta_indexes) that are unique
+        mapped_indexes = mapped_indexes[sorted(unique_meta_indexes)]    # TODO this could just be one line of code
+    return mapped_indexes
