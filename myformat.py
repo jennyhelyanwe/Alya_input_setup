@@ -1,6 +1,6 @@
 import os
 import numpy as np
-
+import pymp, multiprocessing
 
 class Geometry:
     def __init__(self, name, verbose):
@@ -22,8 +22,8 @@ class Geometry:
         self.rv = 1
         self.base = 1
         self.apex = 0
-        self.tm_endo = 1
-        self.tm_epi = 0
+        self.tm_endo = 0
+        self.tm_epi = 1
         self.pericardial_ab_extent = 0.75
         self.verbose = verbose
 
@@ -120,11 +120,17 @@ class Fields:
             input_dir = input_dir + '/'
         filenames = np.array([f for f in os.listdir(input_dir) if
                               os.path.isfile(os.path.join(input_dir, f)) and '_' + field_type + '_' in f])
-        for file_i in range(filenames.shape[0]):
-            if self.verbose:
-                print('Reading in ' + input_dir + filenames[file_i])
-            varname = get_varname(filename=filenames[file_i], key=field_type)
-            self.dict[varname] = load_txt(filename=input_dir + filenames[file_i])
+        if filenames.shape[0] > 0:
+            threadsNum = multiprocessing.cpu_count()
+            self.dict = multiprocessing.Manager().dict()
+            with pymp.Parallel(min(threadsNum, filenames.shape[0])) as p1:
+                for file_i in p1.range(filenames.shape[0]):
+            # if True:
+            #     for file_i in range(filenames.shape[0]):
+                    if self.verbose:
+                        print('Reading in ' + input_dir + filenames[file_i])
+                    varname = get_varname(filename=filenames[file_i], key=field_type)
+                    self.dict[varname] = load_txt(filename=input_dir + filenames[file_i])
         self.number_of_fields = len(self.dict)
 
 

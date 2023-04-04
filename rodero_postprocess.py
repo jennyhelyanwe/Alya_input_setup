@@ -15,7 +15,7 @@ elif system == 'heart':
     meta_data_dir = '/data/Personalisation_projects/meta_data/'
 geometric_data_dir = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_fine/'
 clinical_data_dir = meta_data_dir + 'clinical_data/'
-verbose = True
+verbose = False
 
 ########################################################################################################################
 # Step 1: Run Alya simulation and post-processing
