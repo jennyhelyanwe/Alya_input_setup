@@ -99,7 +99,7 @@ class Fields:
                     list_fields_output.append(varname)
                     if len(self.dict[varname].shape) == 1:
                         field_dimensions.append(1)
-                    else:
+                    elif self.dict[varname].shape[1] < 10:
                         field_dimensions.append(self.dict[varname].shape[1])
             elif self.field_type == 'elementfield' or self.field_type == 'material' or \
                     self.field_type == 'boundaryelementfield' or self.field_type == 'postelementfield':
@@ -109,7 +109,7 @@ class Fields:
                     list_fields_output.append(varname)
                     if len(self.dict[varname].shape) == 1:
                         field_dimensions.append(1)
-                    else:
+                    elif self.dict[varname].shape[1] < 10:
                         field_dimensions.append(self.dict[varname].shape[1])
         save_ensight_case(directory=output_dir, name=casename, geometry_name=geometry.name,
                           field_names=list_fields_output,
