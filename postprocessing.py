@@ -28,6 +28,9 @@ class PostProcessing(MeshStructure):
         self.evaluate_ventricular_cvs()
 
         self.save_postprocessing()
+        print('Writing out simulation biomarkers to '+self.results_dir+'simulation_biomarkers.json')
+        print(self.simulation_biomarkers)
+        json.dump(self.simulation_biomarkers, open(self.results_dir+'simulation_biomarkers.json', 'w'))
 
     def save_postprocessing(self):
         # Save to CSV
@@ -86,8 +89,9 @@ class PostProcessing(MeshStructure):
         self.post_nodefield.add_field(data=rt, data_name='rt', field_type='postnodefield')
 
     def evaluate_ventricular_cvs(self):
+        print('Evaluating mean transmural conduction velocity')
         lv_nodes = np.nonzero((self.node_fields.dict['tv'] == self.geometry.lv)
-                              & (self.node_fields.dict['rvlv'] > 0))[0] # Exclude also the septum from this.
+                              & (self.node_fields.dict['rvlv'] > 0.2))[0] # Exclude also the septum from this.
         rv_nodes = np.nonzero(self.node_fields.dict['tv'] == self.geometry.rv)[0]
         lv_endo_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.tm_endo)[0]]
         lv_epi_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.tm_epi)[0]]
@@ -100,34 +104,25 @@ class PostProcessing(MeshStructure):
         lv_transmural_vector = self.geometry.nodes_xyz[lv_mapped_epi_nodes, :] - self.geometry.nodes_xyz[lv_endo_nodes, :]
         rv_transmural_vector = self.geometry.nodes_xyz[rv_mapped_epi_nodes, :] - self.geometry.nodes_xyz[rv_endo_nodes, :]
 
-        transmural_csv_mapping = np.zeros((self.geometry.number_of_nodes, 3))
-        transmural_csv_mapping[lv_endo_nodes, :] = lv_transmural_vector
-        transmural_csv_mapping[rv_endo_nodes, :] = rv_transmural_vector
-        self.post_nodefield.add_field(data=transmural_csv_mapping, data_name='transmural_cvs_mapping',
-                                      field_type='postnodefield')
+        # transmural_csv_mapping = np.zeros((self.geometry.number_of_nodes, 3))
+        # transmural_csv_mapping[lv_endo_nodes, :] = lv_transmural_vector
+        # transmural_csv_mapping[rv_endo_nodes, :] = rv_transmural_vector
+        # self.post_nodefield.add_field(data=transmural_csv_mapping, data_name='transmural_cvs_mapping',
+        #                               field_type='postnodefield')
         dlat_lv = self.post_nodefield.dict['lat'][lv_mapped_epi_nodes] - self.post_nodefield.dict['lat'][lv_endo_nodes]
         dlat_rv = self.post_nodefield.dict['lat'][rv_mapped_epi_nodes] - self.post_nodefield.dict['lat'][rv_endo_nodes]
-        print(np.mean(dlat_lv))
-        print(np.mean(np.linalg.norm(lv_transmural_vector, axis=1)))
-        print(np.mean(np.linalg.norm(lv_transmural_vector, axis=1)) / np.mean(dlat_lv))
         lv_transmural_cvs = np.linalg.norm(lv_transmural_vector, axis=1) / dlat_lv # [cm/s]
         rv_transmural_cvs = np.linalg.norm(rv_transmural_vector, axis=1) / dlat_rv
         cvs = np.zeros(self.geometry.number_of_nodes)
         cvs[lv_endo_nodes] = lv_transmural_cvs
         cvs[rv_endo_nodes] = rv_transmural_cvs
-        surface_selection = np.zeros(self.geometry.number_of_nodes)
-        surface_selection[lv_endo_nodes] = 1
-        surface_selection[rv_endo_nodes] = 2
-        surface_selection[lv_epi_nodes] = 3
-        surface_selection[rv_epi_nodes] = 4
-        self.post_nodefield.add_field(data=surface_selection, data_name='debug_surfaces', field_type='postnodefield')
-        self.post_nodefield.add_field(data=cvs, data_name='transmural_cvs', field_type='postnodefield')
+        wall_thicnkess = np.zeros(self.geometry.number_of_nodes)
+        wall_thicnkess[lv_endo_nodes] = np.linalg.norm(lv_transmural_vector, axis=1)
+        wall_thicnkess[rv_endo_nodes] = np.linalg.norm(rv_transmural_vector, axis=1)
+        self.post_nodefield.add_field(data=cvs, data_name='transmural-cv', field_type='postnodefield')
+        self.post_nodefield.add_field(data=wall_thicnkess, data_name='wall-thickness', field_type='postnodefield')
         self.simulation_biomarkers['mean_lv_transmural_cv'] = np.ma.masked_invalid(lv_transmural_cvs).mean()
         self.simulation_biomarkers['mean_rv_transmural_cv'] = np.ma.masked_invalid(rv_transmural_cvs).mean()
-        print('Mean transmural LV conduction veocity: ', self.simulation_biomarkers['mean_lv_transmural_cv'])
-        print('Mean transmural RV conduction veocity: ', self.simulation_biomarkers['mean_rv_transmural_cv'])
-        print('Mean LV lateral wall thickness: ', np.mean(np.linalg.norm(lv_transmural_vector, axis=1)))
-        print('Mean RV wall thickness: ', np.mean(np.linalg.norm(rv_transmural_vector, axis=1)))
 
 def evaluate_lat(time, vm, percentage, time_window):
     window_idx = np.nonzero((time > time_window[0]) & (time < time_window[1]))[0]
