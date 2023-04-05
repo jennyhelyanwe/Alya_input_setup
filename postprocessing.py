@@ -4,28 +4,34 @@ import json
 # from mpi4py import MPI #needs install
 # from multiprocessing import Queue
 import pymp, multiprocessing
+from matplotlib import pyplot as plt
 
 from meshstructure import MeshStructure
 from myformat import Fields
 
 
 class PostProcessing(MeshStructure):
-    def __init__(self, name, geometric_data_dir, simulation_json_file, alyacsv_dir, results_dir, verbose):
+    def __init__(self, name, geometric_data_dir, simulation_json_file, alyacsv_dir, alya_output_dir, results_dir, verbose):
         super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
         self.alyacsv_dir = alyacsv_dir
+        self.alya_output_dir = alya_output_dir
         self.results_dir = results_dir
         self.simulation_biomarkers = {}
         self.simulation_data = {}
         self.simulation_dict = json.load(open(simulation_json_file, 'r'))
         self.post_nodefield = Fields(name, field_type='postnodefield', verbose=verbose)
         self.post_elementfield = Fields(name, field_type='postelementfield', verbose=verbose)
+        print('Read Alya log outputs')
+        self.read_log_files()
         print('Reading postprocessing csv fields')
         self.post_nodefield.read_csv_to_attributes(input_dir=results_dir, field_type='postnodefield')
         # self.post_elementfield.read_csv_to_attributes(input_dir=results_dir, field_type='postelementfield')
         # Evaluate various biomarkers
         self.read_csv_fields()
-        self.evaluate_ep_maps()
-        self.evaluate_ventricular_cvs()
+        # self.evaluate_ep_maps()
+        # self.evaluate_ventricular_cvs()
+        if 'SOLIDZ' in self.simulation_dict['physics']:
+            self.evaluate_basal_displacement()
 
         self.save_postprocessing()
         print('Writing out simulation biomarkers to '+self.results_dir+'simulation_biomarkers.json')
@@ -48,8 +54,63 @@ class PostProcessing(MeshStructure):
                                                casename=self.name + '_postelementfield',
                                                geometry=self.geometry)
 
+
+    def read_log_files(self):
+        rawdata = np.loadtxt(self.alya_output_dir+self.simulation_dict['name']+'.exm.vin', skiprows=8)
+        self.ecg_time = rawdata[:, 1]
+        LA = rawdata[:, 3]
+        RA = rawdata[:, 4]
+        LL = rawdata[:, 5]
+        RL = rawdata[:, 6]
+        V1 = rawdata[:, 7]
+        V2 = rawdata[:, 8]
+        V3 = rawdata[:, 9]
+        V4 = rawdata[:, 10]
+        V5 = rawdata[:, 11]
+        V6 = rawdata[:, 12]
+        VW = 1/3 * (RA + LA + LL)
+        V1 = V1 - VW
+        V2 = V2 - VW
+        V3 = V3 - VW
+        V4 = V4 - VW
+        V5 = V5 - VW
+        V6 = V6 - VW
+        I = LA - RA
+        II = LL - RA
+        III = LL - LA
+        aVL = LA - (RA + LL)/2
+        aVF = LL - (LA + RA)/2
+        aVR = RA - (LA + LL)/2
+        max_precordial_leads = np.amax(abs(np.concatenate((V1, V2, V3, V4, V5, V6))))
+        max_limb_leads = np.amax(abs(np.concatenate((I, II, III, aVR, aVL, aVF))))
+        self.I = I/max_limb_leads
+        self.II = II/max_limb_leads
+        self.III = III/max_limb_leads
+        self.aVL = aVL/max_limb_leads
+        self.aVF = aVF/max_limb_leads
+        self.aVR = aVR/max_limb_leads
+        self.V1 = V1/max_precordial_leads
+        self.V2 = V2/max_precordial_leads
+        self.V3 = V3/max_precordial_leads
+        self.V4 = V4/max_precordial_leads
+        self.V5 = V5/max_precordial_leads
+        self.V6 = V6/max_precordial_leads
+
+        if 'SOLIDZ' in self.simulation_dict['physics']:
+            rawdata = np.loadtxt(self.alya_output_dir + self.simulation_dict['name'] + '-cardiac-cycle.sld.res', skiprows=18)
+            self.pv_time = rawdata[:, 1]
+            self.lv_cycle = rawdata[:, 3]
+            self.lv_phase = rawdata[:, 4]
+            self.lv_volume = rawdata[:, 5]
+            self.lv_pressure = rawdata[:, 6]
+            self.lv_arterial_pressure = rawdata[:, 7]
+            self.rv_cycle= rawdata[:, 9]
+            self.rv_phase = rawdata[:, 10]
+            self.rv_volume = rawdata[:, 11]
+            self.rv_pressure = rawdata[:, 12]
+            self.rv_arterial_pressure = rawdata[:, 13]
+
     def read_csv_fields(self):
-        print('Reading Vm')
         name = self.simulation_dict['name']
         self.simulation_data['time'] =np.loadtxt(self.alyacsv_dir + 'timeset_1.csv', delimiter=',').astype(float)
         time = self.simulation_data['time']
@@ -64,16 +125,25 @@ class PostProcessing(MeshStructure):
         for field_i in range(field_names_types.shape[0]):
             field_name = field_names_types[field_i, 0]
             field_type = field_names_types[field_i, 1]
-            temp = pymp.shared.array((self.geometry.number_of_nodes, time.shape[0]), dtype=int)
-            threadsNum = multiprocessing.cpu_count()
-            with pymp.Parallel(min(threadsNum, time_index.shape[0])) as p1:
-                for time_i in p1.range(time_index.shape[0]):
-                    index = '{:06d}'.format(time_index[time_i])
-                    filename = self.alyacsv_dir + name + '.' + field_type + '.' + field_name + '-' + index + '.csv'
-                    temp[:, time_i] = np.loadtxt(filename, delimiter=',').astype(float)
-            self.simulation_data[field_name] = temp
+            print('Reading csv for field: '+field_name + ', of type: '+field_type)
+            if field_type == 'scalar':
+                temp = pymp.shared.array((self.geometry.number_of_nodes, time.shape[0]), dtype=float)
+                threadsNum = multiprocessing.cpu_count()
+                with pymp.Parallel(min(threadsNum, time_index.shape[0])) as p1:
+                    for time_i in p1.range(time_index.shape[0]):
+                        index = '{:06d}'.format(time_index[time_i])
+                        filename = self.alyacsv_dir + name + '.' + field_type + '.' + field_name + '-' + index + '.csv'
+                        temp[:, time_i] = np.loadtxt(filename, delimiter=',').astype(float)
+                self.simulation_data[field_name] = temp
+            elif field_type == 'vector':
+                temp = pymp.shared.array((self.geometry.number_of_nodes, 3, time.shape[0]), dtype=float)
+                threadsNum = multiprocessing.cpu_count()
+                with pymp.Parallel(min(threadsNum, time_index.shape[0])) as p1:
+                    for time_i in p1.range(time_index.shape[0]):
+                        index = '{:06d}'.format(time_index[time_i])
+                        filename = self.alyacsv_dir + name + '.' + field_type + '.' + field_name + '-' + index + '.csv'
+                        temp[:, :, time_i] = np.loadtxt(filename, delimiter=',').astype(float)
             # self.post_nodefield.add_field(data=np.array(temp), data_name=field_name, field_type='postnodefield')
-
     def evaluate_ep_maps(self):
         print('Evaluating LAT')
         lat = evaluate_lat(time=self.simulation_data['time'], vm=self.simulation_data['INTRA'], percentage=20,
@@ -87,6 +157,7 @@ class PostProcessing(MeshStructure):
         lat[self.node_fields.dict['tv'] == -10] = np.nan
         self.post_nodefield.add_field(data=lat, data_name='lat', field_type='postnodefield')
         self.post_nodefield.add_field(data=rt, data_name='rt', field_type='postnodefield')
+
 
     def evaluate_ventricular_cvs(self):
         print('Evaluating mean transmural conduction velocity')
@@ -123,6 +194,84 @@ class PostProcessing(MeshStructure):
         self.post_nodefield.add_field(data=wall_thicnkess, data_name='wall-thickness', field_type='postnodefield')
         self.simulation_biomarkers['mean_lv_transmural_cv'] = np.ma.masked_invalid(lv_transmural_cvs).mean()
         self.simulation_biomarkers['mean_rv_transmural_cv'] = np.ma.masked_invalid(rv_transmural_cvs).mean()
+
+    def evaluate_basal_displacement(self):
+        print('Basal displacement in the longitudinal direction')
+        base_cutoff = 0.7
+        truncated_mesh_nodes = np.nonzero(self.node_fields.dict['ab'] < base_cutoff)[0]
+        basal_mesh_nodes = np.nonzero(self.node_fields.dict['ab'] >= base_cutoff) [0]
+        mean_ab_vector = np.mean(self.node_fields.dict['longitudinal-vector'][truncated_mesh_nodes,:], axis=0)
+        apical_cutoff = 0.2
+        apical_mesh_nodes = np.nonzero(self.node_fields.dict['ab'] <= apical_cutoff)[0]
+        reference_apex_to_base_length = np.amax(np.dot(self.geometry.nodes_xyz[basal_mesh_nodes, :], mean_ab_vector)) - \
+                                        np.amin(np.dot(self.geometry.nodes_xyz[apical_mesh_nodes, :], mean_ab_vector))
+
+        mean_basal_ab_displacement_transient = np.zeros(self.simulation_data['time'].shape[0])
+        mean_apical_ab_displacement_transient = np.zeros(self.simulation_data['time'].shape[0])
+        mean_apicobasal_sum_displacement_transient = np.zeros(self.simulation_data['time'].shape[0])
+        for time_i in range(self.simulation_data['time'].shape[0]):
+            mean_basal_ab_displacement_transient[time_i] = np.mean(np.dot(self.simulation_data['DISPL'][
+                                                                          basal_mesh_nodes, :, time_i],
+                                                                          mean_ab_vector))
+            mean_apical_ab_displacement_transient[time_i] = np.mean(np.dot(self.simulation_data['DISPL'][
+                                                                           apical_mesh_nodes, :, time_i],
+                                                                           mean_ab_vector))
+            mean_apicobasal_sum_displacement_transient = mean_basal_ab_displacement_transient[time_i] + mean_apical_ab_displacement_transient[time_i]
+        self.simulation_biomarkers['max_basal_ab_displacement'] = np.amax(mean_basal_ab_displacement_transient)
+        self.simulation_biomarkers['min_basal_ab_displacement'] = np.amin(mean_basal_ab_displacement_transient)
+        self.simulation_biomarkers['max_apical_ab_displacement'] = np.amax(mean_apical_ab_displacement_transient)
+        self.simulation_biomarkers['min_apical_ab_displacement'] = np.amin(mean_apical_ab_displacement_transient)
+        self.simulation_biomarkers['max_longitudinal_strain'] = np.amax(mean_apicobasal_sum_displacement_transient)/reference_apex_to_base_length
+        self.simulation_biomarkers['mean_longitudinal_strain'] = np.mean(mean_apicobasal_sum_displacement_transient)/reference_apex_to_base_length
+        self.simulation_biomarkers['min_longitudinal_strain'] = np.amin(mean_apicobasal_sum_displacement_transient)/reference_apex_to_base_length
+        plt.figure()
+        plt.plot(self.simulation_data['time'], mean_basal_ab_displacement_transient,
+                 self.simulation_data['time'], mean_apical_ab_displacement_transient,
+                 self.simulation_data['time'], mean_apicobasal_sum_displacement_transient)
+        plt.xlabel('Time (s)')
+        plt.ylabel('Longitudinal displacement (cm)')
+        plt.legend(['Base', 'Apex'])
+        plt.savefig(self.results_dir + 'apicobasal_displacement_transient.png')
+
+        print('Wall thickness at diastasis, end diastole, and end systole')
+        lv_nodes = np.nonzero((self.node_fields.dict['tv'] == self.geometry.lv))[0]  # Exclude also the septum from this.
+        rv_nodes = np.nonzero(self.node_fields.dict['tv'] == self.geometry.rv)[0]
+        lv_endo_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.tm_endo)[0]]
+        lv_epi_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.tm_epi)[0]]
+        rv_endo_nodes = rv_nodes[np.nonzero(self.node_fields.dict['tm'][rv_nodes] == self.geometry.tm_endo)[0]]
+        rv_epi_nodes = rv_nodes[np.nonzero(self.node_fields.dict['tm'][rv_nodes] == self.geometry.tm_epi)[0]]
+        lv_mapped_epi_nodes = lv_epi_nodes[mapIndices(points_to_map_xyz=self.geometry.nodes_xyz[lv_endo_nodes, :],
+                                                      reference_points_xyz=self.geometry.nodes_xyz[lv_epi_nodes, :])]
+        rv_mapped_epi_nodes = rv_epi_nodes[mapIndices(points_to_map_xyz=self.geometry.nodes_xyz[rv_endo_nodes, :],
+                                                      reference_points_xyz=self.geometry.nodes_xyz[rv_epi_nodes, :])]
+        lv_wall_thickness_transient = np.zeros(self.simulation_dict['time'].shape[0])
+        rv_wall_thickness_transient = np.zeros(self.simulation_dict['time'].shape[0])
+        for time_i in range(self.simulation_data['time'].shape[0]):
+            updated_node_coords = self.geometry.nodes_xyz[:, :] + self.simulation_data['DISPL'][time_i,:]
+            lv_wall_thickness_transient[time_i] = np.mean(np.linalg.norm(updated_node_coords[lv_mapped_epi_nodes,:] -
+                                                                         updated_node_coords[lv_endo_nodes, :], axis=1))
+            rv_wall_thickness_transient[time_i] = np.mean(np.linalg.norm(updated_node_coords[rv_mapped_epi_nodes, :] -
+                                                                         updated_node_coords[rv_endo_nodes, :], axis=1))
+        plt.figure()
+        plt.plot(self.simulation_data['time'], lv_wall_thickness_transient, self.simulation_data['time'], rv_wall_thickness_transient)
+        plt.xlabel('Time (s)')
+        plt.ylabel('Averaged wall thickness (cm)')
+        plt.legend(['LV', 'RV'])
+        plt.savefig(self.results_dir + 'wall_thicknesss_transient.png')
+        diastasis_time_idx = np.nonzero(self.simulation_data['time'] == self.simulation_dict['diastasis_t'])
+        self.simulation_biomarkers['mean_lv_thickness_diastasis'] = lv_wall_thickness_transient[diastasis_time_idx]
+        self.simulation_biomarkers['mean_rv_thickness_diastasis'] = rv_wall_thickness_transient[diastasis_time_idx]
+        end_diastole_time_idx = np.nonzero(self.simulation_data['time'] == self.simulation_dict['end_diiastole_t'])
+        self.simulation_biomarkers['mean_lv_thickness_end_diastole'] = lv_wall_thickness_transient[end_diastole_time_idx]
+        self.simulation_biomarkers['mean_rv_thickness_end_diastole'] = rv_wall_thickness_transient[end_diastole_time_idx]
+        end_systole_time_idx = np.nonzero(self.simulation_data['lv_phase'] == 3)[0][0] # Index at which phase first changes to 3 IVR.
+        self.simulation_biomarkers['mean_lv_thickness_end_systole'] = lv_wall_thickness_transient[end_systole_time_idx]
+        self.simulation_biomarkers['mean_rv_thickness_end_systole'] = rv_wall_thickness_transient[end_systole_time_idx]
+
+
+
+    def evaluate_strains(self):
+        print('Strain evaluations in ventricular coordinates')
 
 def evaluate_lat(time, vm, percentage, time_window):
     window_idx = np.nonzero((time > time_window[0]) & (time < time_window[1]))[0]

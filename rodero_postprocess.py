@@ -29,8 +29,8 @@ if system == 'jureca':
 elif system == 'heart':
     simulation_dir = '/users/jenang/Alya_setup_SA/alya_csv/rodero_' + mesh_number + '/'
     sa_results_dir = '/users/jenang/Alya_setup_SA/sensitivity_analyses/'
-simulation_json_file = 'rodero_baseline_simulation_ep.json'
+simulation_json_file = 'rodero_baseline_simulation_em.json'
 pp = PostProcessing(name=simulation_name, simulation_json_file=simulation_json_file,  geometric_data_dir=geometric_data_dir,
-                    alyacsv_dir=simulation_dir+'results_csv/', results_dir=sa_results_dir, verbose=verbose)
+                    alyacsv_dir=simulation_dir+'results_csv_em/', alya_output_dir=simulation_dir, results_dir=sa_results_dir, verbose=verbose)
 
 

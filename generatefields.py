@@ -3,15 +3,16 @@ from myformat import *
 import pymp, multiprocessing
 
 class FieldGeneration(MeshStructure):
-    def __init__(self, name, geometric_data_dir, personalisation_data_dir, electrode_data_filename, verbose):
-        super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
+    def __init__(self, name, geometric_data_dir, personalisation_data_dir, electrode_data_filename, endo_mid_divide,
+                 mid_epi_divide, verbose):
+        super().__init__(name=name, geometric_data_dir=geometric_data_dir,  verbose=verbose)
         self.personalisation_data_dir = personalisation_data_dir
         # Generate required fields for Alya simulations.
         print('Generate additional Alya fields')
         neighbours, unfolded_edges = evaluate_mesh_characteristics(self.geometry)
         self.node_fields.add_field(data=evaluate_celltype(number_of_nodes=self.geometry.number_of_nodes,
                                                           uvc_transmural=self.node_fields.dict['tm'],
-                                                          endo_mid_divide=0.3, mid_epi_divide=0.3),
+                                                          endo_mid_divide=endo_mid_divide, mid_epi_divide=mid_epi_divide),
                                    data_name='cell-type', field_type='nodefield')
         activation_time = np.loadtxt(self.personalisation_data_dir + self.name + '_nodefield_inferred-lat.csv')
         self.node_fields.add_field(data=activation_time, data_name='activation-time', field_type='nodefield')
