@@ -62,3 +62,4 @@ alya.do(simulation_json_file=simulation_json_file)
 simulation_json_file = 'rodero_baseline_simulation_ep.json'
 alya.do(simulation_json_file=simulation_json_file)
 
+# unused diffusivities 0.00094659, 0.00140994, 0.00144699
