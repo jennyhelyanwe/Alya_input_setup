@@ -143,6 +143,7 @@ class PostProcessing(MeshStructure):
                         index = '{:06d}'.format(time_index[time_i])
                         filename = self.alyacsv_dir + name + '.' + field_type + '.' + field_name + '-' + index + '.csv'
                         temp[:, :, time_i] = np.loadtxt(filename, delimiter=',').astype(float)
+                self.simulation_data[field_name] = temp
             # self.post_nodefield.add_field(data=np.array(temp), data_name=field_name, field_type='postnodefield')
     def evaluate_ep_maps(self):
         print('Evaluating LAT')
@@ -216,7 +217,7 @@ class PostProcessing(MeshStructure):
             mean_apical_ab_displacement_transient[time_i] = np.mean(np.dot(self.simulation_data['DISPL'][
                                                                            apical_mesh_nodes, :, time_i],
                                                                            mean_ab_vector))
-            mean_apicobasal_sum_displacement_transient = mean_basal_ab_displacement_transient[time_i] + mean_apical_ab_displacement_transient[time_i]
+            mean_apicobasal_sum_displacement_transient[time_i] = mean_basal_ab_displacement_transient[time_i] + mean_apical_ab_displacement_transient[time_i]
         self.simulation_biomarkers['max_basal_ab_displacement'] = np.amax(mean_basal_ab_displacement_transient)
         self.simulation_biomarkers['min_basal_ab_displacement'] = np.amin(mean_basal_ab_displacement_transient)
         self.simulation_biomarkers['max_apical_ab_displacement'] = np.amax(mean_apical_ab_displacement_transient)
@@ -224,6 +225,10 @@ class PostProcessing(MeshStructure):
         self.simulation_biomarkers['max_longitudinal_strain'] = np.amax(mean_apicobasal_sum_displacement_transient)/reference_apex_to_base_length
         self.simulation_biomarkers['mean_longitudinal_strain'] = np.mean(mean_apicobasal_sum_displacement_transient)/reference_apex_to_base_length
         self.simulation_biomarkers['min_longitudinal_strain'] = np.amin(mean_apicobasal_sum_displacement_transient)/reference_apex_to_base_length
+        np.savetxt(self.results_dir + 'mean_basal_ab_displacement_transient.txt', mean_basal_ab_displacement_transient, delimiter=',')
+        np.savetxt(self.results_dir + 'mean_apical_ab_displacement_transient.txt', mean_apical_ab_displacement_transient, delimiter=',')
+        np.savetxt(self.results_dir + 'mean_apicobasal_sum_displacement_transient.txt',
+                   mean_apicobasal_sum_displacement_transient, delimiter=',')
         plt.figure()
         plt.plot(self.simulation_data['time'], mean_basal_ab_displacement_transient,
                  self.simulation_data['time'], mean_apical_ab_displacement_transient,
@@ -233,41 +238,103 @@ class PostProcessing(MeshStructure):
         plt.legend(['Base', 'Apex'])
         plt.savefig(self.results_dir + 'apicobasal_displacement_transient.png')
 
-        print('Wall thickness at diastasis, end diastole, and end systole')
-        lv_nodes = np.nonzero((self.node_fields.dict['tv'] == self.geometry.lv))[0]  # Exclude also the septum from this.
+        print('Evaluate LV torsion using two short axis slices ')
+        # TODO Need to extract radial vectors and calculate rotation angles for basala nd apical slices separately
+        # https://link.springer.com/article/10.1186/1532-429X-14-49 using the Russel et al formula
+        # thetaCL = (phi_apex * r_apex - phi_base * r_base) / D
+        lv_nodes = np.nonzero((self.node_fields.dict['tv'] == self.geometry.lv))[0]
         rv_nodes = np.nonzero(self.node_fields.dict['tv'] == self.geometry.rv)[0]
-        lv_endo_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.tm_endo)[0]]
-        lv_epi_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.tm_epi)[0]]
-        rv_endo_nodes = rv_nodes[np.nonzero(self.node_fields.dict['tm'][rv_nodes] == self.geometry.tm_endo)[0]]
-        rv_epi_nodes = rv_nodes[np.nonzero(self.node_fields.dict['tm'][rv_nodes] == self.geometry.tm_epi)[0]]
-        lv_mapped_epi_nodes = lv_epi_nodes[mapIndices(points_to_map_xyz=self.geometry.nodes_xyz[lv_endo_nodes, :],
-                                                      reference_points_xyz=self.geometry.nodes_xyz[lv_epi_nodes, :])]
-        rv_mapped_epi_nodes = rv_epi_nodes[mapIndices(points_to_map_xyz=self.geometry.nodes_xyz[rv_endo_nodes, :],
-                                                      reference_points_xyz=self.geometry.nodes_xyz[rv_epi_nodes, :])]
-        lv_wall_thickness_transient = np.zeros(self.simulation_dict['time'].shape[0])
-        rv_wall_thickness_transient = np.zeros(self.simulation_dict['time'].shape[0])
-        for time_i in range(self.simulation_data['time'].shape[0]):
-            updated_node_coords = self.geometry.nodes_xyz[:, :] + self.simulation_data['DISPL'][time_i,:]
-            lv_wall_thickness_transient[time_i] = np.mean(np.linalg.norm(updated_node_coords[lv_mapped_epi_nodes,:] -
-                                                                         updated_node_coords[lv_endo_nodes, :], axis=1))
-            rv_wall_thickness_transient[time_i] = np.mean(np.linalg.norm(updated_node_coords[rv_mapped_epi_nodes, :] -
-                                                                         updated_node_coords[rv_endo_nodes, :], axis=1))
-        plt.figure()
-        plt.plot(self.simulation_data['time'], lv_wall_thickness_transient, self.simulation_data['time'], rv_wall_thickness_transient)
-        plt.xlabel('Time (s)')
-        plt.ylabel('Averaged wall thickness (cm)')
-        plt.legend(['LV', 'RV'])
-        plt.savefig(self.results_dir + 'wall_thicknesss_transient.png')
-        diastasis_time_idx = np.nonzero(self.simulation_data['time'] == self.simulation_dict['diastasis_t'])
-        self.simulation_biomarkers['mean_lv_thickness_diastasis'] = lv_wall_thickness_transient[diastasis_time_idx]
-        self.simulation_biomarkers['mean_rv_thickness_diastasis'] = rv_wall_thickness_transient[diastasis_time_idx]
-        end_diastole_time_idx = np.nonzero(self.simulation_data['time'] == self.simulation_dict['end_diiastole_t'])
-        self.simulation_biomarkers['mean_lv_thickness_end_diastole'] = lv_wall_thickness_transient[end_diastole_time_idx]
-        self.simulation_biomarkers['mean_rv_thickness_end_diastole'] = rv_wall_thickness_transient[end_diastole_time_idx]
-        end_systole_time_idx = np.nonzero(self.simulation_data['lv_phase'] == 3)[0][0] # Index at which phase first changes to 3 IVR.
-        self.simulation_biomarkers['mean_lv_thickness_end_systole'] = lv_wall_thickness_transient[end_systole_time_idx]
-        self.simulation_biomarkers['mean_rv_thickness_end_systole'] = rv_wall_thickness_transient[end_systole_time_idx]
-
+        apical_cutoff = 0.3
+        apical_slice_nodes = lv_nodes[np.nonzero((abs(self.node_fields.dict['ab'][lv_nodes]-apical_cutoff)) < 0.01)[0]]
+        basal_slice_nodes = lv_nodes[np.nonzero((abs(self.node_fields.dict['ab'][lv_nodes]-base_cutoff)) < 0.01)[0]]
+        basal_mapped_nodes = basal_slice_nodes[mapIndices(points_to_map_xyz=self.geometry.nodes_xyz[apical_slice_nodes,:],
+                                         reference_points_xyz=self.geometry.nodes_xyz[basal_slice_nodes,:])]
+        apical_centre = np.mean(self.geometry.nodes_xyz[apical_slice_nodes, :], axis=0)
+        basal_centre = np.mean(self.geometry.nodes_xyz[basal_mapped_nodes, :], axis=0)
+        longitudinal_slice_vectors = self.geometry.nodes_xyz[basal_mapped_nodes,:] - self.geometry.nodes_xyz[apical_slice_nodes,:]
+        print(apical_centre)
+        print(basal_centre)
+        global_slices_nodes = np.zeros(self.geometry.number_of_nodes)
+        global_longitudinal_slice_vectors = np.zeros((self.geometry.number_of_nodes, 3))
+        global_longitudinal_slice_vectors[apical_slice_nodes, :] = longitudinal_slice_vectors
+        global_slices_nodes[apical_slice_nodes] = 1
+        global_slices_nodes[basal_slice_nodes] = 2
+        self.post_nodefield.add_field(data=global_slices_nodes, data_name='torsion-shortaxis-slices',
+                                      field_type='postnodefield')
+        self.post_nodefield.add_field(data=global_longitudinal_slice_vectors, data_name='torsion-longitudinal-vectors',
+                                      field_type='postnodefield')
+        # resting_longitudinal_vectors = self.geometry.nodes_xyz[apical_mapped_nodes, :] - \
+        #                        self.geometry.nodes_xyz[basal_slice_nodes, :]
+        # mean_torsion_angle_transient = np.zeros(self.simulation_data['time'].shape[0])
+        # for time_i in range(self.simulation_data['time'].shape[0]):
+        #     updated_apical_slice_coord = self.geometry.nodes_xyz[apical_mapped_nodes, :] + \
+        #                                  self.simulation_data['DISPL'][apical_mapped_nodes, :, time_i]
+        #     updated_basal_slice_coord = self.geometry.nodes_xyz[basal_slice_nodes, :] + \
+        #                                 self.simulation_data['DISPL'][basal_slice_nodes, :, time_i]
+        #     updated_longitudinal_vectors = updated_apical_slice_coord - updated_basal_slice_coord
+        #     angle = np.zeros(updated_longitudinal_vectors.shape[0])
+        #     for node_i in range(updated_longitudinal_vectors.shape[0]):
+        #         dot_product = np.dot(updated_longitudinal_vectors[node_i,:], resting_longitudinal_vectors[node_i,:])
+        #         norm = np.linalg.norm(resting_longitudinal_vectors[node_i, :], axis=0) * \
+        #                np.linalg.norm(updated_longitudinal_vectors[node_i, :], axis=0)
+        #         angle[node_i] = np.degrees(np.arccos(dot_product/norm))
+        #     mean_torsion_angle_transient[time_i] = np.mean(angle)
+        # np.savetxt(self.results_dir +'torsion_angle_transient.txt', mean_torsion_angle_transient, delimiter=',')
+        # plt.figure()
+        # plt.plot(self.simulation_data['time'], mean_torsion_angle_transient)
+        # plt.xlabel('Time (s)')
+        # plt.ylabel('Torsion angle in degrees')
+        # plt.savefig(self.results_dir + 'torsion_angle_transient.png')
+        #
+        # print('Wall thickness at diastasis, end diastole, and end systole')
+        # lv_nodes = np.nonzero((self.node_fields.dict['tv'] == self.geometry.lv))[0]  # Exclude also the septum from this.
+        # rv_nodes = np.nonzero(self.node_fields.dict['tv'] == self.geometry.rv)[0]
+        # lv_endo_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.tm_endo)[0]]
+        # lv_epi_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.tm_epi)[0]]
+        # rv_endo_nodes = rv_nodes[np.nonzero(self.node_fields.dict['tm'][rv_nodes] == self.geometry.tm_endo)[0]]
+        # rv_epi_nodes = rv_nodes[np.nonzero(self.node_fields.dict['tm'][rv_nodes] == self.geometry.tm_epi)[0]]
+        # lv_mapped_epi_nodes = lv_epi_nodes[mapIndices(points_to_map_xyz=self.geometry.nodes_xyz[lv_endo_nodes, :],
+        #                                               reference_points_xyz=self.geometry.nodes_xyz[lv_epi_nodes, :])]
+        # rv_mapped_epi_nodes = rv_epi_nodes[mapIndices(points_to_map_xyz=self.geometry.nodes_xyz[rv_endo_nodes, :],
+        #                                               reference_points_xyz=self.geometry.nodes_xyz[rv_epi_nodes, :])]
+        # lv_wall_thickness_transient = np.zeros(self.simulation_data['time'].shape[0])
+        # rv_wall_thickness_transient = np.zeros(self.simulation_data['time'].shape[0])
+        # for time_i in range(self.simulation_data['time'].shape[0]):
+        #     updated_node_coords = self.geometry.nodes_xyz[:, :] + self.simulation_data['DISPL'][:, :, time_i]
+        #     lv_wall_thickness_transient[time_i] = np.mean(np.linalg.norm(updated_node_coords[lv_mapped_epi_nodes,:] -
+        #                                                                  updated_node_coords[lv_endo_nodes, :], axis=1))
+        #     rv_wall_thickness_transient[time_i] = np.mean(np.linalg.norm(updated_node_coords[rv_mapped_epi_nodes, :] -
+        #                                                                  updated_node_coords[rv_endo_nodes, :], axis=1))
+        # np.savetxt(self.results_dir + 'lv_wall_thickness_transient.txt', lv_wall_thickness_transient, delimiter=',')
+        # np.savetxt(self.results_dir + 'rv_wall_thickness_transient.txt', rv_wall_thickness_transient, delimiter=',')
+        # plt.figure()
+        # plt.plot(self.simulation_data['time'], lv_wall_thickness_transient, self.simulation_data['time'], rv_wall_thickness_transient)
+        # plt.xlabel('Time (s)')
+        # plt.ylabel('Averaged wall thickness (cm)')
+        # plt.legend(['LV', 'RV'])
+        # plt.savefig(self.results_dir + 'wall_thicknesss_transient.png')
+        # diastasis_time_idx = np.nonzero(self.simulation_data['time'] == self.simulation_dict['diastasis_t'])
+        # self.simulation_biomarkers['mean_lv_thickness_diastasis'] = lv_wall_thickness_transient[diastasis_time_idx]
+        # self.simulation_biomarkers['mean_rv_thickness_diastasis'] = rv_wall_thickness_transient[diastasis_time_idx]
+        # end_diastole_time_idx = np.nonzero(self.simulation_data['time'] == self.simulation_dict['end_diastole_t'])
+        # self.simulation_biomarkers['mean_lv_thickness_end_diastole'] = lv_wall_thickness_transient[end_diastole_time_idx]
+        # self.simulation_biomarkers['mean_rv_thickness_end_diastole'] = rv_wall_thickness_transient[end_diastole_time_idx]
+        # end_systole_time_idx = np.nonzero(self.simulation_data['lv_phase'] == 3)[0][0] # Index at which phase first changes to 3 IVR.
+        # self.simulation_biomarkers['mean_lv_thickness_end_systole'] = lv_wall_thickness_transient[end_systole_time_idx]
+        # self.simulation_biomarkers['mean_rv_thickness_end_systole'] = rv_wall_thickness_transient[end_systole_time_idx]
+        #
+        #
+        # print('Fibre stretch ratio transient')
+        # lv_lambda_transients = np.mean(self.simulation_data['LAMBD'][lv_nodes, 0, :], axis=0)
+        # rv_lambda_transients = np.mean(self.simulation_data['LAMBD'][rv_nodes, 0, :], axis=0)
+        # np.savetxt(self.results_dir+'lv_fibre_stretch_ratio_transient.txt', lv_lambda_transients, delimiter=',')
+        # np.savetxt(self.results_dir + 'rv_fibre_stretch_ratio_transient.txt', rv_lambda_transients, delimiter=',')
+        # plt.figure()
+        # plt.plot(self.simulation_data['time'], lv_lambda_transients, self.simulation_data['time'], rv_lambda_transients)
+        # plt.xlabel('Time (s)')
+        # plt.ylabel('Fibre stretch ratio')
+        # plt.legend(['LV', 'RV'])
+        # plt.savefig(self.results_dir + 'fibre_stretch_ratio_transient.png')
 
 
     def evaluate_strains(self):
