@@ -2,7 +2,9 @@ from meshpreprocessing import MeshPreprocessing
 from generatefields import FieldGeneration
 from calibratecv import CalibrateCV
 from alyaformat import AlyaFormat
+from sensitivityanalysis import SA
 from postprocessing import PostProcessing
+import numpy as np
 
 ########################################################################################################################
 # Global Settings
@@ -56,10 +58,22 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
                   simulation_dir = simulation_dir, verbose=verbose)
 
-simulation_json_file = 'rodero_baseline_simulation_em.json'
-alya.do(simulation_json_file=simulation_json_file)
-
-simulation_json_file = 'rodero_baseline_simulation_ep.json'
-alya.do(simulation_json_file=simulation_json_file)
+# simulation_json_file = 'rodero_baseline_simulation_em.json'
+# alya.do(simulation_json_file=simulation_json_file)
+#
+# simulation_json_file = 'rodero_baseline_simulation_ep.json'
+# alya.do(simulation_json_file=simulation_json_file)
 
 # unused diffusivities 0.00094659, 0.00140994, 0.00144699
+
+########################################################################################################################
+# Step 6: Use sampling methods to explore sensitivity analysis
+sampling_method = 'lhs'
+parameter_names = np.array(['a', 'af'])
+baseline_parameter_values = np.array([20000, 30000])
+baseline_json_file = 'rodero_baseline_simulation_em.json'
+simulation_dir = 'sensitivity_analysis/'
+sa = SA(name='sa', sampling_method='saltelli', n=2 ** 1, parameter_names=parameter_names,
+        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+        simulation_dir=simulation_dir, alya_format=alya, verbose=verbose)
+sa.run()
