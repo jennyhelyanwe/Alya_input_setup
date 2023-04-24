@@ -107,9 +107,11 @@ class AlyaFormat(MeshStructure):
     def add_utility_scripts(self):
         if ('SOLIDZ' in self.simulation_dict['physics']) and ('EXMEDI' in self.simulation_dict['physics']):
             filename = 'util/monitoring/'+self.version+'.plot_live_em.template'
-            data = self.template(filename=filename, keys=['name', 'clinical_ecg_filename'],
+            data = self.template(filename=filename, keys=['name', 'clinical_ecg_filename', 'activation_delay'],
                                  data=[[self.simulation_dict['name'], "'" +
-                                        self.simulation_dict['clinical_ecg_filename'] + "'"]], num_duplicates=1)
+                                        self.simulation_dict['clinical_ecg_filename'] + "'",
+                                        self.simulation_dict['end_diastole_t'][0]]],
+                                 num_duplicates=1)
             with open(self.output_dir+'plot_live_em.py', 'w') as f:
                 f.write(data)
         if 'EXMEDI' in self.simulation_dict['physics']:
@@ -418,12 +420,12 @@ class AlyaFormat(MeshStructure):
                     cavity_boundary_number = self.geometry.lv_endocardium
                     insert_data.append([cavity_i + 1, cavity_boundary_number,
                                         self.node_fields.dict['lv-cavity-nodes'][0].astype(int) + 1,
-                                        self.node_fields.dict['lv-cavity-nodes'][1].astype(int) + 1, cavity_i])
+                                        self.node_fields.dict['lv-cavity-nodes'][1].astype(int) + 1, cavity_i + 1])
                 elif self.simulation_dict['cavity_bcs'][cavity_i] == 'RV':
                     cavity_boundary_number = self.geometry.rv_endocardium
                     insert_data.append([cavity_i+1, cavity_boundary_number,
                                         self.node_fields.dict['rv-cavity-nodes'][0].astype(int) + 1,
-                                        self.node_fields.dict['rv-cavity-nodes'][1].astype(int) + 1, cavity_i])
+                                        self.node_fields.dict['rv-cavity-nodes'][1].astype(int) + 1, cavity_i + 1])
             cavities_str = self.template(filename=filename, keys=keys, data=insert_data, num_duplicates=num_cavities)
             # Pressure string
             filename = self.template_dir + self.version + '.subtemplate.pressure_cycle_template'
@@ -492,7 +494,7 @@ class AlyaFormat(MeshStructure):
         if self.version == 'alya-compbiomed2':
             coupling_str = ''
             if ('SOLIDZ' in self.simulation_dict['physics']) and ('EXMEDI' in self.simulation_dict['physics']):
-                coupling_str = '\n\tECCOUPLING\n\tCOUPLING\n\t\tSOLIDZ EXMEDI\n\tEND_COUPLING'
+                coupling_str = '\tCOUPLING\n\t\tSOLIDZ EXMEDI\n\tEND_COUPLING\n\n\tECCOUPLING'
                 filename = self.template_dir + self.version + '.subtemplate.coupling_template'
                 subkeys = ["eccoupling_model_name", "cal50", "tref_sheet_scaling", "tref_normal_scaling", "tref_scaling"]
                 insert_data = []
@@ -505,7 +507,7 @@ class AlyaFormat(MeshStructure):
                 keys = ["material_idx"] + subkeys
                 coupling_str_2 = self.template(filename=filename, keys=keys, data=insert_data, num_duplicates=num_materials)
                 coupling_str = coupling_str + coupling_str_2
-                coupling_str = coupling_str + '\nEND_ECCOUPLING'
+                coupling_str = coupling_str + '\n\tEND_ECCOUPLING'
             # Replace all ker.dat
             filename = self.template_dir + self.version + '.ker.dat'
             keys = ["coupling_str", "fibre_field_number", "sheet_field_number", "normal_field_number",

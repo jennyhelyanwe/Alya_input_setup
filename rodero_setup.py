@@ -15,7 +15,7 @@ elif system == 'heart':
     meta_data_dir = '/data/Personalisation_projects/meta_data/'
 geometric_data_dir = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_fine/'
 clinical_data_dir = meta_data_dir + 'clinical_data/'
-verbose = True
+verbose = False
 
 #######################################################################################################################
 # Step 1: Save input mesh into CSV format, as prescribed in myformat.py
@@ -43,8 +43,8 @@ personalisation_data_dir = meta_data_dir + 'results/personalisation_data/rodero_
 ########################################################################################################################
 # Step 4: Generate fields for Alya simulation
 electrode_data_filename = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_electrode_xyz.csv'
-FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir, electrode_data_filename=electrode_data_filename,
-                personalisation_data_dir=personalisation_data_dir, endo_mid_divide=0.7, mid_epi_divide=0.7, verbose=verbose)
+# FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir, electrode_data_filename=electrode_data_filename,
+#                 personalisation_data_dir=personalisation_data_dir, endo_mid_divide=0.7, mid_epi_divide=0.7, verbose=verbose)
 
 ########################################################################################################################
 # Step 5: Write Alya input files according to simulation protocol saved in .json file.

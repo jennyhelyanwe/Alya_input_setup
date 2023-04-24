@@ -31,7 +31,7 @@
   "fibre_field_name" : "fibre",
   "sheet_field_name" : "sheet",
   "normal_field_name" : "normal",
-  "sigma": [[0.003025, 0.000513, 0.000283], [0.00001, 0.00001, 0.00001]],
+  "sigma": [[0.001591, 0.001038, 0.00129], [0.00001, 0.00001, 0.00001]],
   "exmedi_delay_time": 0.02,
   "cell_model": ["TORORD CONTROL KCAON", "TORORD CONTROL KCAON"],
   "cell_filename": ["ventricular_cell.txt", "valvular_plug.txt"],
