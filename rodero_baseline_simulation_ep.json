@@ -3,6 +3,7 @@
   "alya_version": "alya-compbiomed2",
   "alya_exec_path" : "/p/project/icei-prace-2022-0003/wang1/alya-compbiomed2_ionic_sf_fields/Executables/unix/Alya.x",
   "clinical_ecg_filename" : "DTI004_clinical_full_ecg.csv",
+  "fibre_dir" : "doste_fibres_sheet_20",
   "spatial_dimensions": 3,
   "run_type": "PRELIMINARY",
   "warm_start_write_out_frequency": 1000000,

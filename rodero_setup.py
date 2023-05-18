@@ -21,13 +21,14 @@ verbose = False
 
 #######################################################################################################################
 # Step 1: Save input mesh into CSV format, as prescribed in myformat.py
-if system == 'jureca':
+if system == 'heart':
     vtk_dir = '/users/jenang/RoderoNiedererMeshHealthy/' + mesh_number + '/'
-elif system == 'heart':
+elif system == 'jureca':
     vtk_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/meta_data/geometric_data/vtk/'
 vtk_name = mesh_number + '_bivent_only'
-# MeshPreprocessing(vtk_name=vtk_name, name=simulation_name, input_dir=vtk_dir, geometric_data_dir=geometric_data_dir,
-#                   verbose=verbose)
+simulation_json_file = 'rodero_baseline_simulation_ep.json'
+MeshPreprocessing(vtk_name=vtk_name, name=simulation_name, input_dir=vtk_dir, geometric_data_dir=geometric_data_dir,
+                  simulation_json_file=simulation_json_file, verbose=verbose)
 
 ########################################################################################################################
 # Step 2: Run QRS and T inference and write personalised results to personalisation_data_dir
@@ -45,8 +46,8 @@ personalisation_data_dir = meta_data_dir + 'results/personalisation_data/rodero_
 ########################################################################################################################
 # Step 4: Generate fields for Alya simulation
 electrode_data_filename = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_electrode_xyz.csv'
-# FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir, electrode_data_filename=electrode_data_filename,
-#                 personalisation_data_dir=personalisation_data_dir, endo_mid_divide=0.7, mid_epi_divide=0.7, verbose=verbose)
+FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir, electrode_data_filename=electrode_data_filename,
+                personalisation_data_dir=personalisation_data_dir, endo_mid_divide=0.7, mid_epi_divide=0.7, verbose=verbose)
 
 ########################################################################################################################
 # Step 5: Write Alya input files according to simulation protocol saved in .json file.
@@ -58,22 +59,22 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
                   simulation_dir = simulation_dir, verbose=verbose)
 
-# simulation_json_file = 'rodero_baseline_simulation_em.json'
-# alya.do(simulation_json_file=simulation_json_file)
-#
-# simulation_json_file = 'rodero_baseline_simulation_ep.json'
-# alya.do(simulation_json_file=simulation_json_file)
+simulation_json_file = 'rodero_baseline_simulation_em.json'
+alya.do(simulation_json_file=simulation_json_file)
+
+simulation_json_file = 'rodero_baseline_simulation_ep.json'
+alya.do(simulation_json_file=simulation_json_file)
 
 # unused diffusivities 0.00094659, 0.00140994, 0.00144699
 
 ########################################################################################################################
 # Step 6: Use sampling methods to explore sensitivity analysis
-sampling_method = 'lhs'
-parameter_names = np.array(['a', 'af'])
-baseline_parameter_values = np.array([20000, 30000])
-baseline_json_file = 'rodero_baseline_simulation_em.json'
-simulation_dir = 'sensitivity_analysis/'
-sa = SA(name='sa', sampling_method='saltelli', n=2 ** 1, parameter_names=parameter_names,
-        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
-        simulation_dir=simulation_dir, alya_format=alya, verbose=verbose)
-sa.run()
+# sampling_method = 'lhs'
+# parameter_names = np.array(['a', 'af'])
+# baseline_parameter_values = np.array([20000, 30000])
+# baseline_json_file = 'rodero_baseline_simulation_em.json'
+# simulation_dir = 'sensitivity_analysis/'
+# sa = SA(name='sa', sampling_method='saltelli', n=2 ** 1, parameter_names=parameter_names,
+#         baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+#         simulation_dir=simulation_dir, alya_format=alya, verbose=verbose)
+# sa.run()

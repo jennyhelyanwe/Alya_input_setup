@@ -1,26 +1,30 @@
 import vtk
 from vtk.util import numpy_support as VN
+import json
+import pymp, multiprocessing
 
 from meshstructure import MeshStructure
 from myformat import *
 import copy
 
 class MeshPreprocessing(MeshStructure):
-    def __init__(self, vtk_name, name, input_dir, geometric_data_dir, verbose):
+    def __init__(self, vtk_name, name, input_dir, geometric_data_dir, simulation_json_file, verbose):
         super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
         # Read and write geometry
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
         self.vtk_name = vtk_name
         self.input_dir = input_dir
+        simulation_dict = json.load(open(simulation_json_file, 'r'))
+        self.fibre_dir = simulation_dict['fibre_dir']
         self.read_geometry_from_vtk_rodero()
+        self.read_doste_fibres()
         self.lv_endocardium = 3
         self.rv_endocardium = 2
         self.epicardium = 1
         self.valve_plug = 4
         # Generate fields
         self.generate_boundary_data_rodero()
-        self.generate_fibre_sheet_normal()
 
         self.save()
         self.check_fields_for_qrs_inference()
@@ -109,12 +113,12 @@ class MeshPreprocessing(MeshStructure):
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('PHI.dat')), 'rt', 'nodefield')
         print('Convert from UVC to Cobiveco')
         self.convert_uvc_to_cobiveco()
-        print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_fibres_at_nodes.vtk')
-        reader.SetFileName(self.input_dir + self.vtk_name + '_fibres_at_nodes.vtk')
-        reader.Update()
-        data = reader.GetOutput()
-        self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('fibres')), 'fibres', 'nodefield')
-        self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('sheets')), 'sheets', 'nodefield')
+        # print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_fibres_at_nodes.vtk')
+        # reader.SetFileName(self.input_dir + self.vtk_name + '_fibres_at_nodes.vtk')
+        # reader.Update()
+        # data = reader.GetOutput()
+        # self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('fibres')), 'fibres', 'nodefield')
+        # self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('sheets')), 'sheets', 'nodefield')
 
         def _normalise_vector(vector):
             m = np.linalg.norm(vector)
@@ -163,23 +167,63 @@ class MeshPreprocessing(MeshStructure):
         data = reader.GetOutput()
 
         # Read faces
+        print('Reading faces...')
         self.geometry.number_of_triangles = data.GetNumberOfCells()
         self.geometry.triangles = np.zeros([self.geometry.number_of_triangles, 3])
         self.boundary_node_fields.add_field(data=VN.vtk_to_numpy(data.GetPointData().GetArray('Ids')).astype(int),
                                             data_name='surface-node-id', field_type='boundarynodefield')
+        # threadsNum = multiprocessing.cpu_count()
+        # print(threadsNum)
+        # triangles_shared = pymp.shared.array(self.geometry.triangles.shape)
+        # triangles_shared[:] = self.geometry.triangles
+        # with pymp.Parallel(min(threadsNum, self.geometry.number_of_triangles)) as p1:
+        #     for i in p1.range(0, self.geometry.number_of_triangles):
+        #         print (i)
+        triangles_shared =np.zeros(self.geometry.triangles.shape)
         for i in range(0, self.geometry.number_of_triangles):
-            self.geometry.triangles[i, :] = [
+            triangles_shared[i, :] = [
                 int(self.boundary_node_fields.dict['surface-node-id'][data.GetCell(i).GetPointId(0)]),
                 int(self.boundary_node_fields.dict['surface-node-id'][data.GetCell(i).GetPointId(1)]),
                 int(self.boundary_node_fields.dict['surface-node-id'][data.GetCell(i).GetPointId(2)])]
-        self.geometry.triangles = self.geometry.triangles.astype(int)
+        self.geometry.triangles = triangles_shared.astype(int)
+        print('Reading materials...')
         materials = np.zeros(self.element_fields.dict['tv-element'].shape[0]).astype(int)
+        # # threadsNum = multiprocessing.cpu_count()
+        # # materials_shared = pymp.shared.array(materials.shape)
+        # # materials_shared[:] = materials
+        # with pymp.Parallel(min(threadsNum, self.element_fields.dict['tv-element'].shape[0])) as p1:
+        #     for element_i in p1.range(self.element_fields.dict['tv-element'].shape[0]):
+        #         if self.element_fields.dict['tv-element'][element_i] > 3:
+        #             materials_shared[element_i] = 2
+        #         else:
+        #             materials_shared[element_i] = 1
         for element_i in range(self.element_fields.dict['tv-element'].shape[0]):
             if self.element_fields.dict['tv-element'][element_i] > 3:
                 materials[element_i] = 2
             else:
                 materials[element_i] = 1
         self.materials.add_field(data=materials, data_name='tetra', field_type='material')
+
+    def read_doste_fibres(self):
+        print('Reading fibre sheet and normal vectors from Doste algorithm outputs in '+self.fibre_dir)
+        self.node_fields.add_field(np.loadtxt(self.fibre_dir+'/heart.fibrenodes')[:, 1:], 'fibres', 'nodefield')
+        self.node_fields.add_field(np.loadtxt(self.fibre_dir + '/heart.sheetnodes')[:, 1:], 'sheets', 'nodefield')
+        self.node_fields.add_field(np.loadtxt(self.fibre_dir + '/heart.normalnodes')[:, 1:], 'normal', 'nodefield')
+        # reader = vtk.vtkUnstructuredGridReader()
+        # reader.SetFileName(self.fibre_dir+'/Long_Fibers.vtk')
+        # reader.Update()
+        # data = reader.GetOutput()
+        # self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('Fibres')), 'fibres', 'nodefield')
+        #
+        # reader.SetFileName(self.fibre_dir + '/Sheet_Fibers.vtk')
+        # reader.Update()
+        # data = reader.GetOutput()
+        # self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('Fibres')), 'sheets', 'nodefield')
+        #
+        # reader.SetFileName(self.fibre_dir + '/Normal_Fibers.vtk')
+        # reader.Update()
+        # data = reader.GetOutput()
+        # self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('Fibres')), 'normal', 'nodefield')
 
     def convert_uvc_to_cobiveco(self):
         # Map input geometry Cobiveco coordinates to output-style UVC
@@ -411,6 +455,7 @@ class MeshPreprocessing(MeshStructure):
 
 
     def generate_boundary_data_rodero(self):
+        print('Generating boundary data')
         print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_surface_connectivity.vtk')
         reader = vtk.vtkPolyDataReader()
         reader.SetFileName(self.input_dir + self.vtk_name + '_surface_connectivity.vtk')
