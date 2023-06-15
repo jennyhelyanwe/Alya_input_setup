@@ -61,5 +61,8 @@ class SA:
             os.system('sbatch run_job.cmd')
             os.system('cd ../')
 
-
+class cellularSA:
+    def __init__(self, working_dir):
+        self.working_dir = working_dir
+        
 

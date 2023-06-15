@@ -23,7 +23,7 @@ elif flag == 'analyse':
     sp.set_results(Y)
     sp.analyze_sobol(print_to_console=True, calc_second_order=True)
     sp.heatmap()
-    sns.heatmap()
+
     sp.plot()
     plt.show()
 

@@ -208,10 +208,42 @@ class MeshPreprocessing(MeshStructure):
         # self.materials.add_field(data=materials, data_name='tetra', field_type='material')
 
     def read_doste_fibres(self):
-        print('Reading fibre sheet and normal vectors from Doste algorithm outputs in '+self.input_dir + self.fibre_dir)
-        self.node_fields.add_field(np.loadtxt(self.input_dir + self.fibre_dir+'/heart.fibrenodes')[:, 1:], 'fibres', 'nodefield')
-        self.node_fields.add_field(np.loadtxt(self.input_dir + self.fibre_dir + '/heart.sheetnodes')[:, 1:], 'sheets', 'nodefield')
-        self.node_fields.add_field(np.loadtxt(self.input_dir + self.fibre_dir + '/heart.normalnodes')[:, 1:], 'normal', 'nodefield')
+        print('Reading fibre sheet and normal vectors from Doste algorithm outputs in '+self.fibre_dir)
+        self.node_fields.add_field(np.loadtxt(self.fibre_dir+'/heart.fibrenodes')[:, 1:], 'fibres', 'nodefield')
+        self.node_fields.add_field(np.loadtxt(self.fibre_dir + '/heart.sheetnodes')[:, 1:], 'sheets', 'nodefield')
+        self.node_fields.add_field(np.loadtxt(self.fibre_dir + '/heart.normalnodes')[:, 1:], 'normal', 'nodefield')
+        ortho = np.zeros([self.geometry.number_of_nodes, 9])
+        for i in range(0, self.geometry.number_of_nodes):
+            f = self.node_fields['fibres'][i, :]
+            s = self.node_fields['sheets'][i, :]
+            n = self.node_fields['normal'][i, :]
+            ortho[i, :] = list(f) + list(s) + list(n)
+        self.plug_fibres(neighbours=self.neighbours, ortho=ortho)
+        # Sanity check:
+        zero_fvector_nodes = np.where(~ortho[:, 0:3].any(axis=1))[0]  # Vectors all zero
+        zero_svector_nodes = np.where(~ortho[:, 3:6].any(axis=1))[0]
+        zero_nvector_nodes = np.where(~ortho[:, 6:9].any(axis=1))[0]
+        nan_vector_nodes = np.where(np.isnan(ortho).any(axis=1))[0]
+        print('Ortho calculation sanity check: ')
+        print('Number of zero fibre vectors: ', len(zero_fvector_nodes))
+        print('Number of zero sheet vectors: ', len(zero_fvector_nodes))
+        print('Number of zero normal vectors: ', len(zero_fvector_nodes))
+        print('Number of vectors with NaNs: ', len(nan_vector_nodes))
+        # reader = vtk.vtkUnstructuredGridReader()
+        # reader.SetFileName(self.fibre_dir+'/Long_Fibers.vtk')
+        # reader.Update()
+        # data = reader.GetOutput()
+        # self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('Fibres')), 'fibres', 'nodefield')
+        #
+        # reader.SetFileName(self.fibre_dir + '/Sheet_Fibers.vtk')
+        # reader.Update()
+        # data = reader.GetOutput()
+        # self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('Fibres')), 'sheets', 'nodefield')
+        #
+        # reader.SetFileName(self.fibre_dir + '/Normal_Fibers.vtk')
+        # reader.Update()
+        # data = reader.GetOutput()
+        # self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('Fibres')), 'normal', 'nodefield')
 
     def convert_uvc_to_cobiveco(self):
         # Map input geometry Cobiveco coordinates to output-style UVC
