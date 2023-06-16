@@ -1,6 +1,7 @@
 from SALib.sample import saltelli
 from SALib.analyze import sobol
 from SALib import ProblemSpec
+from SALib.plotting.bar import plot as barplot
 from matplotlib import pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -21,21 +22,25 @@ elif flag == 'analyse':
     Y = np.loadtxt('endo_output.txt', float, delimiter=',', skiprows=1)
     print(Y.shape)
     sp.set_results(Y)
-    sp.analyze_sobol(print_to_console=False, calc_second_order=True)
+    Si = sp.analyze_sobol(print_to_console=False, calc_second_order=True)
     analysis = sp._analysis
-    for str in sp.get('outputs'):
-        print(str)
-        print(analysis[str]['S2'])
-        ax = sns.heatmap(analysis[str]['S2'])
+    QOIs = sp.get('outputs')
+    for idx in range(len(QOIs)):
+        print(QOIs[idx])
+        ax = sns.heatmap(analysis[QOIs[idx]]['S2'])
         ax.set_yticklabels(sp.get('names'), rotation=45, fontsize=14)
         ax.set_xticklabels(sp.get('names'), rotation=45,
                            horizontalalignment='right', fontsize=14)
-        ax.set_title(str)
-        plt.show()
-        plt.savefig(str+'_S2.png')
-        sp.plot()
-        plt.savefig(str+'_S1.png')
-        plt.show()
+        ax.set_title(QOIs[idx])
+        plt.savefig(QOIs[idx]+'_S2.png')
+        data = Si.to_df()
+        barplot(data[idx][0])
+        plt.title(QOIs[idx])
+        plt.savefig(QOIs[idx]+'_ST.png')
+        barplot(data[idx][1])
+        plt.title(QOIs[idx])
+        plt.savefig(QOIs[idx] + '_S1.png')
+        # plt.show()
     #print(sp[0][2]['S2'])
     # ax = sns.heatmap(analysis[0]['S2']) #, vmin=-1, vmax=1, center=0,
                      # square=True, annot_kws={"size": 20, "color": "k"}) # cmap=sns.diverging_palette(220, 20, n=200),
