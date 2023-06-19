@@ -17,7 +17,7 @@ class SA:
         self.baseline_dir = baseline_dir
         self.number_of_parameters = parameter_names.shape[0]
         self.parameter_set = None
-        self.simulation_dir = simulation_dir
+        self.simulation_dir = simulation_dir + 'sensitivity_analyses/'
         self.alya_format = alya_format
         self.verbose = verbose
         self.all_simulation_dirs = []
@@ -92,27 +92,21 @@ class SA:
                     sample_simulation_dict[self.parameter_names[variable_i]][0] = self.parameter_set[sample_i, variable_i]
             with open(self.simulation_dir + self.name + '_' + str(sample_i) + '.json', 'w') as f:
                 json.dump(sample_simulation_dict, f)
-            self.alya_format.output_dir = self.simulation_dir + self.name + '_' + str(sample_i) + '/'
-            print('Writing to: ' + self.alya_format.output_dir)
-            self.alya_format.do(simulation_json_file=self.simulation_dir + self.name + '_' + str(sample_i) + '.json',
+            #self.alya_format.output_dir = self.simulation_dir + self.name + '_' + str(sample_i) + '/'
+            self.alya_format.simulation_dir = self.simulation_dir
+            self.alya_format.do(simulation_json_file=self.simulation_dir+self.name + '_' + str(sample_i) + '.json',
                                 SA_flag=True, baseline_dir=self.baseline_dir)
             self.all_simulation_dirs.append(self.alya_format.output_dir)
         with open(self.simulation_dir+'/all_simulation_dirs.txt', 'w') as f:
             for i in range(len(self.all_simulation_dirs)):
                 f.write(self.all_simulation_dirs[i]+'\n')
 
-    def run(self):
-        with open(self.simulation_dir+'/all_simulation_dirs.txt', 'r') as f:
-            self.all_simulation_dirs = f.readlines()
-        print(self.all_simulation_dirs)
-        quit()
-        # self.all_simulation_dirs = np.loadtxt(self.simulation_dir+'/all_simulation_dirs.txt', delimiter=',')
-        os.system('cd '+self.simulation_dir)
-        for simulation_i in range(len(self.all_simulation_dirs)):
-            os.system('cd '+self.all_simulation_dirs[simulation_i])
-            os.system('pwd')
-            os.system('sbatch run_job.cmd')
-            os.system('cd ../')
+def run(simulation_dir):
+    with open(simulation_dir+'/all_simulation_dirs.txt', 'r') as f:
+        all_simulation_dirs = f.readlines() 
+    for simulation_i in range(len(all_simulation_dirs)):
+        cmd = 'cd '+all_simulation_dirs[simulation_i].split()[0]
+        os.system('cd '+all_simulation_dirs[simulation_i].split()[0]+'; pwd ; sbatch run_job.cmd')
 
 
 

@@ -19,23 +19,9 @@ class AlyaFormat(MeshStructure):
         self.simulation_dir = simulation_dir
         self.verbose = verbose
         self.name = name
-        # Temporary fix for fibre fields:
-        # for i in range(self.node_fields.dict['fibre'].shape[0]):
-        #     normf = np.linalg.norm(self.node_fields.dict['fibre'][i, :])
-        #     if normf < 1e-6:
-        #         self.node_fields.dict['fibre'][i, :] = [1., 0., 0.]
-        #         print('Zero vector found in fibre field! Corrected to [1,0,0]')
-        #     norms = np.linalg.norm(self.node_fields.dict['sheet'][i, :])
-        #     if norms < 1e-6:
-        #         self.node_fields.dict['sheet'][i, :] = [0., 1., 0.]
-        #         print('Zero vector found in sheet field! Corrected to [0,1,0] from: ', self.node_fields.dict['sheet'][i,:])
-        #     normn = np.linalg.norm(self.node_fields.dict['normal'][i, :])
-        #     if normn < 1e-6:
-        #         self.node_fields.dict['normal'][i, :] = [0., 0., 1.]
-        #         print('Zero vector found in normal field! Corrected to [0,0,1] from: ', self.node_fields.dict['normal'][i,:])
 
     def do(self, simulation_json_file, SA_flag=False, baseline_dir=''):
-        self.output_dir = self.simulation_dir + simulation_json_file.split('.')[0] + '_' + self.name + '/'
+        self.output_dir = self.simulation_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + self.name + '/'
         print('Alya version: ' + self.version + ', simulation name: ', self.name, ' to: ', self.output_dir)
         if not os.path.exists(self.output_dir):
             os.mkdir(self.output_dir)

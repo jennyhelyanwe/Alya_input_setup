@@ -1,18 +1,17 @@
 from meshstructure import MeshStructure
 from myformat import *
-import pymp, multiprocessing
+
 
 class FieldGeneration(MeshStructure):
-    def __init__(self, name, geometric_data_dir, personalisation_data_dir, electrode_data_filename, endo_mid_divide,
-                 mid_epi_divide, verbose):
-        super().__init__(name=name, geometric_data_dir=geometric_data_dir,  verbose=verbose)
+    def __init__(self, name, geometric_data_dir, personalisation_data_dir, electrode_data_filename, verbose):
+        super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
         self.personalisation_data_dir = personalisation_data_dir
         # Generate required fields for Alya simulations.
         print('Generate additional Alya fields')
         neighbours, unfolded_edges = evaluate_mesh_characteristics(self.geometry)
         self.node_fields.add_field(data=evaluate_celltype(number_of_nodes=self.geometry.number_of_nodes,
                                                           uvc_transmural=self.node_fields.dict['tm'],
-                                                          endo_mid_divide=endo_mid_divide, mid_epi_divide=mid_epi_divide),
+                                                          endo_mid_divide=0.3, mid_epi_divide=0.7),
                                    data_name='cell-type', field_type='nodefield')
         activation_time = np.loadtxt(self.personalisation_data_dir + self.name + '_nodefield_inferred-lat.csv')
         self.node_fields.add_field(data=activation_time, data_name='activation-time', field_type='nodefield')
@@ -59,26 +58,19 @@ class FieldGeneration(MeshStructure):
         self.node_fields.add_field(data=np.array([rv_posterior_node, rv_anterior_node]), data_name='rv-cavity-nodes',
                                    field_type='nodefield')
         # Prestress field
-        # print('Evaluate prestress field')
-        # prestress_field = np.zeros(self.element_fields.dict['tv-element'].shape[0]).astype(int)
-        # threadsNum = multiprocessing.cpu_count()
-        # prestress_field_shared = pymp.shared.array(prestress_field.shape)
-        # prestress_field_shared[:] = prestress_field
-        # with pymp.Parallel(min(threadsNum, self.element_fields.dict['tv-element'].shape[0])) as p1:
-        #     for element_i in p1.range(self.element_fields.dict['tv-element'].shape[0]):
-        # # for element_i in range(self.element_fields.dict['tv-element'].shape[0]):
-        #         if (self.element_fields.dict['tv-element'][element_i] == 7) or \
-        #                 (self.element_fields.dict['tv-element'][element_i] == 9) or \
-        #                 (self.element_fields.dict['tv-element'][element_i] == 1):
-        #             prestress_field_shared[element_i] = 1
-        #         elif self.element_fields.dict['tv-element'][element_i] == 8 or \
-        #                 (self.element_fields.dict['tv-element'][element_i] == 10) or \
-        #                 (self.element_fields.dict['tv-element'][element_i] == 2):
-        #             prestress_field_shared[element_i] = 2
-        # self.element_fields.add_field(data=prestress_field_shared, data_name='prestress', field_type='elementfield')
+        prestress_field = np.zeros(self.element_fields.dict['tv-element'].shape[0]).astype(int)
+        for element_i in range(self.element_fields.dict['tv-element'].shape[0]):
+            if (self.element_fields.dict['tv-element'][element_i] == 7) or \
+                    (self.element_fields.dict['tv-element'][element_i] == 9) or \
+                    (self.element_fields.dict['tv-element'][element_i] == 1):
+                prestress_field[element_i] = 1
+            elif self.element_fields.dict['tv-element'][element_i] == 8 or \
+                    (self.element_fields.dict['tv-element'][element_i] == 10) or \
+                    (self.element_fields.dict['tv-element'][element_i] == 2):
+                prestress_field[element_i] = 2
+        self.element_fields.add_field(data=prestress_field, data_name='prestress', field_type='elementfield')
 
         self.save()
-        print('Done generating fields')
 
 
 def evaluate_mesh_characteristics(geometry):

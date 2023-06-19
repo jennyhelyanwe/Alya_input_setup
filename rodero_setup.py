@@ -2,7 +2,7 @@ from meshpreprocessing import MeshPreprocessing
 from generatefields import FieldGeneration
 from calibratecv import CalibrateCV
 from alyaformat import AlyaFormat
-from sensitivityanalysis import SA
+from sensitivityanalysis import SA, run
 from postprocessing import PostProcessing
 import numpy as np
 import os
@@ -59,9 +59,9 @@ if system == 'jureca':
     simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/'
 elif system == 'heart':
     simulation_dir = './'
-alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
-                  personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
-                  simulation_dir = simulation_dir, verbose=verbose)
+#alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
+#                  personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
+#                  simulation_dir = simulation_dir, verbose=verbose)
 # Sanity check:
 if not system == 'jureca':
     alya.visual_sanity_check()
@@ -82,15 +82,15 @@ baseline_json_file = 'rodero_baseline_simulation_em.json'
 
 if system == 'jureca':
     baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_rodero_05_fine/'
-    simulation_dir = 'sensitivity_analyses/'
+    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/'
 elif system == 'heart':
     baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
     simulation_dir = 'sensitivity_analyses/'
-sa = SA(name='sa', sampling_method='saltelli', n=2 ** 1, parameter_names=cell_parameter_names,
-        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
-        simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-# sa.setup()
-sa.run()
+#sa = SA(name='sa', sampling_method='saltelli', n=2 ** 1, parameter_names=cell_parameter_names,
+#        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+#        simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+#sa.setup()
+run(simulation_dir+'sensitivity_analyses/')
 
 tissue_parameter_names = np.array(['tref_scaling', 'arterial_compliance', 'artieral_resistance', 'af', 'pericardial_stiffness', 'sigma_f', 'sigma_s', 'endocardial_activation_time_scaling'])
 
