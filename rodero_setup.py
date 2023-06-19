@@ -69,12 +69,13 @@ alya.do(simulation_json_file=simulation_json_file)
 
 ########################################################################################################################
 # Step 6: Use sampling methods to explore sensitivity analysis
-# sampling_method = 'lhs'
-# parameter_names = np.array(['a', 'af'])
-# baseline_parameter_values = np.array([20000, 30000])
-# baseline_json_file = 'rodero_baseline_simulation_em.json'
-# simulation_dir = 'sensitivity_analysis/'
-# sa = SA(name='sa', sampling_method='saltelli', n=2 ** 1, parameter_names=parameter_names,
-#         baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
-#         simulation_dir=simulation_dir, alya_format=alya, verbose=verbose)
+sampling_method = 'lhs'
+# Parameters to change: INaL, IKr, INaK, ICaL, Jrel, Jup, Ca50, kws, ksu,
+parameter_names = np.array(['sf_IKr', 'a', 'af', 'b', 'bf', 'as','bs', 'afs', 'bfs'])
+baseline_parameter_values = np.array([20000, 30000])
+baseline_json_file = 'rodero_baseline_simulation_em.json'
+simulation_dir = 'sensitivity_analysis/'
+sa = SA(name='sa', sampling_method='saltelli', n=2 ** 1, parameter_names=parameter_names,
+        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+        simulation_dir=simulation_dir, alya_format=alya, verbose=verbose)
 # sa.run()

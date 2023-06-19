@@ -18,6 +18,8 @@ class Geometry:
         self.rv_endocardium = 2
         self.epicardium = 1
         self.valve_plug = 4
+        self.ra_endocardium = 5
+        self.la_endocardium = 6
         self.lv = -1
         self.rv = 1
         self.base = 1
