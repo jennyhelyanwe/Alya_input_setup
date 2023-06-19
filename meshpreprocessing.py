@@ -18,11 +18,13 @@ class MeshPreprocessing(MeshStructure):
         self.four_chamber = four_chamber
         simulation_dict = json.load(open(simulation_json_file, 'r'))
         self.fibre_dir = simulation_dict['fibre_dir']
-        self.read_geometry_from_vtk_rodero()
+        # self.read_geometry_from_vtk_rodero()
         if not four_chamber:
             self.read_doste_fibres()
         else:
             self.generate_fibre_sheet_normal()
+        self.save()
+        quit()
         self.lv_endocardium = 3
         self.rv_endocardium = 2
         self.epicardium = 1
@@ -221,16 +223,26 @@ class MeshPreprocessing(MeshStructure):
 
     def read_doste_fibres(self):
         print('Reading fibre sheet and normal vectors from Doste algorithm outputs in '+self.fibre_dir)
-        self.node_fields.add_field(np.loadtxt(self.fibre_dir+'/heart.fibrenodes')[:, 1:], 'fibres', 'nodefield')
-        self.node_fields.add_field(np.loadtxt(self.fibre_dir + '/heart.sheetnodes')[:, 1:], 'sheets', 'nodefield')
+        self.node_fields.add_field(np.loadtxt(self.fibre_dir+'/heart.fibrenodes')[:, 1:], 'fibre', 'nodefield')
+        self.node_fields.add_field(np.loadtxt(self.fibre_dir + '/heart.sheetnodes')[:, 1:], 'sheet', 'nodefield')
         self.node_fields.add_field(np.loadtxt(self.fibre_dir + '/heart.normalnodes')[:, 1:], 'normal', 'nodefield')
-        ortho = np.zeros([self.geometry.number_of_nodes, 9])
-        for i in range(0, self.geometry.number_of_nodes):
-            f = self.node_fields['fibres'][i, :]
-            s = self.node_fields['sheets'][i, :]
-            n = self.node_fields['normal'][i, :]
-            ortho[i, :] = list(f) + list(s) + list(n)
-        self.plug_fibres(neighbours=self.neighbours, ortho=ortho)
+        threadsNum = multiprocessing.cpu_count()
+        ortho = pymp.shared.array((self.geometry.number_of_nodes, 9))
+        fibre = pymp.shared.array((self.node_fields.dict['fibre'].shape))
+        fibre = self.node_fields.dict['fibre']
+        sheet = pymp.shared.array((self.node_fields.dict['sheet'].shape))
+        sheet = self.node_fields.dict['sheet']
+        normal = pymp.shared.array((self.node_fields.dict['normal'].shape))
+        normal = self.node_fields.dict['normal']
+        with pymp.Parallel(min(threadsNum, self.geometry.number_of_nodes)) as p1:
+            for i in p1.range(self.geometry.number_of_nodes):
+        # ortho = np.zeros([self.geometry.number_of_nodes, 9])
+        # for i in range(0, self.geometry.number_of_nodes):
+                f = fibre[i, :]
+                s = sheet[i, :]
+                n = normal[i, :]
+                ortho[i, :] = list(f) + list(s) + list(n)
+        # self.plug_fibres(neighbours=self.neighbours, ortho=ortho)
         # Sanity check:
         zero_fvector_nodes = np.where(~ortho[:, 0:3].any(axis=1))[0]  # Vectors all zero
         zero_svector_nodes = np.where(~ortho[:, 3:6].any(axis=1))[0]

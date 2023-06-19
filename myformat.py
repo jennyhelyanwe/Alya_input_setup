@@ -56,7 +56,7 @@ class Geometry:
             self.number_of_nodes = self.nodes_xyz.shape[0]
             self.triangles = load_txt(filename=input_dir + self.name + '_triangles.csv')
             self.number_of_triangles = self.triangles.shape[0]
-            self.tetrahedron_centres = load_txt(filename=input_dir + self.name + '_tetrahedron_centres.csv')
+            self.tetrahedron_centres = load_txt(filename=input_dir + self.name + '_tetrahedron_centers.csv')
             self.edges = load_txt(filename=input_dir + self.name + '_edges.csv')
 
 

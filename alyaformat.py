@@ -4,7 +4,7 @@ import numpy as np
 from shutil import copy
 
 from meshstructure import MeshStructure
-
+from matplotlib import pyplot as plt
 
 class AlyaFormat(MeshStructure):
     def __init__(self, name, geometric_data_dir, personalisation_dir, clinical_data_dir, simulation_dir, verbose):
@@ -19,8 +19,22 @@ class AlyaFormat(MeshStructure):
         self.simulation_dir = simulation_dir
         self.verbose = verbose
         self.name = name
+        # Temporary fix for fibre fields:
+        # for i in range(self.node_fields.dict['fibre'].shape[0]):
+        #     normf = np.linalg.norm(self.node_fields.dict['fibre'][i, :])
+        #     if normf < 1e-6:
+        #         self.node_fields.dict['fibre'][i, :] = [1., 0., 0.]
+        #         print('Zero vector found in fibre field! Corrected to [1,0,0]')
+        #     norms = np.linalg.norm(self.node_fields.dict['sheet'][i, :])
+        #     if norms < 1e-6:
+        #         self.node_fields.dict['sheet'][i, :] = [0., 1., 0.]
+        #         print('Zero vector found in sheet field! Corrected to [0,1,0] from: ', self.node_fields.dict['sheet'][i,:])
+        #     normn = np.linalg.norm(self.node_fields.dict['normal'][i, :])
+        #     if normn < 1e-6:
+        #         self.node_fields.dict['normal'][i, :] = [0., 0., 1.]
+        #         print('Zero vector found in normal field! Corrected to [0,0,1] from: ', self.node_fields.dict['normal'][i,:])
 
-    def do(self, simulation_json_file):
+    def do(self, simulation_json_file, SA_flag=False, baseline_dir=''):
         self.output_dir = self.simulation_dir + simulation_json_file.split('.')[0] + '_' + self.name + '/'
         print('Alya version: ' + self.version + ', simulation name: ', self.name, ' to: ', self.output_dir)
         if not os.path.exists(self.output_dir):
@@ -28,10 +42,45 @@ class AlyaFormat(MeshStructure):
         copy(simulation_json_file, self.output_dir + self.name + '.json')
         self.simulation_dict = json.load(open(simulation_json_file, 'r'))
         copy(self.clinical_data_dir + self.simulation_dict['clinical_ecg_filename'], self.output_dir)
-        self.check_simulation_dict_integrity()
-        self.write_alya_simulation_files()
+        # self.check_simulation_dict_integrity()
+        if SA_flag:
+            os.system('cp '+baseline_dir+'heart.* '+self.output_dir)
+            self.write_alya_simulation_files_parameters_only()
+        else:
+            self.write_alya_simulation_files()
         self.add_utility_scripts()
         self.add_job_scripts()
+
+    def visual_sanity_check(self):
+        def scatter_visualise(ax, xyz, field, title):
+            assert xyz.shape[0] == field.shape[0]
+            p = ax.scatter(xyz[:, 0], xyz[:, 1], xyz[:, 2], c=field, marker='o', s=1)
+            ax.set_title(title)
+            return p
+        node_downsample_skip = int(self.geometry.number_of_nodes / 5000.)
+        elem_downsample_skip = int(self.geometry.number_of_elements / 5000. )
+        celltype = self.node_fields.dict['cell-type'][::node_downsample_skip]
+        sf_iks = self.node_fields.dict['sf_IKs'][::node_downsample_skip]
+        node_xyz = self.geometry.nodes_xyz[::node_downsample_skip, :]
+        tetra_centers = self.geometry.tetrahedron_centres[::elem_downsample_skip]
+        materials = self.materials.dict['tetra'][::elem_downsample_skip]
+        field_idx = self.boundary_node_fields.dict['endocardial-nodes'].astype(int)
+        endo_nodes = self.geometry.nodes_xyz[field_idx][::10,:]
+        lat = self.boundary_node_fields.dict['endocardial-activation-times'][::10]
+        fig = plt.figure(figsize=(12, 12))
+        ax1 = fig.add_subplot(221, projection='3d')
+        ax2 = fig.add_subplot(222, projection='3d')
+        ax3 = fig.add_subplot(223, projection='3d')
+        ax4 = fig.add_subplot(224, projection='3d')
+        p1 = scatter_visualise(ax1, node_xyz, celltype, 'celltype')
+        p2 = scatter_visualise(ax2, node_xyz, sf_iks, 'sf_iks')
+        p3 = scatter_visualise(ax3, tetra_centers, materials, 'materials')
+        p4 = scatter_visualise(ax4, endo_nodes, lat, 'LAT')
+        fig.colorbar(p2, ax=ax2, label='sf_IKs')
+        fig.colorbar(p1, ax=ax1, label='cell-type')
+        fig.colorbar(p3, ax=ax3, label='materials')
+        fig.colorbar(p4, ax=ax4, label='Endocardial LAT')
+        plt.show()
 
     def check_simulation_dict_integrity(self):
         print('Checking json file integrity')
@@ -70,6 +119,8 @@ class AlyaFormat(MeshStructure):
             assert len(self.simulation_dict['bfs']) == number_of_materials
             assert len(self.simulation_dict['eccoupling_model_name']) == number_of_materials
             assert len(self.simulation_dict['cal50']) == number_of_materials
+            assert len(self.simulation_dict['sfkuw']) == number_of_materials
+            assert len(self.simulation_dict['sfkws']) == number_of_materials
             assert len(self.simulation_dict['tref_sheet_scaling']) == number_of_materials
             assert len(self.simulation_dict['tref_normal_scaling']) == number_of_materials
             number_of_cavities = len(self.simulation_dict['cavity_bcs'])
@@ -136,6 +187,14 @@ class AlyaFormat(MeshStructure):
             self.write_sld_dat()
         self.write_ker_dat()
         self.write_post_dat()
+        self.write_cell_txt()
+
+    def write_alya_simulation_files_parameters_only(self):
+        if 'EXMEDI' in self.simulation_dict['physics']:
+            self.write_exm_dat()
+        if 'SOLIDZ' in self.simulation_dict['physics']:
+            self.write_sld_dat()
+        self.write_ker_dat()
         self.write_cell_txt()
 
     def write_dat(self):
@@ -307,7 +366,8 @@ class AlyaFormat(MeshStructure):
                     field_idx = self.boundary_node_fields.dict['endocardial-nodes'].astype(int) + 1
                     meta_idx_sort = np.argsort(field_idx)
                     field_idx = field_idx[meta_idx_sort]
-                    activation_times = self.boundary_node_fields.dict[varname][meta_idx_sort]
+                    lat_scaling = float(self.simulation_dict['endocardial_activation_time_scaling'])
+                    activation_times = self.boundary_node_fields.dict[varname][meta_idx_sort] * lat_scaling
                     if 'SOLIDZ' in self.simulation_dict['physics']:
                         field = activation_times * 0.001 + self.simulation_dict['end_diastole_t'][0] - 0.02 # Convert to seconds for Alya
                     else:
@@ -496,7 +556,7 @@ class AlyaFormat(MeshStructure):
             if ('SOLIDZ' in self.simulation_dict['physics']) and ('EXMEDI' in self.simulation_dict['physics']):
                 coupling_str = '\tCOUPLING\n\t\tSOLIDZ EXMEDI\n\tEND_COUPLING\n\n\tECCOUPLING'
                 filename = self.template_dir + self.version + '.subtemplate.coupling_template'
-                subkeys = ["eccoupling_model_name", "cal50", "tref_sheet_scaling", "tref_normal_scaling", "tref_scaling"]
+                subkeys = ["eccoupling_model_name", "cal50", "sfkuw", "sfkws", "tref_sheet_scaling", "tref_normal_scaling", "tref_scaling"]
                 insert_data = []
                 num_materials = np.amax(self.materials.dict['tetra']).astype(int)
                 for material_i in range(num_materials):

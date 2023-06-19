@@ -3,4 +3,6 @@
         CAL50: <<cal50>>
         ORTK1: <<tref_sheet_scaling>>
         ORTK2: <<tref_normal_scaling>>
+        SFKUW: <<sfkuw>>
+        SFKWS: <<sfkws>>
         CONTROL_FACTOR: <<tref_scaling>>
