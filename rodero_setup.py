@@ -89,7 +89,8 @@ elif system == 'heart':
 sa = SA(name='sa', sampling_method='saltelli', n=2 ** 1, parameter_names=cell_parameter_names,
         baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
         simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-# sa.run()
+# sa.setup()
+sa.run()
 
 tissue_parameter_names = np.array(['tref_scaling', 'arterial_compliance', 'artieral_resistance', 'af', 'pericardial_stiffness', 'sigma_f', 'sigma_s', 'endocardial_activation_time_scaling'])
 

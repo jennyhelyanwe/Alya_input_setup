@@ -23,10 +23,12 @@ class SA:
         self.all_simulation_dirs = []
         if not os.path.exists(self.simulation_dir):
             os.mkdir(self.simulation_dir)
-        self.generate_parameter_set()
-        print('Sample size: ', self.parameter_set.shape)
-        self.generate_alya_simulation_json(baseline_json_file)
+        self.baseline_json_file = baseline_json_file
 
+
+    def setup(self):
+        self.generate_parameter_set()
+        self.generate_alya_simulation_json(self.baseline_json_file)
 
     def generate_parameter_set(self):
         upper_bounds = self.baseline_parameter_values * 2.0
@@ -95,11 +97,20 @@ class SA:
             self.alya_format.do(simulation_json_file=self.simulation_dir + self.name + '_' + str(sample_i) + '.json',
                                 SA_flag=True, baseline_dir=self.baseline_dir)
             self.all_simulation_dirs.append(self.alya_format.output_dir)
+        with open(self.simulation_dir+'/all_simulation_dirs.txt', 'w') as f:
+            for i in range(len(self.all_simulation_dirs)):
+                f.write(self.all_simulation_dirs[i]+'\n')
 
     def run(self):
+        with open(self.simulation_dir+'/all_simulation_dirs.txt', 'r') as f:
+            self.all_simulation_dirs = f.readlines()
+        print(self.all_simulation_dirs)
+        quit()
+        # self.all_simulation_dirs = np.loadtxt(self.simulation_dir+'/all_simulation_dirs.txt', delimiter=',')
         os.system('cd '+self.simulation_dir)
         for simulation_i in range(len(self.all_simulation_dirs)):
             os.system('cd '+self.all_simulation_dirs[simulation_i])
+            os.system('pwd')
             os.system('sbatch run_job.cmd')
             os.system('cd ../')
 
