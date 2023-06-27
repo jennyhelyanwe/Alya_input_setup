@@ -51,6 +51,8 @@ p = ax.scatter(mesh.geometry.nodes_xyz[::10,0], mesh.geometry.nodes_xyz[::10,1],
 fig.colorbar(p, ax=ax, label='cell-type')
 problem_tcl = pymp.shared.array(mesh.geometry.nodes_xyz.shape[0])
 problem_tcl[:] = 0
+# if True:
+#     for node_i in range(mesh.geometry.number_of_nodes):
 with pymp.Parallel(min(threadsNum, mesh.geometry.number_of_nodes)) as p1:
     for node_i in p1.range(mesh.geometry.number_of_nodes):
         # Gram-Schmidt orthogonalisation: needed otherwise the reconstruction will never recover the original vector
@@ -58,8 +60,8 @@ with pymp.Parallel(min(threadsNum, mesh.geometry.number_of_nodes)) as p1:
         c = circumferential_vector[node_i,:]
         l = longitudinal_vector[node_i,:]
         t_gs[node_i,:] = t
-        c_gs[node_i,:] = c - np.dot(c, t_gs[node_i,:]) * c
-        l_gs[node_i,:] = l - np.dot(l, t_gs[node_i,:]) * l - np.dot(l, c_gs[node_i,:]) * l
+        l_gs[node_i, :] = l - np.dot(l, t_gs[node_i, :]) * l
+        c_gs[node_i, :] = np.cross(l_gs[node_i,:], t_gs[node_i,:])
         if (np.linalg.norm(t_gs[node_i, :]) < 1e-3) | (np.linalg.norm(c_gs[node_i, :]) < 1e-3) | (np.linalg.norm(l_gs[node_i, :]) < 1e-3):
             f_invariant_projection[node_i, :] = [0., 0., 0.]
             s_invariant_projection[node_i, :] = [0., 0., 0.]
@@ -67,19 +69,29 @@ with pymp.Parallel(min(threadsNum, mesh.geometry.number_of_nodes)) as p1:
             problem_tcl[node_i] = 1
             continue
         else:
-            t_gs[node_i,:] = t_gs[node_i,:]/np.linalg.norm(t_gs[node_i,:])
-            l_gs[node_i, :] = l_gs[node_i, :] / np.linalg.norm(l_gs[node_i, :])
+            t_gs[node_i,:] = t_gs[node_i,:] / np.linalg.norm(t_gs[node_i,:])
             c_gs[node_i, :] = c_gs[node_i, :] / np.linalg.norm(c_gs[node_i, :])
-        M = np.vstack([t_gs[node_i,:], c_gs[node_i,:], l_gs[node_i,:]]).transpose()
-        if np.linalg.det(M) <=0:
-            f_invariant_projection[node_i, :] = [0., 0., 0.]
-            s_invariant_projection[node_i, :] = [0., 0., 0.]
-            n_invariant_projection[node_i, :] = [0., 0., 0.]
-            problem_tcl[node_i] = 2
-        else:
-            f_invariant_projection[node_i, :] = np.matmul(np.linalg.inv(M), fibre[node_i,:])
-            s_invariant_projection[node_i, :] = np.matmul(np.linalg.inv(M), sheet[node_i, :])
-            n_invariant_projection[node_i, :] = np.matmul(np.linalg.inv(M), normal[node_i, :])
+            l_gs[node_i, :] = l_gs[node_i, :] / np.linalg.norm(l_gs[node_i, :])
+            M = np.vstack([t_gs[node_i,:], c_gs[node_i,:], l_gs[node_i,:]]).transpose()
+            if np.linalg.det(M) <=0:
+                f_invariant_projection[node_i, :] = [0., 0., 0.]
+                s_invariant_projection[node_i, :] = [0., 0., 0.]
+                n_invariant_projection[node_i, :] = [0., 0., 0.]
+                problem_tcl[node_i] = 2
+            else:
+                f_invariant_projection[node_i, :] = np.matmul(M, fibre[node_i, :])
+                s_invariant_projection[node_i, :] = np.matmul(M, sheet[node_i, :])
+                n_invariant_projection[node_i, :] = np.matmul(M, normal[node_i, :])
+        # else:
+        #     t_gs[node_i,:] = t_gs[node_i,:]/np.linalg.norm(t_gs[node_i,:])
+        #     l_gs[node_i, :] = l_gs[node_i, :] / np.linalg.norm(l_gs[node_i, :])
+        #     c_gs[node_i, :] = c_gs[node_i, :] / np.linalg.norm(c_gs[node_i, :])
+        # M = np.vstack([t_gs[node_i,:], c_gs[node_i,:], l_gs[node_i,:]]).transpose()
+
+        # else:
+        #     f_invariant_projection[node_i, :] = np.matmul(np.linalg.inv(M), fibre[node_i,:])
+        #     s_invariant_projection[node_i, :] = np.matmul(np.linalg.inv(M), sheet[node_i, :])
+        #     n_invariant_projection[node_i, :] = np.matmul(np.linalg.inv(M), normal[node_i, :])
 ax2 = fig.add_subplot(122, projection='3d')
 p2 = ax2.scatter(mesh.geometry.nodes_xyz[::10,0], mesh.geometry.nodes_xyz[::10,1], mesh.geometry.nodes_xyz[::10,2],
            c=problem_tcl[::10], marker='o', s=1)
@@ -104,16 +116,20 @@ print('Reconstructing fibres for comparison...')
 with pymp.Parallel(min(threadsNum, mesh.geometry.number_of_nodes)) as p1:
     for node_i in p1.range(mesh.geometry.number_of_nodes):
         if problem_tcl[node_i] == 0:
+            M = np.vstack([t_gs[node_i,:], c_gs[node_i,:], l_gs[node_i,:]]).transpose()
+            f_global[node_i, :] = np.matmul(np.linalg.inv(M), f_invariant_projection[node_i, :])
+            s_global[node_i, :] = np.matmul(np.linalg.inv(M), s_invariant_projection[node_i, :])
+            n_global[node_i, :] = np.matmul(np.linalg.inv(M), n_invariant_projection[node_i, :])
 # for node_i in range(mesh.geometry.number_of_nodes):
-            f_global[node_i, :] = t_gs[node_i,:] * f_invariant_projection[node_i, 0] + \
-                                  + c_gs[node_i, :] * f_invariant_projection[node_i, 1] \
-                                  + l_gs[node_i,:] * f_invariant_projection[node_i, 2]
-            s_global[node_i, :] = t_gs[node_i, :] * s_invariant_projection[node_i, 0] + \
-                          + c_gs[node_i, :] * s_invariant_projection[node_i, 1] \
-                          + l_gs[node_i, :] * s_invariant_projection[node_i, 2]
-            n_global[node_i, :] = t_gs[node_i, :] * n_invariant_projection[node_i, 0] + \
-                          + c_gs[node_i, :] * n_invariant_projection[node_i, 1] \
-                          + l_gs[node_i, :] * n_invariant_projection[node_i, 2]
+#             f_global[node_i, :] = t_gs[node_i,:] * f_invariant_projection[node_i, 0] + \
+#                                   + c_gs[node_i, :] * f_invariant_projection[node_i, 1] \
+#                                   + l_gs[node_i,:] * f_invariant_projection[node_i, 2]
+#             s_global[node_i, :] = t_gs[node_i, :] * s_invariant_projection[node_i, 0] + \
+#                           + c_gs[node_i, :] * s_invariant_projection[node_i, 1] \
+#                           + l_gs[node_i, :] * s_invariant_projection[node_i, 2]
+#             n_global[node_i, :] = t_gs[node_i, :] * n_invariant_projection[node_i, 0] + \
+#                           + c_gs[node_i, :] * n_invariant_projection[node_i, 1] \
+#                           + l_gs[node_i, :] * n_invariant_projection[node_i, 2]
         else:
             f_global[node_i,:] = fibre[node_i, :]
             s_global[node_i, :] = sheet[node_i, :]
