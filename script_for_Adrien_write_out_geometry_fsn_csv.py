@@ -24,13 +24,11 @@ s_invariant_projection = pymp.shared.array(mesh.node_fields.dict['fibre'].shape)
 n_invariant_projection = pymp.shared.array(mesh.node_fields.dict['fibre'].shape)
 transmural_vector = pymp.shared.array(mesh.node_fields.dict['transmural-vector'].shape)
 transmural_vector[:,:] = mesh.node_fields.dict['transmural-vector']
-circumferential_vector = pymp.shared.array(mesh.node_fields.dict['circumferential-vector'].shape)
-circumferential_vector[:,:] = mesh.node_fields.dict['circumferential-vector']
 longitudinal_vector = pymp.shared.array(mesh.node_fields.dict['longitudinal-vector'].shape)
 longitudinal_vector[:,:] = mesh.node_fields.dict['longitudinal-vector']
 t_gs = pymp.shared.array(mesh.node_fields.dict['transmural-vector'].shape)
 t_gs[:,:] = 0
-c_gs = pymp.shared.array(mesh.node_fields.dict['circumferential-vector'].shape)
+c_gs = pymp.shared.array(mesh.node_fields.dict['transmural-vector'].shape)
 c_gs[:,:] = 0
 l_gs = pymp.shared.array(mesh.node_fields.dict['longitudinal-vector'].shape)
 l_gs[:,:] = 0
@@ -45,7 +43,7 @@ print('Generating new fibre projections...')
 zero_tcl_counter = 0
 tcl_identical_counter = 0
 fig = plt.figure()
-ax = fig.add_subplot(121, projection='3d')
+ax = fig.add_subplot(131, projection='3d')
 p = ax.scatter(mesh.geometry.nodes_xyz[::10,0], mesh.geometry.nodes_xyz[::10,1], mesh.geometry.nodes_xyz[::10,2],
            c=mesh.node_fields.dict['cell-type'][::10], marker='o', s=1)
 fig.colorbar(p, ax=ax, label='cell-type')
@@ -57,7 +55,6 @@ with pymp.Parallel(min(threadsNum, mesh.geometry.number_of_nodes)) as p1:
     for node_i in p1.range(mesh.geometry.number_of_nodes):
         # Gram-Schmidt orthogonalisation: needed otherwise the reconstruction will never recover the original vector
         t = transmural_vector[node_i,:]
-        c = circumferential_vector[node_i,:]
         l = longitudinal_vector[node_i,:]
         t_gs[node_i,:] = t
         l_gs[node_i, :] = l - np.dot(l, t_gs[node_i, :]) * l
@@ -92,11 +89,11 @@ with pymp.Parallel(min(threadsNum, mesh.geometry.number_of_nodes)) as p1:
         #     f_invariant_projection[node_i, :] = np.matmul(np.linalg.inv(M), fibre[node_i,:])
         #     s_invariant_projection[node_i, :] = np.matmul(np.linalg.inv(M), sheet[node_i, :])
         #     n_invariant_projection[node_i, :] = np.matmul(np.linalg.inv(M), normal[node_i, :])
-ax2 = fig.add_subplot(122, projection='3d')
+ax2 = fig.add_subplot(132, projection='3d')
 p2 = ax2.scatter(mesh.geometry.nodes_xyz[::10,0], mesh.geometry.nodes_xyz[::10,1], mesh.geometry.nodes_xyz[::10,2],
            c=problem_tcl[::10], marker='o', s=1)
 fig.colorbar(p2, ax=ax2, label='Problematic basis vectors: 1 - zero t, c, l; 2 - negative det(M), identical t, c, l')
-plt.show()
+
 np.savetxt(output_dir+'f_invariant_projection.csv', f_invariant_projection, delimiter=',')
 np.savetxt(output_dir+'s_invariant_projection.csv', s_invariant_projection, delimiter=',')
 np.savetxt(output_dir+'n_invariant_projection.csv', n_invariant_projection, delimiter=',')
@@ -134,12 +131,21 @@ with pymp.Parallel(min(threadsNum, mesh.geometry.number_of_nodes)) as p1:
             f_global[node_i,:] = fibre[node_i, :]
             s_global[node_i, :] = sheet[node_i, :]
             n_global[node_i, :] = normal[node_i, :]
-print(problem_tcl)
 print('fibre: ', fibre[-1,:])
 print('t; ', transmural_vector[-1,:])
-print('c: ', circumferential_vector[-1,:])
 print('l: ', longitudinal_vector[-1,:])
 print('fhat: ', f_invariant_projection[-1,:])
 print('f_recon: ', f_global[-1,:])
 print('Fibre reconstruction RMSE: ', np.linalg.norm(np.linalg.norm((f_global - mesh.node_fields.dict['fibre']), axis=1), axis=0))
-
+# print('Max magnitude error in fibre reconstruction: ', np.amax(np.linalg.norm(f_global - mesh.node_fields.dict['fibre']), axis=1))
+print(f_global - mesh.node_fields.dict['fibre'])
+f_error = f_global - mesh.node_fields.dict['fibre']
+print(f_error.shape)
+print(np.linalg.norm(f_global - mesh.node_fields.dict['fibre'], axis=1))
+f_error_magnitude = np.linalg.norm(f_error, axis=1)
+print('Max magnitude error in fibre reconstruction: ', np.amax(f_error_magnitude))
+ax3 = fig.add_subplot(133, projection='3d')
+p3 = ax3.scatter(mesh.geometry.nodes_xyz[::10,0], mesh.geometry.nodes_xyz[::10,1], mesh.geometry.nodes_xyz[::10,2],
+           c=f_error_magnitude[::10], marker='o', s=1)
+fig.colorbar(p3, ax=ax3, label='Fibre vector magnitude error')
+plt.show()
