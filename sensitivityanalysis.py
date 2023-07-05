@@ -50,7 +50,7 @@ class SA:
                 'names' : self.parameter_names,
                 'bounds' : ranges
             }
-            self.parameter_set = saltelli.sample(problem, self.n)
+            self.parameter_set = saltelli.sample(problem, self.n, calc_second_order=True)
 
     def generate_alya_simulation_json(self, baseline_json_file):
         baseline_simulation_dict = json.load(open(baseline_json_file, 'r'))
@@ -115,7 +115,7 @@ class SA:
             with open(all_simulation_dirs[simulation_i].split()[0]+'/heart.post.alyafil', 'r') as f:
                 if len(f.readlines()) == 1000:
                     finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
-        # all_simulation_dirs_shared = pymp.shared.array((len(all_simulation_dirs)), dtype=str)
+        all_simulation_dirs_shared = pymp.shared.array((len(all_simulation_dirs)), dtype=str)
         threadsNum = multiprocessing.cpu_count()
         # with pymp.Parallel(min(threadsNum, len(all_simulation_dirs))) as p1:
         #     for simulation_i in p1.range(len(all_simulation_dirs)):
@@ -137,7 +137,8 @@ class SA:
         self.qois_db =qois
 
 
-    def analyse(self):
+    def analyse(self, filename):
+        self.qois_db = pd.read_csv(filename, index_col=False)
         names = self.parameter_names
         # selected_qois = self.qois_db.columns.values.tolist() # All QoIs
         selected_qois = ['t_pe_mean', 't_peak_mean', 'qt_dur_mean', 't_polarity_mean', 'EDVL', 'LVEF', 'PmaxL', 'SVL']
@@ -205,6 +206,33 @@ class SA:
         #             ax.set_ylabel(qoi_names[qoi_i])
         # plt.show()
         # plt.savefig('scatter_qois_vs_qois.png')
+        ####################################################################################################################
+        # Tornado plot of sensitivity indices https://seaborn.pydata.org/examples/part_whole_bars.html
+        sp.set_results(Y)
+        Si = sp.analyze_sobol(print_to_console=False, calc_second_order=False)
+        fig = plt.figure(tight_layout=True, figsize=(15,6))
+        gs = GridSpec(1, num_qois)
+        data = Si.to_df()
+        sns.set_theme(style="whitegrid")
+        for qoi_i in range(num_qois):
+            ax = fig.add_subplot(gs[0, qoi_i])
+            st_s1_data = pd.concat([data[qoi_i][0], data[qoi_i][1]], axis=1)
+            sorted_data = st_s1_data.reindex(st_s1_data.abs().sort_values('ST', ascending=False).index)
+            names = []
+            for row in sorted_data.index:
+                names.append(row)
+            sns.set_color_codes("pastel")
+            sns.barplot(data=sorted_data, x='ST', y=names, label='ST', color='b')
+            sns.set_color_codes("muted")
+            sns.barplot(data=sorted_data, x='S1', y=names, label='S1', color='b')
+
+            ax.set( ylabel="",
+                   xlabel=qoi_names[qoi_i])
+            if qoi_i == num_qois-1:
+                ax.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left', frameon=True)
+        plt.show()
+        plt.savefig('ST_S1_tornado.png')
+
 
 
     def run_jobs(self, simulation_dir):
