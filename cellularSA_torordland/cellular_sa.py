@@ -39,6 +39,7 @@ for cell in celltype:
     X = np.loadtxt('param_values.txt', delimiter=',')
     print(Y.shape)
     print(X.shape)
+    ####################################################################################################################
     # # Scatter plots with correlation coefficients
     # fig = plt.figure(tight_layout=True, figsize=(18,10))
     # gs = GridSpec(4, 8)
@@ -70,7 +71,7 @@ for cell in celltype:
     #     axes[qoi_i][0].set_ylabel(qoi_names_with_units_ta[qoi_i])
     # plt.savefig(cell + '_scatter_plot_part2.png')
     # plt.show()
-    #
+    ####################################################################################################################
     # # Tornado plot of sensitivity indices https://seaborn.pydata.org/examples/part_whole_bars.html
     # sp.set_results(Y)
     # Si = sp.analyze_sobol(print_to_console=False, calc_second_order=True)
@@ -97,7 +98,7 @@ for cell in celltype:
     #     if qoi_i == 3:
     #         ax.legend(ncol=2, loc="lower right", frameon=True)
     # plt.savefig(cell+'_ST_S1_tornado.png')
-
+    ####################################################################################################################
     # Second order effects heat map
     sp.set_results(Y)
     Si = sp.analyze_sobol(print_to_console=False, calc_second_order=True)

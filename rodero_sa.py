@@ -59,16 +59,17 @@ baseline_parameter_values = np.array([1,1,1,1,1,0.805,1])
 baseline_json_file = 'rodero_baseline_simulation_em.json'
 if system == 'jureca':
     baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_rodero_05_fine/'
-    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/sensitivity_analyses_256_samples/'
+    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/sensitivity_analyses/'
 elif system == 'heart':
     baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
     simulation_dir = 'sensitivity_analyses/'
-sa = SA(name='sa', sampling_method='saltelli', n=2 ** 4, parameter_names=cell_parameter_names,
+sa = SA(name='sa', sampling_method='saltelli', n=2 ** 2, parameter_names=cell_parameter_names,
        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
        simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
 # sa.setup()
-sa.run_jobs(simulation_dir+'sensitivity_analyses/')
-quit()
+# quit()
+# sa.run_jobs(simulation_dir)
+# quit()
 ########################################################################################################################
 # Step 3: Run Alya post-processing
 if system == 'jureca':
@@ -79,8 +80,8 @@ elif system == 'heart':
 
 ########################################################################################################################
 # Step 4: Evaluate QoIs and write out to results file
-sa.evaluate_qois(alya=alya, beat=0, qoi_save_dir=simulation_dir)
-sa.analyse()
+# sa.evaluate_qois(alya=alya, beat=0, qoi_save_dir=simulation_dir)
+sa.analyse(simulation_dir+'all_qois.csv')
 quit()
 ########################################################################################################################
 # Step 5: Evaluate Sobol indices and plot results
