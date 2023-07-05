@@ -31,6 +31,7 @@ class AlyaFormat(MeshStructure):
         # self.check_simulation_dict_integrity()
         if SA_flag:
             os.system('cp '+baseline_dir+'heart.* '+self.output_dir)
+            os.system('cd '+self.output_dir+'; ~/Alya/Alya_multiple_BZRZ_models/Utils/user/alya-clean; rm -r results_csv results_ensight; cd -')
             self.write_alya_simulation_files_parameters_only()
         else:
             self.write_alya_simulation_files()
@@ -685,3 +686,9 @@ def write_alya_field(filename, field_idx, field_data):
                 for j in range(field_data.shape[1]):
                     f.write('\t' + str(field_data[i, j]))
             f.write('\n')
+
+def run_job(dir):
+    os.system('cd ' + dir + '; pwd ; sbatch run_job.cmd')
+
+def run_job_postprocess(dir):
+    os.system('cd ' + dir + '; pwd ; sbatch run_job_postprocess.cmd')

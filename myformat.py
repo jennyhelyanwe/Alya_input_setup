@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pymp, multiprocessing
+import pandas as pd
 
 class Geometry:
     def __init__(self, name, verbose):
@@ -138,12 +139,17 @@ class Fields:
 
 def save_txt(filename, var):
     if var is not None:
-        np.savetxt(filename, var, delimiter=',')
+        print('Saving to : ', filename)
+        if len(var.shape) <= 2: # np.savetxt can only handle 1D and 2D arrays
+            np.savetxt(filename, var, delimiter=',')
 
 
 def load_txt(filename):
     if os.path.exists(filename):
-        return np.loadtxt(filename, delimiter=',')
+        data = pd.read_csv(filename, delimiter=',', header=None).values
+        if data.shape[1] == 1:
+            data = data.transpose()[0]
+        return data
     else:
         return None
 

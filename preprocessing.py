@@ -19,7 +19,6 @@ class preprocessing:
         self.node_fields.read_csv_to_attributes(self.input_dir)
         self.element_fields = element_fields(self.name)
         self.element_fields.read_csv_to_attributes(self.input_dir)
-        self.surface_fields = surface_fields(self.name)
         self.surface_fields.read_csv_to_attributes(self.input_dir)
 
 
