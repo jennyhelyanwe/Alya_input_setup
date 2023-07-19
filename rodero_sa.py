@@ -33,51 +33,53 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   simulation_dir = simulation_dir, verbose=verbose)
 
 ########################################################################################################################
-# Step 2: Use sampling methods to explore sensitivity analysis
-# Parameters to change: INaL, IKr, INaK, ICaL, Jrel, Jup, Ca50, kws, LVR, LVE, EDP, Tascaling, af, kepi, sigma_f, sigma_s,
-cell_parameter_names = np.array(['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup', 'cal50', 'sfkws'])
-baseline_parameter_values = np.array([1,1,1,1,1,0.805,1])
-baseline_json_file = 'rodero_baseline_simulation_em.json'
-if system == 'jureca':
-    baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_rodero_05_fine/'
-    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/'
-elif system == 'heart':
-    baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
-    simulation_dir = 'sensitivity_analyses/'
-sa = SA(name='sa', sampling_method='saltelli', n=2 ** 2, parameter_names=cell_parameter_names,
-       baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
-       simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-# sa.setup()
-# sa.run_jobs(simulation_dir+'sensitivity_analyses/')
-# quit()
+# # Step 2: Use sampling methods to explore sensitivity analysis
+# # Parameters to change: INaL, IKr, INaK, ICaL, Jrel, Jup, Ca50, kws, LVR, LVE, EDP, Tascaling, af, kepi, sigma_f, sigma_s,
+# cell_parameter_names = np.array(['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup', 'cal50', 'sfkws'])
+# baseline_parameter_values = np.array([1,1,1,1,1,0.805,1])
+# baseline_json_file = 'rodero_baseline_simulation_em.json'
+# if system == 'jureca':
+#     baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_rodero_05_fine/'
+#     simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/'
+# elif system == 'heart':
+#     baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
+#     simulation_dir = 'sensitivity_analyses/'
+# sa = SA(name='sa', sampling_method='saltelli', n=2 ** 4, parameter_names=cell_parameter_names,
+#        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+#        simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+# # sa.setup()
+# # sa.run_jobs(simulation_dir+'sensitivity_analyses/')
+# # quit()
 
 #######################################################################################################################
 # Step 2: Use sampling methods to explore sensitivity analysis
 # Parameters to change: LVR, LVE, EDP, Tascaling, af, kepi, sigma_f, sigma_s, Kct
 cell_parameter_names = np.array(['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup', 'cal50', 'sfkws'])
 baseline_parameter_values = np.array([1,1,1,1,1,0.805,1])
+upper_bounds = baseline_parameter_values * 2.0
+lower_bounds = baseline_parameter_values * 0.5
 baseline_json_file = 'rodero_baseline_simulation_em.json'
 if system == 'jureca':
     baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_rodero_05_fine/'
-    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/sensitivity_analyses/'
+    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/sensitivity_analyses_256_samples/'
 elif system == 'heart':
     baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
     simulation_dir = 'sensitivity_analyses/'
-sa = SA(name='sa', sampling_method='saltelli', n=2 ** 2, parameter_names=cell_parameter_names,
+sa = SA(name='sa', sampling_method='saltelli', n=2 ** 4, parameter_names=cell_parameter_names,
        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
        simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-# sa.setup()
+# sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
 # quit()
 # sa.run_jobs(simulation_dir)
 # quit()
 ########################################################################################################################
 # Step 3: Run Alya post-processing
 if system == 'jureca':
-    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/sensitivity_analyses/'
+    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/sensitivity_analyses_256_samples/'
 elif system == 'heart':
     simulation_dir = '/users/jenang/Alya_setup_SA/alya_csv/rodero_' + mesh_number + '/'
 # sa.run_jobs_postprocess(simulation_dir)
-
+# quit()
 ########################################################################################################################
 # Step 4: Evaluate QoIs and write out to results file
 # sa.evaluate_qois(alya=alya, beat=0, qoi_save_dir=simulation_dir)

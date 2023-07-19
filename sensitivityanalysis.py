@@ -32,13 +32,13 @@ class SA:
             os.mkdir(self.simulation_dir)
         self.baseline_json_file = baseline_json_file
 
-    def setup(self):
-        self.generate_parameter_set()
+    def setup(self, upper_bounds, lower_bounds):
+        self.generate_parameter_set( upper_bounds, lower_bounds)
         self.generate_alya_simulation_json(self.baseline_json_file)
 
-    def generate_parameter_set(self):
-        upper_bounds = self.baseline_parameter_values * 2.0
-        lower_bounds = self.baseline_parameter_values * 0.5
+    def generate_parameter_set(self, upper_bounds, lower_bounds):
+        # upper_bounds = self.baseline_parameter_values * 2.0
+        # lower_bounds = self.baseline_parameter_values * 0.5
         if self.sampling_method == 'lhs':
             sampler = scipy.stats.qms.LatinHypercube(d=self.number_of_parameters)
             sample = sampler.random(n=self.n)
@@ -51,6 +51,19 @@ class SA:
                 'bounds' : ranges
             }
             self.parameter_set = saltelli.sample(problem, self.n, calc_second_order=True)
+        elif self.sampling_method == 'gridsampling':
+            self.parameter_set = np.zeros((self.n**self.number_of_parameters, self.number_of_parameters))
+            a = np.linspace(lower_bounds[0], upper_bounds[0], self.n)
+            b = np.linspace(lower_bounds[1], upper_bounds[1], self.n)
+            c = np.linspace(lower_bounds[2], upper_bounds[2], self.n)
+            d = np.linspace(lower_bounds[3], upper_bounds[3], self.n)
+            i = 0
+            for a_i in a:
+                for b_i in b:
+                    for c_i in c:
+                        for d_i in d:
+                            self.parameter_set[i, :] = [a_i, b_i, c_i, d_i]
+                            i = i + 1
 
     def generate_alya_simulation_json(self, baseline_json_file):
         baseline_simulation_dict = json.load(open(baseline_json_file, 'r'))
@@ -64,8 +77,20 @@ class SA:
                         sample_i, variable_i]
                     sample_simulation_dict[self.parameter_names[variable_i]][0][2] = self.parameter_set[
                         sample_i, variable_i]
+                elif '_lv' in self.parameter_names[variable_i]:
+                    variable_name = self.parameter_names[variable_i].split('_lv')[0]
+                    sample_simulation_dict[variable_name][0] = self.parameter_set[sample_i, variable_i]
+                elif '_rv' in self.parameter_names[variable_i]:
+                    variable_name = self.parameter_names[variable_i].split('_rv')[0]
+                    sample_simulation_dict[variable_name][1] = self.parameter_set[sample_i, variable_i]
+                elif '_myocardium' in self.parameter_names[variable_i]:
+                    variable_name = self.parameter_names[variable_i].split('_myocardium')[0]
+                    sample_simulation_dict[variable_name][0] = self.parameter_set[sample_i, variable_i]
+                elif '_valveplug' in self.parameter_names[variable_i]:
+                    variable_name = self.parameter_names[variable_i].split('_valveplug')[0]
+                    sample_simulation_dict[variable_name][0] = self.parameter_set[sample_i, variable_i]
                 else:
-                    sample_simulation_dict[self.parameter_names[variable_i]][0] = self.parameter_set[sample_i, variable_i]
+                    sample_simulation_dict[self.parameter_names[variable_i]]= self.parameter_set[sample_i, variable_i]
             with open(self.simulation_dir + self.name + '_' + str(sample_i) + '.json', 'w') as f:
                 json.dump(sample_simulation_dict, f)
             #self.alya_format.output_dir = self.simulation_dir + self.name + '_' + str(sample_i) + '/'
@@ -115,11 +140,11 @@ class SA:
             with open(all_simulation_dirs[simulation_i].split()[0]+'/heart.post.alyafil', 'r') as f:
                 if len(f.readlines()) == 1000:
                     finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
-        all_simulation_dirs_shared = pymp.shared.array((len(all_simulation_dirs)), dtype=str)
+        # all_simulation_dirs_shared = pymp.shared.array((len(all_simulation_dirs)), dtype=str)
         threadsNum = multiprocessing.cpu_count()
         # with pymp.Parallel(min(threadsNum, len(all_simulation_dirs))) as p1:
         #     for simulation_i in p1.range(len(all_simulation_dirs)):
-        if False:
+        if True:
             for simulation_i in range(len(finished_simulation_dirs)):
                 alya_output_dir = finished_simulation_dirs[simulation_i]
                 json_file = self.simulation_dir + 'sa_' + str(simulation_i) + '.json'
@@ -167,50 +192,53 @@ class SA:
             num_qois = Y.shape[1]
 
         ################################################################################################################
-        # fig = plt.figure(tight_layout=True, figsize=(18, 10))
-        # gs = GridSpec(num_qois, X.shape[1])
-        # for qoi_i in range(num_qois):
-        #     for param_j in range(X.shape[1]):
-        #         ax = fig.add_subplot(gs[qoi_i, param_j])
-        #         x = X[:,param_j]
-        #         if num_qois == 1:
-        #             y = Y
-        #         else:
-        #             y = Y[:,qoi_i]
-        #         sns.regplot(x=x, y=y, ax=ax, scatter_kws={'s':1})
-        #         ax.text(x=np.amin(x), y=np.amax(y), va='top', ha='left',
-        #                                   s='p=%.2f' % (np.corrcoef(x,y)[0,1]))
-        #         if qoi_i == num_qois-1:
-        #             ax.set_xlabel(names[param_j])
-        #         if param_j == 0:
-        #             ax.set_ylabel(qoi_names[qoi_i])
-        # plt.savefig('scatter_qois_vs_parameters.png')
-        ################################################################################################################
-        # fig = plt.figure(tight_layout=True, figsize=(18, 10))
-        # gs = GridSpec(num_qois, num_qois)
-        # for qoi_i in range(num_qois):
-        #     for qoi_j in range(num_qois):
-        #         if qoi_i >= qoi_j:
-        #             ax = fig.add_subplot(gs[qoi_i, qoi_j])
-        #             if num_qois == 1:
-        #                 y = Y
-        #             else:
-        #                 y = Y[:, qoi_i]
-        #             x = Y[:, qoi_j]
-        #             sns.regplot(x=x, y=y, ax=ax, scatter_kws={'s': 1})
-        #             ax.text(x=np.amin(x), y=np.amax(y), va='top', ha='left',
-        #                     s='p=%.2f' % (np.corrcoef(x, y)[0, 1]))
-        #         if qoi_i == num_qois - 1:
-        #             ax.set_xlabel(qoi_names[qoi_j])
-        #         if qoi_j == 0:
-        #             ax.set_ylabel(qoi_names[qoi_i])
-        # plt.show()
-        # plt.savefig('scatter_qois_vs_qois.png')
+        fig = plt.figure(tight_layout=True, figsize=(18, 10))
+        fig.suptitle('N=' + str(Y.shape[0]))
+        gs = GridSpec(num_qois, X.shape[1])
+        for qoi_i in range(num_qois):
+            for param_j in range(X.shape[1]):
+                ax = fig.add_subplot(gs[qoi_i, param_j])
+                x = X[:,param_j]
+                if num_qois == 1:
+                    y = Y
+                else:
+                    y = Y[:,qoi_i]
+                sns.regplot(x=x, y=y, ax=ax, scatter_kws={'s':1})
+                ax.text(x=np.amin(x), y=np.amax(y), va='top', ha='left',
+                                          s='p=%.2f' % (np.corrcoef(x,y)[0,1]))
+                if qoi_i == num_qois-1:
+                    ax.set_xlabel(names[param_j])
+                if param_j == 0:
+                    ax.set_ylabel(qoi_names[qoi_i])
+        plt.savefig('scatter_qois_vs_parameters.png')
+        ###############################################################################################################
+        fig = plt.figure(tight_layout=True, figsize=(18, 10))
+        fig.suptitle('N=' + str(Y.shape[0]))
+        gs = GridSpec(num_qois, num_qois)
+        for qoi_i in range(num_qois):
+            for qoi_j in range(num_qois):
+                if qoi_i >= qoi_j:
+                    ax = fig.add_subplot(gs[qoi_i, qoi_j])
+                    if num_qois == 1:
+                        y = Y
+                    else:
+                        y = Y[:, qoi_i]
+                    x = Y[:, qoi_j]
+                    sns.regplot(x=x, y=y, ax=ax, scatter_kws={'s': 1})
+                    ax.text(x=np.amin(x), y=np.amax(y), va='top', ha='left',
+                            s='p=%.2f' % (np.corrcoef(x, y)[0, 1]))
+                if qoi_i == num_qois - 1:
+                    ax.set_xlabel(qoi_names[qoi_j])
+                if qoi_j == 0:
+                    ax.set_ylabel(qoi_names[qoi_i])
+        plt.savefig('scatter_qois_vs_qois.png')
+        plt.show()
         ####################################################################################################################
         # Tornado plot of sensitivity indices https://seaborn.pydata.org/examples/part_whole_bars.html
         sp.set_results(Y)
         Si = sp.analyze_sobol(print_to_console=False, calc_second_order=False)
         fig = plt.figure(tight_layout=True, figsize=(15,6))
+        fig.suptitle('N=' + str(Y.shape[0]))
         gs = GridSpec(1, num_qois)
         data = Si.to_df()
         sns.set_theme(style="whitegrid")
@@ -235,10 +263,10 @@ class SA:
 
 
 
-    def run_jobs(self, simulation_dir):
+    def run_jobs(self, simulation_dir, start_id=0):
         with open(simulation_dir+'/all_simulation_dirs.txt', 'r') as f:
             all_simulation_dirs = f.readlines()
-        for simulation_i in range(len(all_simulation_dirs)):
+        for simulation_i in range(start_id, len(all_simulation_dirs)):
             cmd = 'cd '+all_simulation_dirs[simulation_i].split()[0]
             os.system('cd '+all_simulation_dirs[simulation_i].split()[0]+'; pwd ; sbatch run_job.cmd')
 
