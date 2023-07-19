@@ -102,6 +102,13 @@ np.savetxt(output_dir+'edges.csv', mesh.geometry.edges, delimiter=',')
 np.savetxt(output_dir+'ab.csv', mesh.node_fields.dict['ab'], delimiter=',')
 np.savetxt(output_dir+'tm.csv', mesh.node_fields.dict['tm'], delimiter=',')
 np.savetxt(output_dir+'rt.csv', mesh.node_fields.dict['rt'], delimiter=',')
+np.savetxt(output_dir+'tv.csv', mesh.node_fields.dict['tv'], delimiter=',')
+lvendo_mask = (mesh.boundary_node_fields.dict['mechanical-node-label-global'] == 3).astype(int)
+rvendo_mask = (mesh.boundary_node_fields.dict['mechanical-node-label-global'] == 2).astype(int)
+epi_mask = (mesh.boundary_node_fields.dict['mechanical-node-label-global'] == 1).astype(int)
+np.savetxt(output_dir+'node_mask_lvendo.csv', lvendo_mask, fmt='%i', delimiter=',')
+np.savetxt(output_dir+'node_mask_rvendo.csv', rvendo_mask, fmt='%i', delimiter=',')
+np.savetxt(output_dir+'node_mask_epi.csv', epi_mask, fmt='%i', delimiter=',')
 
 ########################################################################################################################
 # Check that fibre information can be recovered.
