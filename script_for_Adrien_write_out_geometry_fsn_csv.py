@@ -4,7 +4,7 @@ import os
 import pymp, multiprocessing
 from matplotlib import pyplot as plt
 
-output_dir = '/users/jenang/ForAdrienJune2023/'
+output_dir = '/data/machine_learning_mechanics/baseline/geometric_data/rodero_05/rodero_05_fine/'
 mesh_number = '05'
 workdir = os.getcwd()
 simulation_name = 'rodero_' + mesh_number + '_fine'
@@ -94,21 +94,20 @@ p2 = ax2.scatter(mesh.geometry.nodes_xyz[::10,0], mesh.geometry.nodes_xyz[::10,1
            c=problem_tcl[::10], marker='o', s=1)
 fig.colorbar(p2, ax=ax2, label='Problematic basis vectors: 1 - zero t, c, l; 2 - negative det(M), identical t, c, l')
 
-np.savetxt(output_dir+'f_invariant_projection.csv', f_invariant_projection, delimiter=',')
-np.savetxt(output_dir+'s_invariant_projection.csv', s_invariant_projection, delimiter=',')
-np.savetxt(output_dir+'n_invariant_projection.csv', n_invariant_projection, delimiter=',')
-np.savetxt(output_dir+'node_xyz.csv', mesh.geometry.nodes_xyz, delimiter=',')
-np.savetxt(output_dir+'edges.csv', mesh.geometry.edges, delimiter=',')
-np.savetxt(output_dir+'ab.csv', mesh.node_fields.dict['ab'], delimiter=',')
-np.savetxt(output_dir+'tm.csv', mesh.node_fields.dict['tm'], delimiter=',')
-np.savetxt(output_dir+'rt.csv', mesh.node_fields.dict['rt'], delimiter=',')
-np.savetxt(output_dir+'tv.csv', mesh.node_fields.dict['tv'], delimiter=',')
+np.savetxt(output_dir+'rodero_05_fine_nodefield_fibre_invariant_projection.csv', f_invariant_projection, delimiter=',')
+np.savetxt(output_dir+'rodero_05_fine_nodefield_sheet_invariant_projection.csv', s_invariant_projection, delimiter=',')
+np.savetxt(output_dir+'rodero_05_fine_nodefield_normal_invariant_projection.csv', n_invariant_projection, delimiter=',')
+np.savetxt(output_dir+'rodero_05_fine_xyz.csv', mesh.geometry.nodes_xyz, delimiter=',')
+np.savetxt(output_dir+'rodero_05_fine_nodefield_ab.csv', mesh.node_fields.dict['ab'], delimiter=',')
+np.savetxt(output_dir+'rodero_05_fine_nodefield_tm.csv', mesh.node_fields.dict['tm'], delimiter=',')
+np.savetxt(output_dir+'rodero_05_fine_nodefield_rt.csv', mesh.node_fields.dict['rt'], delimiter=',')
+np.savetxt(output_dir+'rodero_05_fine_nodefield_tv.csv', mesh.node_fields.dict['tv'], delimiter=',')
 lvendo_mask = (mesh.boundary_node_fields.dict['mechanical-node-label-global'] == 3).astype(int)
 rvendo_mask = (mesh.boundary_node_fields.dict['mechanical-node-label-global'] == 2).astype(int)
 epi_mask = (mesh.boundary_node_fields.dict['mechanical-node-label-global'] == 1).astype(int)
-np.savetxt(output_dir+'node_mask_lvendo.csv', lvendo_mask, fmt='%i', delimiter=',')
-np.savetxt(output_dir+'node_mask_rvendo.csv', rvendo_mask, fmt='%i', delimiter=',')
-np.savetxt(output_dir+'node_mask_epi.csv', epi_mask, fmt='%i', delimiter=',')
+np.savetxt(output_dir+'rodero_05_fine_nodefield_lvendo.csv', lvendo_mask, fmt='%i', delimiter=',')
+np.savetxt(output_dir+'rodero_05_fine_nodefield_rvendo.csv', rvendo_mask, fmt='%i', delimiter=',')
+np.savetxt(output_dir+'rodero_05_fine_nodefield_epi.csv', epi_mask, fmt='%i', delimiter=',')
 
 ########################################################################################################################
 # Check that fibre information can be recovered.
