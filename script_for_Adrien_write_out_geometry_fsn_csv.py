@@ -22,15 +22,19 @@ mesh = MeshStructure(name=simulation_name, geometric_data_dir=geometric_data_dir
 f_invariant_projection = pymp.shared.array(mesh.node_fields.dict['fibre'].shape)
 s_invariant_projection = pymp.shared.array(mesh.node_fields.dict['fibre'].shape)
 n_invariant_projection = pymp.shared.array(mesh.node_fields.dict['fibre'].shape)
-transmural_vector = pymp.shared.array(mesh.node_fields.dict['transmural-vector'].shape)
-transmural_vector[:,:] = mesh.node_fields.dict['transmural-vector']
-longitudinal_vector = pymp.shared.array(mesh.node_fields.dict['longitudinal-vector'].shape)
-longitudinal_vector[:,:] = mesh.node_fields.dict['longitudinal-vector']
-t_gs = pymp.shared.array(mesh.node_fields.dict['transmural-vector'].shape)
+# transmural_vector = pymp.shared.array(mesh.node_fields.dict['transmural-vector'].shape)
+# transmural_vector[:,:] = mesh.node_fields.dict['transmural-vector']
+# longitudinal_vector = pymp.shared.array(mesh.node_fields.dict['longitudinal-vector'].shape)
+# longitudinal_vector[:,:] = mesh.node_fields.dict['longitudinal-vector']
+transmural_vector = np.loadtxt(geometric_data_dir+'/ruben_new_csv_uvcs/CR05_fine_nodefield_transmural_vector.csv', skiprows=1, delimiter=',')
+longitudinal_vector = np.loadtxt(geometric_data_dir+'/ruben_new_csv_uvcs/CR05_fine_nodefield_longitudinal_vector.csv', skiprows=1, delimiter=',')
+ab = np.loadtxt(geometric_data_dir+'/ruben_new_csv_uvcs/CR05_fine_nodefield_ab_valveplug.csv', skiprows=1, delimiter=',')
+tm = np.loadtxt(geometric_data_dir+'/ruben_new_csv_uvcs/CR05_fine_nodefield_tm_valveplug.csv', skiprows=1, delimiter=',')
+t_gs = pymp.shared.array(transmural_vector.shape)
 t_gs[:,:] = 0
-c_gs = pymp.shared.array(mesh.node_fields.dict['transmural-vector'].shape)
+c_gs = pymp.shared.array(transmural_vector.shape)
 c_gs[:,:] = 0
-l_gs = pymp.shared.array(mesh.node_fields.dict['longitudinal-vector'].shape)
+l_gs = pymp.shared.array(transmural_vector.shape)
 l_gs[:,:] = 0
 fibre = pymp.shared.array(mesh.node_fields.dict['fibre'].shape)
 sheet = pymp.shared.array(mesh.node_fields.dict['sheet'].shape)
@@ -98,8 +102,10 @@ np.savetxt(output_dir+'rodero_05_fine_nodefield_fibre_invariant_projection.csv',
 np.savetxt(output_dir+'rodero_05_fine_nodefield_sheet_invariant_projection.csv', s_invariant_projection, delimiter=',')
 np.savetxt(output_dir+'rodero_05_fine_nodefield_normal_invariant_projection.csv', n_invariant_projection, delimiter=',')
 np.savetxt(output_dir+'rodero_05_fine_xyz.csv', mesh.geometry.nodes_xyz, delimiter=',')
-np.savetxt(output_dir+'rodero_05_fine_nodefield_ab.csv', mesh.node_fields.dict['ab'], delimiter=',')
-np.savetxt(output_dir+'rodero_05_fine_nodefield_tm.csv', mesh.node_fields.dict['tm'], delimiter=',')
+# np.savetxt(output_dir+'rodero_05_fine_nodefield_ab.csv', mesh.node_fields.dict['ab'], delimiter=',')
+# np.savetxt(output_dir+'rodero_05_fine_nodefield_tm.csv', mesh.node_fields.dict['tm'], delimiter=',')
+np.savetxt(output_dir+'rodero_05_fine_nodefield_ab.csv', ab, delimiter=',')
+np.savetxt(output_dir+'rodero_05_fine_nodefield_tm.csv', tm, delimiter=',')
 np.savetxt(output_dir+'rodero_05_fine_nodefield_rt.csv', mesh.node_fields.dict['rt'], delimiter=',')
 np.savetxt(output_dir+'rodero_05_fine_nodefield_tv.csv', mesh.node_fields.dict['tv'], delimiter=',')
 lvendo_mask = (mesh.boundary_node_fields.dict['mechanical-node-label-global'] == 3).astype(int)
