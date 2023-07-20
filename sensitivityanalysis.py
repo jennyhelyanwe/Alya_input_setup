@@ -11,7 +11,7 @@ matplotlib.use('tkagg')
 from matplotlib.gridspec import GridSpec
 from matplotlib import pyplot as plt
 import seaborn as sns
-from postprocessing import PostProcessing
+from postprocessing import PostProcessing, mapIndices
 import pandas as pd
 class SA:
     def __init__(self, name, sampling_method, n, parameter_names, baseline_parameter_values, baseline_json_file, baseline_dir,
@@ -279,4 +279,11 @@ class SA:
             os.system('cd ' + all_simulation_dirs[simulation_i].split()[0] + '; pwd ; sbatch run_job_postprocess.cmd')
 
         
+    # def interpolate_displacement_to_lower_resolution(self, simulation_dir, output_dir):
+    #     with open(simulation_dir + '/all_simulation_dirs.txt', 'r') as f:
+    #         all_simulation_dirs = f.readlines()
+    #     geometric_desired_data_dir = '/p/project/icei-prace-2022-0003/wang1/Personalisation_projects/meta_data/geometric_data/rodero_05/rodero_05_coarse/'
+    #     desired_file_prefix = anatomy_subject_name + '_' + desired_resolution
+    #
+    #     for simulation_i in range(len(all_simulation_dirs)):
 

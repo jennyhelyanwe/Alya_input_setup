@@ -53,7 +53,7 @@
   "sf_jrel" : [[1.0, 1.0, 1.0], [0,0,0]],
   "sf_jup" : [[1.0, 1.0, 1.0], [0,0,0]],
   "exmedi_output": ["INTRA", "CALCI"],
-  "exmedi_output_period": [0.005, 0.005],
+  "exmedi_output_period": [0.01, 0.01],
   "solidz_residual" : "TOTAL",
   "solidz_convergence_tolerance" : 1e-4,
   "solidz_output": ["DISPL", "ACTST", "LAMBDA"],

@@ -661,7 +661,7 @@ class AlyaFormat(MeshStructure):
         job_type = ''
         if self.job_version == 'jureca':
             tasks_per_node = 128
-            job_type = 'dc-cpu-devel'
+            job_type = 'dc-cpu'
         insert_data = [[self.simulation_dict['name'], str(1),
                         np.ceil(128 / tasks_per_node).astype(int),
                         tasks_per_node, 128, job_type]]

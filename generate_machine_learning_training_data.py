@@ -32,16 +32,17 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
                   simulation_dir = simulation_dir, verbose=verbose)
 
-# simulation_json_file = 'rodero_baseline_simulation_em_diastole_only.json'
+simulation_json_file = 'rodero_baseline_simulation_em_diastole_only.json'
 # alya.do(simulation_json_file=simulation_json_file)
+# quit()
 #######################################################################################################################
 # Step 2: Use sampling methods to explore sensitivity analysis
 # Parameters to change: LVR, LVE, EDP, Tascaling, af, kepi, sigma_f, sigma_s, Kct
 cell_parameter_names = np.array(['a_myocardium', 'end_diastole_p_lv', 'end_diastole_p_rv', 'pericardial_stiffness'])
-baseline_parameter_values = np.array([6100,0.15,0.1,1500000])
-lower_bounds = [0.3050*10000, 0.05*10000, 0.05*10000, 10*10000]
-upper_bounds = [6.1*10000, 0.3*10000, 0.3*10000, 200*10000]
-baseline_json_file = 'rodero_baseline_simulation_em.json'
+baseline_parameter_values = np.array([6100,15000,0.1,1500000])
+lower_bounds = [0.3050*10000, 0.5*10000, 0.5*10000, 10*10000]
+upper_bounds = [6.1*10000, 3*10000, 3*10000, 200*10000]
+baseline_json_file = simulation_json_file
 baseline_dir = ''
 simulation_dir = ''
 if system == 'jureca':
@@ -50,12 +51,12 @@ if system == 'jureca':
 elif system == 'heart':
     print('Not implemented for heart! ')
     quit()
-sa = SA(name='sa', sampling_method='gridsampling', n=5, parameter_names=cell_parameter_names,
+sa = SA(name='sa', sampling_method='gridsampling', n=4, parameter_names=cell_parameter_names,
        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
        simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
 # sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
 # quit()
-sa.run_jobs(simulation_dir, start_id=513)
+sa.run_jobs(simulation_dir, start_id=0)
 quit()
 ########################################################################################################################
 # Step 3: Run Alya post-processing
@@ -67,11 +68,5 @@ elif system == 'heart':
 # sa.run_jobs_postprocess(simulation_dir)
 # quit()
 ########################################################################################################################
-# Step 4: Evaluate QoIs and write out to results file
-# sa.evaluate_qois(alya=alya, beat=0, qoi_save_dir=simulation_dir)
-sa.analyse(simulation_dir+'all_qois.csv')
-quit()
-########################################################################################################################
-# Step 5: Evaluate Sobol indices and plot results
-sa_figures_directory = simulation_dir
-sa.analyse(sa_figures_directory)
+# Step 4: Downsample displacement data and save in appropriate output folder.
+
