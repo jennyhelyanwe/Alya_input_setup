@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('TKagg')
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import json
@@ -9,8 +12,9 @@ from meshstructure import MeshStructure
 from myformat import Fields
 import pandas as pd
 
+
 class PostProcessing(MeshStructure):
-    def __init__(self,alya, simulation_json_file, alya_output_dir, verbose):
+    def __init__(self, alya, simulation_json_file, alya_output_dir, verbose):
         # super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
         self.geometry = alya.geometry
         self.name = alya.name
@@ -29,6 +33,7 @@ class PostProcessing(MeshStructure):
         self.post_elementfield.read_csv_to_attributes(input_dir=self.results_dir, field_type='postelementfield')
         self.simulation_dict = json.load(open(simulation_json_file, 'r'))
         self.verbose = verbose
+        self.qoi = {}
         # print('Read Alya log outputs')
         # self.read_log_files()
         # super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
@@ -136,7 +141,7 @@ class PostProcessing(MeshStructure):
             qoi['PmaxR'] = pv_analysis['PmaxR']
             qoi['SVL'] = pv_analysis['SVL']
             qoi['SVR'] = pv_analysis['SVR']
-        self.qoi = qoi
+        self.qoi = self.qoi.update(qoi)
             #
             # rawdata = np.loadtxt(, skiprows=8)
             # LA = rawdata[:, 3]
@@ -293,7 +298,7 @@ class PostProcessing(MeshStructure):
                     for time_i in p1.range(time_index_shared.shape[0]):
                         index = '{:06d}'.format(time_index_shared[time_i])
                         filename = self.alyacsv_dir + name + '.' + field_type + '.' + field_name + '-' + index + '.csv'
-                        temp[:, :, time_i] = pd.read_csv(filename, delimiter=',', header=None).values.transpose()[0] #.astype(float)
+                        temp[:, :, time_i] = pd.read_csv(filename, delimiter=',', header=None).values #.astype(float)
                 self.post_nodefield.dict[field_name] = temp
             self.post_nodefield.add_field(data=np.array(temp), data_name=field_name, field_type='postnodefield')
 
@@ -338,7 +343,6 @@ class PostProcessing(MeshStructure):
         self.post_nodefield.add_field(data=lat, data_name='lat', field_type='postnodefield')
         self.post_nodefield.add_field(data=rt, data_name='rt', field_type='postnodefield')
 
-
     def evaluate_ventricular_cvs(self):
         print('Evaluating mean transmural conduction velocity')
         lv_nodes = np.nonzero((self.node_fields.dict['tv'] == self.geometry.lv)
@@ -372,8 +376,10 @@ class PostProcessing(MeshStructure):
         wall_thicnkess[rv_endo_nodes] = np.linalg.norm(rv_transmural_vector, axis=1)
         self.post_nodefield.add_field(data=cvs, data_name='transmural-cv', field_type='postnodefield')
         self.post_nodefield.add_field(data=wall_thicnkess, data_name='wall-thickness', field_type='postnodefield')
-        self.qoi['mean_lv_transmural_cv'] = np.ma.masked_invalid(lv_transmural_cvs).mean()
-        self.qoi['mean_rv_transmural_cv'] = np.ma.masked_invalid(rv_transmural_cvs).mean()
+        qoi = {}
+        qoi['mean_lv_transmural_cv'] = np.ma.masked_invalid(lv_transmural_cvs).mean()
+        qoi['mean_rv_transmural_cv'] = np.ma.masked_invalid(rv_transmural_cvs).mean()
+        self.qoi = self.qoi.update(qoi)
 
     def evaluate_basal_displacement(self):
         print('Basal displacement in the longitudinal direction')
@@ -397,26 +403,29 @@ class PostProcessing(MeshStructure):
                                                                            apical_mesh_nodes, :, time_i],
                                                                            mean_ab_vector))
             mean_apicobasal_sum_displacement_transient[time_i] = mean_basal_ab_displacement_transient[time_i] + mean_apical_ab_displacement_transient[time_i]
-        self.qoi['max_basal_ab_displacement'] = np.amax(mean_basal_ab_displacement_transient)
-        self.qoi['min_basal_ab_displacement'] = np.amin(mean_basal_ab_displacement_transient)
-        self.qoi['max_apical_ab_displacement'] = np.amax(mean_apical_ab_displacement_transient)
-        self.qoi['min_apical_ab_displacement'] = np.amin(mean_apical_ab_displacement_transient)
-        self.qoi['max_longitudinal_strain'] = np.amax(mean_apicobasal_sum_displacement_transient)/reference_apex_to_base_length
-        self.qoi['mean_longitudinal_strain'] = np.mean(mean_apicobasal_sum_displacement_transient)/reference_apex_to_base_length
-        self.qoi['min_longitudinal_strain'] = np.amin(mean_apicobasal_sum_displacement_transient)/reference_apex_to_base_length
+        qoi = {}
+        qoi['max_basal_ab_displacement'] = np.amax(mean_basal_ab_displacement_transient)
+        qoi['min_basal_ab_displacement'] = np.amin(mean_basal_ab_displacement_transient)
+        qoi['max_apical_ab_displacement'] = np.amax(mean_apical_ab_displacement_transient)
+        qoi['min_apical_ab_displacement'] = np.amin(mean_apical_ab_displacement_transient)
+        qoi['max_longitudinal_strain'] = np.amax(mean_apicobasal_sum_displacement_transient)/reference_apex_to_base_length
+        qoi['mean_longitudinal_strain'] = np.mean(mean_apicobasal_sum_displacement_transient)/reference_apex_to_base_length
+        qoi['min_longitudinal_strain'] = np.amin(mean_apicobasal_sum_displacement_transient)/reference_apex_to_base_length
+        self.qoi = self.qoi.update(qoi)
         np.savetxt(self.results_dir + 'mean_basal_ab_displacement_transient.txt', mean_basal_ab_displacement_transient, delimiter=',')
         np.savetxt(self.results_dir + 'mean_apical_ab_displacement_transient.txt', mean_apical_ab_displacement_transient, delimiter=',')
         np.savetxt(self.results_dir + 'mean_apicobasal_sum_displacement_transient.txt',
                    mean_apicobasal_sum_displacement_transient, delimiter=',')
-        # plt.figure()
-        # plt.plot(self.post_nodefield.dict['time'], mean_basal_ab_displacement_transient,
-        #          self.post_nodefield.dict['time'], mean_apical_ab_displacement_transient,
-        #          self.post_nodefield.dict['time'], mean_apicobasal_sum_displacement_transient)
-        # plt.xlabel('Time (s)')
-        # plt.ylabel('Longitudinal displacement (cm)')
-        # plt.legend(['Base', 'Apex'])
-        # plt.savefig(self.results_dir + 'apicobasal_displacement_transient.png')
+        plt.figure()
+        plt.plot(self.post_nodefield.dict['time'], mean_basal_ab_displacement_transient,
+                 self.post_nodefield.dict['time'], mean_apical_ab_displacement_transient)
+        plt.xlabel('Time (s)')
+        plt.ylabel('Longitudinal displacement (cm)')
+        plt.legend(['Base', 'Apex'])
+        plt.savefig(self.results_dir + 'apicobasal_displacement_transient.png')
+        plt.show()
 
+    def evaluate_torsion(self):
         print('Evaluate LV torsion using two short axis slices ')
         # TODO Need to extract radial vectors and calculate rotation angles for basala nd apical slices separately
         # https://link.springer.com/article/10.1186/1532-429X-14-49 using the Russel et al formula
@@ -518,6 +527,8 @@ class PostProcessing(MeshStructure):
 
     def evaluate_strains(self):
         print('Strain evaluations in ventricular coordinates')
+
+
 
 def evaluate_lat(time, vm, percentage, time_window):
     print('evaluate Lat: vm shape: ', vm.shape)

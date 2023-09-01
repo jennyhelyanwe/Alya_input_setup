@@ -2,7 +2,6 @@ from meshpreprocessing import MeshPreprocessing
 from generatefields import FieldGeneration
 from calibratecv import CalibrateCV
 from alyaformat import AlyaFormat
-from sensitivityanalysis import SA, run
 from postprocessing import PostProcessing
 import numpy as np
 import os
@@ -68,9 +67,9 @@ if not system == 'jureca':
 
 simulation_json_file = 'rodero_baseline_simulation_em.json'
 alya.do(simulation_json_file=simulation_json_file)
-simulation_json_file = 'rodero_baseline_simulation_ep.json'
-alya.do(simulation_json_file=simulation_json_file)
-
+# simulation_json_file = 'rodero_baseline_simulation_ep.json'
+# alya.do(simulation_json_file=simulation_json_file)
+quit()
 ########################################################################################################################
 # Step 5: Run baseline simulation
 # run_job('/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_rodero_05_fine')
