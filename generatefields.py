@@ -1,30 +1,44 @@
 from meshstructure import MeshStructure
 from myformat import *
-
+import pandas as pd
 
 class FieldGeneration(MeshStructure):
-    def __init__(self, name, geometric_data_dir, personalisation_data_dir, electrode_data_filename, verbose):
+    def __init__(self, name, geometric_data_dir, personalisation_data_dir, verbose):
         super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
         self.personalisation_data_dir = personalisation_data_dir
+        self.geometric_data_dir = geometric_data_dir
+        self.verbose = verbose
+
+    def generate_celltype(self, endo_mid_divide=0.3, mid_epi_divide=0.7, read_celltype_filename=None, save=False):
         # Generate required fields for Alya simulations.
-        print('Generate additional Alya fields')
-        neighbours, unfolded_edges = evaluate_mesh_characteristics(self.geometry)
-        self.node_fields.add_field(data=evaluate_celltype(number_of_nodes=self.geometry.number_of_nodes,
-                                                          uvc_transmural=self.node_fields.dict['tm'],
-                                                          endo_mid_divide=0.3, mid_epi_divide=0.7),
-                                   data_name='cell-type', field_type='nodefield')
-        activation_time = np.loadtxt(self.personalisation_data_dir + self.name + '_nodefield_inferred-lat.csv')
+        if read_celltype_filename:
+            print('Reading celltype info from ', read_celltype_filename)
+            celltypes = pd.read_csv(read_celltype_filename)['celltype'].values
+            celltypes_alya = np.zeros(celltypes.shape).astype(int)
+            for i in range(celltypes.shape[0]):
+                if celltypes[i] == 'endo':
+                    celltypes_alya[i] = 1
+                elif celltypes[i] == 'mid':
+                    celltypes_alya[i] = 2
+                elif celltypes[i] == 'epi':
+                    celltypes_alya[i] = 3
+            self.node_fields.add_field(data=celltypes_alya, data_name='cell-type', field_type='nodefield')
+        else:
+            print('Generate additional Alya fields with endo-mid divde ', endo_mid_divide, ' mid-epi divide' , mid_epi_divide)
+            self.node_fields.add_field(data=evaluate_celltype(number_of_nodes=self.geometry.number_of_nodes,
+                                                              uvc_transmural=self.node_fields.dict['tm'],
+                                                              endo_mid_divide=endo_mid_divide, mid_epi_divide=mid_epi_divide),
+                                       data_name='cell-type', field_type='nodefield')
+        if save:
+            self.save()
+
+    def generate_stimuli(self, lat_filename=None, save=False):
+        if lat_filename:
+            activation_time = np.loadtxt(lat_filename)
+        else:
+            activation_time = np.loadtxt(self.personalisation_data_dir + self.name + '_nodefield_inferred-lat.csv')
         self.node_fields.add_field(data=activation_time, data_name='activation-time', field_type='nodefield')
-        # Read in ionic scaling factors
-        filenames = np.array([f for f in os.listdir(self.personalisation_data_dir) if
-                              os.path.isfile(
-                                  os.path.join(self.personalisation_data_dir, f)) and '.sf_' in f and 'ensi' not in f])
-        for file_i in range(filenames.shape[0]):
-            if verbose:
-                print('Reading in ' + self.personalisation_data_dir + filenames[file_i])
-            varname = filenames[file_i].split('.')[1]
-            self.node_fields.add_field(data=load_txt(filename=self.personalisation_data_dir + filenames[file_i]),
-                                       data_name=varname, field_type='nodefield')
+
         endocardial_activation_times = evaluate_endocardial_activation_map(activation_times=activation_time,
                                                                             boundary_node_fields=self.boundary_node_fields)
         endocardial_activation_times = endocardial_activation_times - np.amin(endocardial_activation_times) # Remove offset
@@ -33,8 +47,33 @@ class FieldGeneration(MeshStructure):
         stimulus_node_field = np.zeros(self.geometry.number_of_nodes)
         stimulus_node_field[self.boundary_node_fields.dict['endocardial-nodes']] = endocardial_activation_times
         self.node_fields.add_field(data=stimulus_node_field, data_name='stimulus', field_type='nodefield')
-        self.node_fields.add_field(data=load_txt(electrode_data_filename), data_name='electrode_xyz', field_type='nodefield')
+        if save:
+            self.save()
 
+    def generate_ionic_scaling_factors(self, read_sf_filename=None, save=False):
+        if read_sf_filename:
+            varname = read_sf_filename.split('.')[1]
+            self.node_fields.add_field(data=load_txt(filename=read_sf_filename), data_name=varname, field_type='nodefield')
+        else:
+            # Read in ionic scaling factors
+            filenames = np.array([f for f in os.listdir(self.personalisation_data_dir) if
+                                  os.path.isfile(
+                                      os.path.join(self.personalisation_data_dir, f)) and '.sf_' in f and 'ensi' not in f])
+            for file_i in range(filenames.shape[0]):
+                if self.verbose:
+                    print('Reading in ' + self.personalisation_data_dir + filenames[file_i])
+                varname = filenames[file_i].split('.')[1]
+                self.node_fields.add_field(data=load_txt(filename=self.personalisation_data_dir + filenames[file_i]),
+                                           data_name=varname, field_type='nodefield')
+        if save:
+            self.save()
+
+    def generate_electrode_locations(self, electrode_data_filename, save=False):
+        self.node_fields.add_field(data=load_txt(electrode_data_filename), data_name='electrode_xyz', field_type='nodefield')
+        if save:
+            self.save()
+
+    def generate_cavity_landmarks(self):
         print('Evaluate cavity landmark nodes')
         # LV cavity landmarks
         basal_ring_meta_idx = np.nonzero(self.node_fields.dict['ab'][self.boundary_node_fields.dict['ep-lvnodes'].astype(int)] == self.geometry.base)
@@ -57,6 +96,9 @@ class FieldGeneration(MeshStructure):
                                    field_type='nodefield')
         self.node_fields.add_field(data=np.array([rv_posterior_node, rv_anterior_node]), data_name='rv-cavity-nodes',
                                    field_type='nodefield')
+        self.save()
+
+    def generate_prestress_field(self):
         # Prestress field
         prestress_field = np.zeros(self.element_fields.dict['tv-element'].shape[0]).astype(int)
         for element_i in range(self.element_fields.dict['tv-element'].shape[0]):
@@ -69,8 +111,16 @@ class FieldGeneration(MeshStructure):
                     (self.element_fields.dict['tv-element'][element_i] == 2):
                 prestress_field[element_i] = 2
         self.element_fields.add_field(data=prestress_field, data_name='prestress', field_type='elementfield')
-
         self.save()
+
+    def read_fibre_fields(self, fibre_field_filename, sheet_field_filename, normal_field_filename):
+        self.node_fields.add_field(data=pd.read_csv(fibre_field_filename, header=None).values, data_name='fibre', field_type='nodefield')
+        self.node_fields.add_field(data=pd.read_csv(sheet_field_filename, header=None).values, data_name='sheet',
+                                   field_type='nodefield')
+        self.node_fields.add_field(data=pd.read_csv(normal_field_filename, header=None).values, data_name='normal',
+                                   field_type='nodefield')
+        self.save()
+
 
 
 def evaluate_mesh_characteristics(geometry):

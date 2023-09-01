@@ -49,16 +49,28 @@ class Geometry:
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
         if os.path.exists(input_dir + self.name + '_xyz.csv'):
+            if self.verbose:
+                print('Reading in ' + input_dir + self.name + '_xyz.csv')
             self.nodes_xyz = load_txt(filename=input_dir + self.name + '_xyz.csv')
+            if self.verbose:
+                print('Reading in ' + input_dir + self.name + '_tetra.csv')
             self.tetrahedrons = load_txt(filename=input_dir + self.name + '_tetra.csv').astype(int)
+
             if np.amin(self.tetrahedrons == 1):
                 self.tetrahedrons = self.tetrahedrons - 1
             self.number_of_elements = self.tetrahedrons.shape[0]
             self.number_of_nodes = self.nodes_xyz.shape[0]
-            self.triangles = load_txt(filename=input_dir + self.name + '_triangles.csv')
-            self.number_of_triangles = self.triangles.shape[0]
-            self.tetrahedron_centres = load_txt(filename=input_dir + self.name + '_tetrahedron_centers.csv')
-            self.edges = load_txt(filename=input_dir + self.name + '_edges.csv')
+            if os.path.exists(input_dir + self.name + '_triangles.csv'):
+                if self.verbose:
+                    print('Reading in ' + input_dir + self.name + '_triangles.csv')
+                self.triangles = load_txt(filename=input_dir + self.name + '_triangles.csv')
+                self.number_of_triangles = self.triangles.shape[0]
+            if os.path.exists(input_dir + self.name + '_tetrahedron_centers.csv'):
+                if self.verbose:
+                    print('Reading in ' + input_dir + self.name + '_tetrahedron_centers.csv')
+                    print('Reading in ' + input_dir + self.name + '_edges.csv')
+                self.tetrahedron_centres = load_txt(filename=input_dir + self.name + '_tetrahedron_centers.csv')
+                self.edges = load_txt(filename=input_dir + self.name + '_edges.csv')
 
 
 class Fields:

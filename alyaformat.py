@@ -20,7 +20,7 @@ class AlyaFormat(MeshStructure):
         self.verbose = verbose
         self.name = name
 
-    def do(self, simulation_json_file, SA_flag=False, baseline_dir=''):
+    def do(self, simulation_json_file, SA_flag=False, drug_flag=False, baseline_dir=''):
         self.output_dir = self.simulation_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + self.name + '/'
         print('Alya version: ' + self.version + ', simulation name: ', self.name, ' to: ', self.output_dir)
         if not os.path.exists(self.output_dir):
@@ -33,6 +33,11 @@ class AlyaFormat(MeshStructure):
             os.system('cp '+baseline_dir+'heart.* '+self.output_dir)
             os.system('cd '+self.output_dir+'; ~/Alya/Alya_multiple_BZRZ_models/Utils/user/alya-clean; rm -r results_csv results_ensight; cd -')
             self.write_alya_simulation_files_parameters_only()
+        elif drug_flag:
+            os.system('cp ' + baseline_dir + 'heart.* ' + self.output_dir)
+            os.system(
+                'cd ' + self.output_dir + '; ~/Alya/Alya_multiple_BZRZ_models/Utils/user/alya-clean; rm -r results_csv results_ensight; cd -')
+            self.write_cell_txt()
         else:
             self.write_alya_simulation_files()
         self.add_utility_scripts()
