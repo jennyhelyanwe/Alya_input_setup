@@ -1,6 +1,6 @@
 import vtk
 from vtk.util import numpy_support as VN
-
+import pymp
 from meshstructure import MeshStructure
 from myformat import *
 import copy
@@ -107,6 +107,17 @@ class MeshPreprocessing(MeshStructure):
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('RHO.dat')), 'tm', 'nodefield')
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('Z.dat')), 'ab', 'nodefield')
         self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('PHI.dat')), 'rt', 'nodefield')
+        print('Map UVC to element fields using nearest node')
+        map = map_indexes(points_to_map_xyz=self.geometry.tetrahedron_centres, reference_points_xyz=self.geometry.nodes_xyz)
+        ab_tetra_centres = self.node_fields.dict['ab'][map]
+        rt_tetra_centres = self.node_fields.dict['rt'][map]
+        tm_tetra_centres = self.node_fields.dict['tm'][map]
+        tv_tetra_centres = self.node_fields.dict['tv'][map]
+        self.element_fields.add_field(data=ab_tetra_centres, data_name='ab', field_type='elementfield')
+        self.element_fields.add_field(data=rt_tetra_centres, data_name='rt', field_type='elementfield')
+        self.element_fields.add_field(data=tm_tetra_centres, data_name='tm', field_type='elementfield')
+        self.element_fields.add_field(data=tv_tetra_centres, data_name='tv', field_type='elementfield')
+        self.save()
         print('Convert from UVC to Cobiveco')
         self.convert_uvc_to_cobiveco()
         print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_fibres_at_nodes.vtk')
@@ -641,3 +652,12 @@ def map_ventricular_coordinates(input_ranges, output_ranges, input_coordinate):
                     input_coordinate[coord_i] <= input_ranges[segment_i, 1]):
                 output_coordinate[coord_i] = a * input_coordinate[coord_i] + b
     return output_coordinate
+
+def map_indexes(points_to_map_xyz, reference_points_xyz):
+    mapped_indexes = pymp.shared.array((points_to_map_xyz.shape[0]), dtype=int)
+    threadsNum = multiprocessing.cpu_count()
+    with pymp.Parallel(min(threadsNum, points_to_map_xyz.shape[0])) as p1:
+        for conf_i in p1.range(points_to_map_xyz.shape[0]):
+            mapped_indexes[conf_i] = np.argmin(
+                np.linalg.norm(reference_points_xyz - points_to_map_xyz[conf_i, :], ord=2, axis=1)).astype(int)
+    return mapped_indexes

@@ -1,6 +1,10 @@
 from meshstructure import MeshStructure
+from meshpreprocessing import map_indexes
 from myformat import *
 import pandas as pd
+import vtk
+from vtk.util import numpy_support as VN
+import pymp
 
 class FieldGeneration(MeshStructure):
     def __init__(self, name, geometric_data_dir, personalisation_data_dir, verbose):
@@ -121,7 +125,113 @@ class FieldGeneration(MeshStructure):
                                    field_type='nodefield')
         self.save()
 
+    def read_doste_fibre_fields_vtk(self, fibre_vtk_filename, sheet_vtk_filename, normal_vtk_filename):
+        if self.verbose:
+            print('Reading in Doste fibres, ensuring node correspondence using nearest node mapping...')
+        reader = vtk.vtkUnstructuredGridReader()
+        reader.SetFileName(fibre_vtk_filename)
+        reader.ReadAllVectorsOn()
+        reader.ReadAllScalarsOn()
+        reader.Update()
+        data = reader.GetOutput()
+        doste_xyz = VN.vtk_to_numpy(data.GetPoints().GetData())
+        # Nearest node mapping
+        map = map_indexes(points_to_map_xyz=self.geometry.nodes_xyz, reference_points_xyz=doste_xyz)
 
+        # Read fibres
+        if self.verbose:
+            print('Reading in fibre field...')
+        fibre = VN.vtk_to_numpy(data.GetPointData().GetArray('Fibers'))
+        # Check for zero vectors:
+        n_zero_vectors = len(np.where(~fibre.any(axis=1))[0])
+        n_nan_vectors = len(np.where(np.isnan(fibre).any(axis=1))[0])
+        print('Number of zero fibre vectors: ', n_zero_vectors)
+        print('Number of NaN fibre vectors: ', n_nan_vectors)
+        self.node_fields.add_field(data=fibre[map], data_name='fibre', field_type='nodefield')
+
+        # Read sheets
+        if self.verbose:
+            print('Reading in sheet field...')
+        reader.SetFileName(sheet_vtk_filename)
+        reader.Update()
+        data = reader.GetOutput()
+        sheet = VN.vtk_to_numpy(data.GetPointData().GetArray('Fibers'))
+        # Check for zero vectors:
+        n_zero_vectors = len(np.where(~sheet.any(axis=1))[0])
+        n_nan_vectors = len(np.where(np.isnan(sheet).any(axis=1))[0])
+        print('Number of zero sheet vectors: ', n_zero_vectors)
+        print('Number of NaN sheet vectors: ', n_nan_vectors)
+        self.node_fields.add_field(data=sheet[map], data_name='sheet', field_type='nodefield')
+
+        # Read normal
+        if self.verbose:
+            print('Reading in normal field...')
+        reader.SetFileName(normal_vtk_filename)
+        reader.Update()
+        data = reader.GetOutput()
+        normal = VN.vtk_to_numpy(data.GetPointData().GetArray('Fibers'))
+        # Check for zero vectors:
+        n_zero_vectors = len(np.where(~normal.any(axis=1))[0])
+        n_nan_vectors = len(np.where(np.isnan(normal).any(axis=1))[0])
+        print('Number of zero normal vectors: ', n_zero_vectors)
+        print('Number of NaN normal vectors: ', n_nan_vectors)
+        self.node_fields.add_field(data=normal[map], data_name='normal', field_type='nodefield')
+        self.save()
+
+    def generate_infarct_borderzone(self):
+        # Using UVC to define infarct and border zone geometry.
+
+        # Evaluate ab, rt, and tm at tetrahedron centres
+        # if not 'ab' in list(self.element_fields.dict.keys()):
+        #     if self.verbose:
+        #         print('Mapping UVC to element field...')
+        #     map = map_indexes(points_to_map_xyz=self.geometry.tetrahedron_centres, reference_points_xyz=self.geometry.nodes_xyz)
+        #     ab_tetra_centres = self.node_fields.dict['ab'][map]
+        #     rt_tetra_centres = self.node_fields.dict['rt'][map]
+        #     tm_tetra_centres = self.node_fields.dict['tm'][map]
+        #     tv_tetra_centres = self.node_fields.dict['tv'][map]
+        #     self.element_fields.add_field(data=ab_tetra_centres, data_name='ab_tetra', field_type='elementfield')
+        #     self.element_fields.add_field(data=rt_tetra_centres, data_name='rt_tetra', field_type='elementfield')
+        #     self.element_fields.add_field(data=tm_tetra_centres, data_name='tm_tetra', field_type='elementfield')
+        #     self.element_fields.add_field(data=tv_tetra_centres, data_name='tv_tetra', field_type='elementfield')
+        #     self.save()
+        # quit()
+        if self.verbose:
+            print('Delineating infarct and borderzones...')
+        materials = self.materials.dict['tetra']
+        materials_shared = pymp.shared.array((materials.shape[0]), dtype=int)
+        ab_shared = pymp.shared.array((materials.shape[0]), dtype=float)
+        rt_shared = pymp.shared.array((materials.shape[0]), dtype=float)
+        tm_shared = pymp.shared.array((materials.shape[0]), dtype=float)
+        materials_shared[:] = self.materials.dict['tetra'][:]
+        ab_shared[:] = self.element_fields.dict['ab_tetra'][:]
+        rt_shared[:] = self.element_fields.dict['rt_tetra'][:]
+        tm_shared[:] = self.element_fields.dict['tm_tetra'][:]
+        threadsNum = multiprocessing.cpu_count()
+        infarct_rt_range = [1.2, 2.1]
+        infarct_ab_range = [0.1, 0.5]
+        infarct_ab_centre = np.abs((infarct_ab_range[1] + infarct_ab_range[0]) / 2.)
+        infarct_rt_centre = np.abs((infarct_rt_range[1] + infarct_rt_range[0]) / 2.)
+        infarct_a = infarct_ab_range[1] - infarct_ab_centre
+        infarct_b = infarct_rt_range[1] - infarct_rt_centre
+        bz_rt_range = [1.0, 2.4]
+        bz_ab_range = [0.0, 0.6]
+        bz_ab_centre = np.abs((bz_ab_range[1] + bz_ab_range[0]) / 2.)
+        bz_rt_centre = np.abs((bz_rt_range[1] + bz_rt_range[0]) / 2.)
+        bz_a = bz_ab_range[1] - bz_ab_centre
+        bz_b = bz_rt_range[1] - bz_rt_centre
+        with pymp.Parallel(min(threadsNum, self.geometry.tetrahedron_centres.shape[0])) as p1:
+            for i in p1.range(self.geometry.tetrahedron_centres.shape[0]):
+        # if True:
+        #     for i in range(self.geometry.tetrahedron_centres.shape[0]):
+                bz_equation = ((ab_shared[i] - bz_ab_centre) / bz_a) ** 2 + ((rt_shared[i] - bz_rt_centre) / bz_b) ** 2 - 1
+                if (bz_equation < 0):
+                    materials_shared[i] = 4
+                infarct_equation = ((ab_shared[i] - infarct_ab_centre) / infarct_a) ** 2 + ((rt_shared[i] - infarct_rt_centre) / infarct_b) ** 2 - 1
+                if (infarct_equation < 0) & (tm_shared[i] < 0.75):
+                    materials_shared[i] = 3 # Infarct
+        self.materials.add_field(data=materials_shared, data_name='tetra_mi', field_type='material')
+        self.save()
 
 def evaluate_mesh_characteristics(geometry):
     unfolded_edges = np.concatenate((geometry.edges, np.flip(geometry.edges, axis=1))).astype(int)
@@ -253,3 +363,4 @@ def plug_fibres(geometry, element_fields, neighbours, ortho):
                 new_fibres[j:j + 3] = normalise_vector(new_fibres[j:j + 3])
             ortho[sorted_plug_nodes[i] - 1, :] = new_fibres
             mask[sorted_plug_nodes[i] - 1] = 1
+

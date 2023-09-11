@@ -29,7 +29,7 @@ if system == 'heart':
 elif system == 'jureca':
     vtk_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/meta_data/geometric_data/vtk/'
 vtk_name = mesh_number + '_bivent_only'
-simulation_json_file = 'rodero_baseline_simulation_ep.json'
+simulation_json_file = 'rodero_mi_simulation_ep.json'
 # MeshPreprocessing(vtk_name=vtk_name, name=simulation_name, input_dir=vtk_dir, geometric_data_dir=geometric_data_dir,
 #                   simulation_json_file=simulation_json_file, four_chamber=False, verbose=verbose)
 
@@ -56,6 +56,8 @@ fields = FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data
 #                                    sheet_vtk_filename=doste_fibre_directory+'Sheet_Fibers0_0_20_CR05_orig.vtk',
 #                                    normal_vtk_filename=doste_fibre_directory+'Normal_Fibers0_0_20_CR05_orig.vtk')
 # quit()
+# fields.generate_infarct_borderzone()
+# quit()
 ########################################################################################################################
 # Step 5: Write Alya input files according to simulation protocol saved in .json file.
 if system == 'jureca':
@@ -67,9 +69,9 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   simulation_dir = simulation_dir, verbose=verbose)
 
 # Sanity check:
-simulation_json_file = 'rodero_baseline_simulation_em.json'
+simulation_json_file = 'rodero_mi_acute_bz1_simulation_em.json'
 if not system == 'jureca':
-    alya.visual_sanity_check(simulation_json_file=simulation_json_file)
+    alya.visual_sanity_check(simulation_json_file)
 alya.do(simulation_json_file=simulation_json_file)
 # simulation_json_file = 'rodero_baseline_simulation_ep.json'
 # alya.do(simulation_json_file=simulation_json_file)

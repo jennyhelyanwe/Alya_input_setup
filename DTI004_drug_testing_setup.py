@@ -59,8 +59,18 @@ baseline_dir = ''
 if system == 'jureca':
     baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/'+simulation_name+'_baseline_simulation_ep_'+simulation_name+'_fine/'
     simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/population_drug_test/'+simulation_name+'/'
-pdt = PopulationDrugTest(name=simulation_name, personalised_population_dir=personalisation_data_dir, population_size=10,
-                         population_sf_names=['sf_IKs'], alya_format=alya, verbose=verbose)
-drug_doses = [{'sf_gkr':0.4}, {'sf_gkr':0.5}, {'sf_gkr':0.6}, {'sf_gkr':0.66}, {'sf_gkr':0.7}, {'sf_gkr':0.73}, {'sf_gkr':0.75}]
-pdt.setup_drug_test(drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir,
+
+paths = os.listdir(personalisation_data_dir)
+population_size = 0
+for path in paths:
+    if 'personalisation-biomarker' in path:
+        population_size = population_size + 1
+pdt = PopulationDrugTest(name=simulation_name, personalised_population_dir=personalisation_data_dir, population_size=population_size,
+                          alya_format=alya, verbose=verbose)
+drug_doses = [{'sf_gkr':0.6}, {'sf_gkr':0.5}, {'sf_gkr':0.4}, {'sf_gkr':0.34}, {'sf_gkr':0.3}, {'sf_gkr':0.27}, {'sf_gkr':0.25}]
+pdt.setup_drug_test(drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir,population_sf_names=['sf_IKs'],
                     baseline_json_file=baseline_json_file, baseline_dir=baseline_dir)
+#
+pdt.run_jobs(simulation_dir=simulation_dir, start_id=0)
+# pdt.visualise_drug_effect_ecgs(beat=1, drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir)
+# pdt.evaluate_drug_effect_ecgs(drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir)

@@ -43,42 +43,60 @@ class AlyaFormat(MeshStructure):
         self.add_utility_scripts()
         self.add_job_scripts()
 
-    def visual_sanity_check(self):
+    def visual_sanity_check(self, simulation_json_file):
         def scatter_visualise(ax, xyz, field, title):
             assert xyz.shape[0] == field.shape[0]
             p = ax.scatter(xyz[:, 0], xyz[:, 1], xyz[:, 2], c=field, marker='o', s=1)
             ax.set_title(title)
             return p
+        def quiver_visualise(ax, xyz, field, tm, title):
+            assert xyz.shape[0] == field.shape[0]
+            p = ax.quiver(xyz[:,0], xyz[:, 1], xyz[:, 2], field[:,0], field[:, 1], field[:, 2], length=0.3, lw=0.1)
+            p.set_array(tm)
+            ax.set_title(title)
+            return p
+        simulation_dict = json.load(open(simulation_json_file, 'r'))
         node_downsample_skip = int(self.geometry.number_of_nodes / 5000.)
+        # node_downsample_skip = int(self.geometry.number_of_nodes / 2000.)
         elem_downsample_skip = int(self.geometry.number_of_elements / 5000. )
         celltype = self.node_fields.dict['cell-type'][::node_downsample_skip]
         sf_iks = self.node_fields.dict['sf_IKs'][::node_downsample_skip]
         node_xyz = self.geometry.nodes_xyz[::node_downsample_skip, :]
         tetra_centers = self.geometry.tetrahedron_centres[::elem_downsample_skip]
-        materials = self.materials.dict['tetra'][::elem_downsample_skip]
+        materials = self.materials.dict[simulation_dict['materials_name']][::elem_downsample_skip]
         field_idx = self.boundary_node_fields.dict['endocardial-nodes'].astype(int)
         endo_nodes = self.geometry.nodes_xyz[field_idx][::10,:]
         lat = self.boundary_node_fields.dict['endocardial-activation-times'][::10]
-        fig = plt.figure(figsize=(12, 12))
-        ax1 = fig.add_subplot(221, projection='3d')
-        ax2 = fig.add_subplot(222, projection='3d')
-        ax3 = fig.add_subplot(223, projection='3d')
-        ax4 = fig.add_subplot(224, projection='3d')
+        fibre = self.node_fields.dict['fibre'][::node_downsample_skip, :]
+        sheet = self.node_fields.dict['sheet'][::node_downsample_skip, :]
+        tm = self.node_fields.dict['tm'][::node_downsample_skip]
+        tm[tm< 0] = 0
+        fig = plt.figure(figsize=(16, 12))
+        ax1 = fig.add_subplot(231, projection='3d')
+        ax2 = fig.add_subplot(232, projection='3d')
+        ax3 = fig.add_subplot(233, projection='3d')
+        ax4 = fig.add_subplot(234, projection='3d')
+        ax5 = fig.add_subplot(235, projection='3d')
+        ax6 = fig.add_subplot(236, projection='3d')
         p1 = scatter_visualise(ax1, node_xyz, celltype, 'celltype')
         p2 = scatter_visualise(ax2, node_xyz, sf_iks, 'sf_iks')
         p3 = scatter_visualise(ax3, tetra_centers, materials, 'materials')
         p4 = scatter_visualise(ax4, endo_nodes, lat, 'LAT')
+        p5 = quiver_visualise(ax5, node_xyz, fibre, tm, 'Fibre vectors')
+        p6 = quiver_visualise(ax6, node_xyz, sheet, tm, 'Sheet vectors')
         fig.colorbar(p2, ax=ax2, label='sf_IKs')
         fig.colorbar(p1, ax=ax1, label='cell-type')
         fig.colorbar(p3, ax=ax3, label='materials')
         fig.colorbar(p4, ax=ax4, label='Endocardial LAT')
+        fig.colorbar(p5, ax=ax5, label='Transmural coordinate')
+        fig.colorbar(p6, ax=ax6, label='Transmural coordinate')
         plt.show()
 
     def check_simulation_dict_integrity(self):
         print('Checking json file integrity')
         assert len(self.simulation_dict['field_names']) == len(self.simulation_dict['field_types'])
         assert len(self.simulation_dict['field_names']) == len(self.simulation_dict['field_dimensions'])
-        number_of_materials = np.amax(self.materials.dict['tetra'])
+        number_of_materials = np.amax(self.materials.dict[self.simulation_dict['materials_name']])
         assert len(self.simulation_dict['cell_model']) == number_of_materials
         assert len(self.simulation_dict['cell_filename']) == number_of_materials
         assert len(self.simulation_dict['cell_number_of_beats']) == number_of_materials
@@ -265,7 +283,7 @@ class AlyaFormat(MeshStructure):
                     "materials_file_name", "sets_file_name", "boundaries_file_name", "field_initialisation_str"]
             insert_data = [[self.geometry.number_of_nodes, self.geometry.number_of_elements,
                            self.simulation_dict['spatial_dimensions'], self.geometry.tetrahedrons[0].shape[0],
-                           self.geometry.number_of_triangles, np.amax(self.materials.dict['tetra']).astype(int),
+                           self.geometry.number_of_triangles, np.amax(self.materials.dict[self.simulation_dict['materials_name']]).astype(int),
                            int(len(self.simulation_dict['field_names'])), field_declaration_str,
                            self.simulation_dict['x_scale'], self.simulation_dict['y_scale'],
                            self.simulation_dict['z_scale'], self.simulation_dict['x_translation'],
@@ -329,8 +347,8 @@ class AlyaFormat(MeshStructure):
                     f.write('\n')
                 f.write('END_BOUNDARIES\n')
             write_alya_field(filename=self.output_dir + self.simulation_dict['name'] + '.materials',
-                             field_idx=np.arange(1, self.materials.dict['tetra'].shape[0] + 1),
-                             field_data=self.materials.dict['tetra'].astype(int))
+                             field_idx=np.arange(1, self.materials.dict[self.simulation_dict['materials_name']].shape[0] + 1),
+                             field_data=self.materials.dict[self.simulation_dict['materials_name']].astype(int))
             write_alya_field(filename=self.output_dir + self.simulation_dict['name'] + '.boundaries',
                              field_idx=np.arange(1, self.boundary_element_fields.dict[
                                  'mechanical-element-boundary-label'].shape[0] + 1),
@@ -404,7 +422,7 @@ class AlyaFormat(MeshStructure):
             data = self.template(filename=filename, keys=keys, data=insert_data, num_duplicates=1)
             # Exmedi properties string
             subtemplate_filename = self.template_dir + self.version + '.subtemplate.exmedi_property_template'
-            num_materials = np.amax(self.materials.dict['tetra'].astype(int))
+            num_materials = np.amax(self.materials.dict[self.simulation_dict['materials_name']].astype(int))
             keys = ["material_idx", "sigma_f", "sigma_s", "sigma_n", "cell_model", "cell_initialisation_txt_file_name"]
             insert_data = []
             for material_i in range(num_materials):
@@ -448,7 +466,7 @@ class AlyaFormat(MeshStructure):
             # Solidz properties
             filename = self.template_dir + self.version + '.subtemplate.solidz_property_template'
             keys = ["material_idx", "density", "Kct", "a", "b", "af", "bf", "as", "bs", "afs", "bfs", "prestress_field"]
-            num_materials = np.amax(self.materials.dict['tetra']).astype(int)
+            num_materials = np.amax(self.materials.dict[self.simulation_dict['materials_name']]).astype(int)
             insert_data = []
             for material_i in range(num_materials):
                 insert_data.append([material_i+1, self.simulation_dict['density'][material_i],
@@ -550,7 +568,7 @@ class AlyaFormat(MeshStructure):
                 filename = self.template_dir + self.version + '.subtemplate.coupling_template'
                 subkeys = ["eccoupling_model_name", "cal50", "sfkuw", "sfkws", "tref_sheet_scaling", "tref_normal_scaling", "tref_scaling"]
                 insert_data = []
-                num_materials = np.amax(self.materials.dict['tetra']).astype(int)
+                num_materials = np.amax(self.materials.dict[self.simulation_dict['materials_name']]).astype(int)
                 for material_i in range(num_materials):
                     temp = [material_i + 1]
                     for key in subkeys:
@@ -577,14 +595,14 @@ class AlyaFormat(MeshStructure):
                 f.write(data)
 
     def write_post_dat(self):
-        os.system('cp '+self.template_dir+self.version+'.post.alyadat '+self.output_dir+self.name+'.post.alyadat')
+        os.system('cp '+self.template_dir+self.version+'.post.alyadat '+self.output_dir+self.simulation_dict['name']+'.post.alyadat')
 
     def write_cell_txt(self):
         filename = self.template_dir + self.version + '.celltxt'
         subkeys = ["cell_number_of_beats", "cell_steady_state_type",
                 "cell_steady_state_tolerance", "cell_model_modification_toggle"]
         insert_data = []
-        num_materials = np.amax(self.materials.dict['tetra']).astype(int)
+        num_materials = np.amax(self.materials.dict[self.simulation_dict['materials_name']]).astype(int)
         for material_i in range(num_materials):
             temp = []
             for key in subkeys:
