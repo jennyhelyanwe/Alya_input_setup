@@ -55,7 +55,6 @@ class Geometry:
             if self.verbose:
                 print('Reading in ' + input_dir + self.name + '_tetra.csv')
             self.tetrahedrons = load_txt(filename=input_dir + self.name + '_tetra.csv').astype(int)
-
             if np.amin(self.tetrahedrons == 1):
                 self.tetrahedrons = self.tetrahedrons - 1
             self.number_of_elements = self.tetrahedrons.shape[0]

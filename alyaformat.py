@@ -2,6 +2,7 @@ import json
 import os
 import numpy as np
 from shutil import copy
+import pandas as pd
 
 from meshstructure import MeshStructure
 from matplotlib import pyplot as plt
@@ -20,7 +21,7 @@ class AlyaFormat(MeshStructure):
         self.verbose = verbose
         self.name = name
 
-    def do(self, simulation_json_file, SA_flag=False, drug_flag=False, baseline_dir=''):
+    def do(self, simulation_json_file, SA_flag=False, drug_flag=False, best_match_biomarker_file='', baseline_dir=''):
         self.output_dir = self.simulation_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + self.name + '/'
         print('Alya version: ' + self.version + ', simulation name: ', self.name, ' to: ', self.output_dir)
         if not os.path.exists(self.output_dir):
@@ -37,6 +38,19 @@ class AlyaFormat(MeshStructure):
             os.system('cp ' + baseline_dir + 'heart.* ' + self.output_dir)
             os.system(
                 'cd ' + self.output_dir + '; ~/Alya/Alya_multiple_BZRZ_models/Utils/user/alya-clean; rm -r results_csv results_ensight; cd -')
+            self.write_cell_txt()
+        elif best_match_biomarker_file:
+            os.system('cp ' + baseline_dir + 'heart.* ' + self.output_dir)
+            os.system(
+                'cd ' + self.output_dir + '; ~/Alya/Alya_multiple_BZRZ_models/Utils/user/alya-clean; rm -r results_csv results_ensight; cd -')
+            data = pd.read_csv(best_match_biomarker_file)
+            keys = list(data.keys())
+            for key in keys:
+                if 'sf_' in key:
+                    sfdata = data[key].values
+                    with open(self.output_dir + 'heart.' + key, 'w') as f:
+                        for i in range(len(sfdata)):
+                            f.write(str(i+1) + '\t' + str(sfdata[i]) + '\n')
             self.write_cell_txt()
         else:
             self.write_alya_simulation_files()

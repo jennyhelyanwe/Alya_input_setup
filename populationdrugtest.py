@@ -26,16 +26,16 @@ class PopulationDrugTest:
         if not os.path.exists(simulation_dir):
             os.mkdir(simulation_dir)
         simulation_dict = json.load(open(baseline_json_file, 'r'))
-        # self.population_sf_filenames = []
-        # for population_i in range(self.population_size):
-        #     data = pd.read_csv(self.personalised_population_dir + self.name + '_fine_nodefield_personalisation-biomarker_' + str(
-        #         population_i) + '.csv')
-        #     for sf_name in population_sf_names:
-        #         filename = self.personalised_population_dir + self.name + '_populationid_' + str(population_i) + '.' + sf_name
-        #         self.population_sf_filenames.append(filename)
-        #         with open(filename, 'w') as f:
-        #             for i in range(data[sf_name].values.shape[0]):
-        #                 f.write(str(data[sf_name].index[i] + 1) + '\t' + str(data[sf_name].values[i]) + '\n')
+        self.population_sf_filenames = []
+        for population_i in range(self.population_size):
+            data = pd.read_csv(self.personalised_population_dir + self.name + '_nodefield_personalisation-biomarker_' + str(
+                population_i) + '.csv')
+            for sf_name in population_sf_names:
+                filename = self.personalised_population_dir + self.name + '_populationid_' + str(population_i) + '.' + sf_name
+                self.population_sf_filenames.append(filename)
+                with open(filename, 'w') as f:
+                    for i in range(data[sf_name].values.shape[0]):
+                        f.write(str(data[sf_name].index[i] + 1) + '\t' + str(data[sf_name].values[i]) + '\n')
         ## Set up Alya simulations for baseline population
         baseline_population_dir = simulation_dir + 'baseline_population/'
         if not os.path.exists(baseline_population_dir):
@@ -47,6 +47,10 @@ class PopulationDrugTest:
             self.alya_format.simulation_dir = baseline_population_dir
             self.alya_format.do(simulation_json_file=json_filename, drug_flag=True, baseline_dir=baseline_dir)
             self.all_simulation_dirs.append(self.alya_format.output_dir)
+            for sf_name in population_sf_names:
+                cmd = 'cp ' + self.personalised_population_dir + self.name + '_populationid_' + str(
+                    population_i) + '.' + sf_name + ' ' + self.alya_format.output_dir + 'heart.' + sf_name
+                os.system(cmd)
         ## Set up Alya simulations for drug doses
         for dose_i in range(len(drug_doses)):
             # For each dose of the drug run a population of models
@@ -102,6 +106,7 @@ class PopulationDrugTest:
         fig = plt.figure(tight_layout=True, figsize=(20, 10))
         gs = GridSpec(2,4)
         axes = []
+        linewidth = 0.5
         for i in [0,1]:
             for j in [0,1,2,3]:
                 axes.append(fig.add_subplot(gs[i,j]))
@@ -121,20 +126,40 @@ class PopulationDrugTest:
         # clinical_ecg = np.loadtxt(baseline_dir + 'DTI004_clinical_full_ecg.txt', delimiter=',')
         # max_leads = np.amax(clinical_ecg)
         # clinical_ecg = clinical_ecg[:, 100:] / max_leads
+        # Plot clinical ECGs
+        clinical_ecg = np.loadtxt(simulation_dir + 'baseline_population/' + 'populationid_' + str(0) + '_baseline' \
+                              '_' + self.name + '/DTI004_clinical_full_ecg.txt',delimiter=',')
+        max_leads = np.amax(clinical_ecg)
+        dict = {'I': [], 'II': [], 'V1': [], 'V2': [], 'V3': [], 'V4': [], 'V5': [], 'V6': []}
+        dict['I'] = clinical_ecg[0, 100:] / max_leads
+        dict['II'] = clinical_ecg[1, 100:] / max_leads
+        dict['V1'] = clinical_ecg[2, 100:] / max_leads
+        dict['V2'] = clinical_ecg[3, 100:] / max_leads
+        dict['V3'] = clinical_ecg[4, 100:] / max_leads
+        dict['V4'] = clinical_ecg[5, 100:] / max_leads
+        dict['V5'] = clinical_ecg[6, 100:] / max_leads
+        dict['V6'] = clinical_ecg[7, 100:] / max_leads
+        clinical_t = np.arange(0, len(dict['I']), 1)
+        keys = list(dict.keys())
+        for lead_i in range(nb_leads):
+            axes[lead_i].plot(clinical_t, dict[keys[lead_i]], 'g', linewidth=linewidth*2, label='Clinical')
+
         # Plot baseline popluation
         for population_i in range(self.population_size):
-            current_sim_dir = simulation_dir + 'baseline_population/'
+            current_sim_dir = simulation_dir + 'baseline_population/' + 'populationid_' + str(population_i) + '_baseline' \
+                              '_' + self.name + '/'
             if os.path.exists(current_sim_dir + '/heart.exm.vin'):
                 ecgs = vis._read_ECG(current_sim_dir + '/heart')
+                ecgs['ts'][beat - 1] = ecgs['ts'][beat - 1] * 1000  # Units of milliseconds
                 for lead_i in range(nb_leads):
-                    axes[lead_i].plot(ecgs['ts'][beat - 1],
-                                              ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_all_leads'],
-                                              'k', linewidth=0.5, label='Baseline')
-                else:
-                    axes[lead_i].plot(ecgs['ts'][beat - 1],
-                                      ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_all_leads'],
-                                      'k', linewidth=0.5)
-
+                    if population_i == 0:
+                        axes[lead_i].plot(ecgs['ts'][beat - 1],
+                                          ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_all_leads'],
+                                          'k', linewidth=linewidth, label='Baseline')
+                    else:
+                        axes[lead_i].plot(ecgs['ts'][beat - 1],
+                                          ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_all_leads'],
+                                          'k', linewidth=linewidth)
         # colours = ['g', 'b', 'r', 'm', 'c', 'y']
         colours = ['#fde725', '#90d743', '#35b779', '#21918c', '#31688e', '#443983', '#440154']
         for dose_i in range(len(drug_doses)):
@@ -151,14 +176,15 @@ class PopulationDrugTest:
 
                 if os.path.exists(current_sim_dir+'/heart.exm.vin'):
                     ecgs = vis._read_ECG(current_sim_dir + '/heart')
+                    ecgs['ts'][beat - 1] = ecgs['ts'][beat - 1] * 1000  # Units of milliseconds
                     for lead_i in range(nb_leads):
                         if population_i == 0:
                             axes[lead_i].plot(ecgs['ts'][beat - 1],
                                               ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_all_leads'],
-                                              colours[dose_i], linewidth=0.5, label='Dose :'+str(dose_i))
+                                              colours[dose_i], linewidth=linewidth, label='Dose :'+str(dose_i+1))
                         else:
                             axes[lead_i].plot(ecgs['ts'][beat-1], ecgs[lead_names[lead_i]][beat-1]/ecgs['max_all_leads'],
-                                          colours[dose_i], linewidth=0.5)
+                                          colours[dose_i], linewidth=linewidth)
                         axes[lead_i].set_title(lead_names[lead_i], fontsize=20)
                         axes[lead_i].set_ylim([-1.5, 1.5])
                         for tick in axes[lead_i].xaxis.get_major_ticks():
@@ -171,20 +197,58 @@ class PopulationDrugTest:
         axes[7].legend()
         plt.show()
 
-    def evaluate_drug_effect_ecgs(self, beat, drug_name, drug_doses, simulation_dir):
-        CL = 1.0
-        vis = ECGPV_visualisation(CL)
+    def extract_vms_for_download(self, simulation_dir, dir_for_download, drug_name, drug_doses):
+        # Sort baseline CSVs
+        print('Saving baseline CSVs to ' + dir_for_download)
+        if not os.path.exists(dir_for_download):
+            os.mkdir(dir_for_download)
+        # destination_root = dir_for_download + '/baseline_population/'
+        # if not os.path.exists(destination_root):
+        #     os.mkdir(destination_root)
+        # for population_i in range(self.population_size):
+        #     print('Processing population id: ' + str(population_i))
+        #     csv_dir = simulation_dir + 'baseline_population/' + 'populationid_' + str(population_i) + '_baseline' \
+        #                   '_' + self.name + '/results_csv/'
+        #     destination_dir = destination_root + str(population_i) + '/'
+        #     if not os.path.exists(destination_dir):
+        #         os.mkdir(destination_dir)
+        #     if os.path.exists(csv_dir):
+        #         os.system('cp ' + csv_dir + '* '+destination_dir)
+                # filenames = os.listdir(csv_dir)
+                # filenames_shared = pymp.shared.list(filenames)
+                # threadsNum = multiprocessing.cpu_count()
+                # with pymp.Parallel(min(threadsNum, len(filenames))) as p1:
+                #     for conf_i in p1.range(len(filenames)):
+                #         # for file in filenames:
+                #         file = filenames_shared[conf_i]
+                #         os.system('cp ' + csv_dir + file + ' ' + destination_dir + '/' + file.replace('heart', self.name))
+        # Sort dosage CSVs
+        print('Saving drug simulation CSVs to ' + dir_for_download)
         for dose_i in range(len(drug_doses)):
+            destination_root = dir_for_download + '/dose_' + str(dose_i) + '/'
+            if not os.path.exists(destination_root):
+                os.mkdir(destination_root)
             # For each dose of the drug run a population of models
-            drug_dict = drug_doses[dose_i]
-            dose_dir = simulation_dir+'dose_'+str(dose_i) + '/'
-            if dose_i == 0:
-                lines = []
-                legends = []
+            dose_dir = simulation_dir + 'dose_' + str(dose_i) + '/'
             for population_i in range(self.population_size):
-                self.alya_format.simulation_dir = dose_dir
-                current_sim_dir = dose_dir + 'populationid_'+str(population_i) + '_' + drug_name + \
-                                  '_dose_' + str(dose_i) + '_' + self.name + '/'
-                if os.path.exists(current_sim_dir+'/heart.exm.vin'):
-                    ecgs = vis._read_ECG(current_sim_dir + '/heart')
+                print('Processing population id: ' + str(population_i))
+                csv_dir = dose_dir + 'populationid_' + str(population_i) + '_' + drug_name + '_dose_'+str(dose_i)+'_' + self.name + '/results_csv/'
+                destination_dir = destination_root + str(population_i) + '/'
+                if not os.path.exists(destination_dir):
+                    os.mkdir(destination_dir)
+                if os.path.exists(csv_dir):
+                    os.system('cp ' + csv_dir + '* ' + destination_dir)
+                    # filenames = os.listdir(csv_dir)
+                    # filenames_shared = pymp.shared.array((len(filenames)), dtype=str)
+                    # filenames_shared[:] = filenames
+                    # threadsNum = multiprocessing.cpu_count()
+                    # with pymp.Parallel(min(threadsNum, len(filenames))) as p1:
+                    #     for conf_i in p1.range(len(filenames)):
+                    # # for file in filenames:
+                    #         file = filenames_shared[conf_i]
+                    #         os.system('cp ' + csv_dir + file + ' ' + destination_dir + '/' + file.replace('heart', self.name))
+
+
+
+
 

@@ -54,10 +54,17 @@ class FieldGeneration(MeshStructure):
         if save:
             self.save()
 
-    def generate_ionic_scaling_factors(self, read_sf_filename=None, save=False):
-        if read_sf_filename:
-            varname = read_sf_filename.split('.')[1]
-            self.node_fields.add_field(data=load_txt(filename=read_sf_filename), data_name=varname, field_type='nodefield')
+    def generate_ionic_scaling_factors(self, read_biomarker_filename=None, save=False):
+        if self.verbose:
+            print('Generating ionic scaling factor fields...')
+        if read_biomarker_filename:
+            data = pd.read_csv(read_biomarker_filename)
+            keys = pd.read_csv(read_biomarker_filename).keys()
+            for key in keys:
+                if 'sf_' in key:
+                    self.node_fields.add_field(data=data[key].values, data_name=key, field_type='nodefield')
+            # varname = read_biomarker_filename.split('.')[1]
+            # self.node_fields.add_field(data=load_txt(filename=read_biomarker_filename), data_name=varname, field_type='nodefield')
         else:
             # Read in ionic scaling factors
             filenames = np.array([f for f in os.listdir(self.personalisation_data_dir) if
@@ -248,12 +255,16 @@ def evaluate_dijkstra_endocardial_activation(number_of_nodes, number_of_faces, f
 
 def evaluate_endocardial_activation_map(activation_times, boundary_node_fields):
     print('Evaluating endocardial activation map')
-    lv_activation_times = activation_times[boundary_node_fields.dict['ep-lvnodes'].astype(int)]
-    rv_activation_times = activation_times[boundary_node_fields.dict['ep-rvnodes'].astype(int)]
-    boundary_node_fields.add_field(data=np.concatenate(
-        (boundary_node_fields.dict['ep-lvnodes'].astype(int), boundary_node_fields.dict['ep-rvnodes'].astype(int))),
-                                   data_name='endocardial-nodes', field_type='boundarynodefield')
-    return np.concatenate((lv_activation_times, rv_activation_times))
+    if not 'endocardial-nodes' in boundary_node_fields.dict:
+        lv_activation_times = activation_times[boundary_node_fields.dict['ep-lvnodes'].astype(int)]
+        rv_activation_times = activation_times[boundary_node_fields.dict['ep-rvnodes'].astype(int)]
+        boundary_node_fields.add_field(data=np.concatenate(
+            (boundary_node_fields.dict['ep-lvnodes'].astype(int), boundary_node_fields.dict['ep-rvnodes'].astype(int))),
+                                       data_name='endocardial-nodes', field_type='boundarynodefield')
+        return np.concatenate((lv_activation_times, rv_activation_times))
+    else:
+        boundary_node_fields.dict['endocardial-nodes'] = boundary_node_fields.dict['endocardial-nodes'].astype(int)
+        return activation_times[boundary_node_fields.dict['endocardial-nodes'].astype(int)]
 
 
 def evaluate_celltype(number_of_nodes, uvc_transmural, endo_mid_divide, mid_epi_divide):

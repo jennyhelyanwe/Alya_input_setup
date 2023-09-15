@@ -35,42 +35,66 @@ verbose = True
 #
 # Step 4: Generate fields for Alya simulation
 electrode_data_filename = meta_data_dir + 'geometric_data/'+simulation_name+'/'+simulation_name+'_electrode_xyz.csv'
-personalisation_data_dir = meta_data_dir + 'personalisation_data/'+simulation_name+'/twave_sf_IKs_GKs5_GKr0.6_tjca60/drug_testing_population/'
-fields = FieldGeneration(name=simulation_name+'_fine', geometric_data_dir=geometric_data_dir,
-                         personalisation_data_dir=personalisation_data_dir, verbose=verbose)
+
+
+# fields = FieldGeneration(name=simulation_name+'_fine', geometric_data_dir=geometric_data_dir,
+#                          personalisation_data_dir=personalisation_data_dir, verbose=verbose)
+
 # fields.generate_celltype(read_celltype_filename=personalisation_data_dir+simulation_name+'_fine_nodefield_personalisation-biomarker_0.csv')
 # fields.generate_electrode_locations(electrode_data_filename=electrode_data_filename, save=True)
+# fields.generate_stimuli(lat_filename=personalisation_data_dir+'/'+simulation_name+'_fine_nodefield_personalisation-lat.csv')
+# fields.generate_ionic_scaling_factors(
+#     read_biomarker_filename=personalisation_data_dir + '/' + simulation_name + '_fine_nodefield_personalisation-biomarker.csv', save=True)
 
 ########################################################################################################################
-# Step 5: Set up Alya input files according to simulation protocol saved in .json file.
+# Step 5: Simulate best match model.
+personalisation_data_dir = meta_data_dir + 'personalisation_data/' + simulation_name + '/twave_sf_IKs_GKs5_GKr0.6_tjca60/best_discrepancy/'
 simulation_dir = ''
 if system == 'jureca':
-    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/'
-elif system == 'heart':
-    simulation_dir = './'
-alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
+    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/twave_best_match/'
+alya = AlyaFormat(name=simulation_name + '_fine', geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
                   simulation_dir = simulation_dir, verbose=verbose)
 
-########################################################################################################################
-# Step 6: Set up population based drug tests
 baseline_json_file = simulation_name+'_baseline_simulation_ep.json'
 baseline_dir = ''
 if system == 'jureca':
     baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/'+simulation_name+'_baseline_simulation_ep_'+simulation_name+'_fine/'
-    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/population_drug_test/'+simulation_name+'/'
 
+
+# alya.do(simulation_json_file=baseline_json_file, SA_flag=False, drug_flag=False,
+#         best_match_biomarker_file=personalisation_data_dir+simulation_name+'_fine_nodefield_personalisation-biomarker.csv',
+#         baseline_dir=baseline_dir)
+# quit()
+########################################################################################################################
+# Step 6: Set up population based drug tests
+personalisation_data_dir = meta_data_dir + 'personalisation_data/'+simulation_name+'/twave_sf_IKs_GKs5_GKr0.6_tjca60/drug_testing_population/'
+simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/population_drug_test/'+simulation_name+'/'
+alya = AlyaFormat(name=simulation_name + '_fine', geometric_data_dir=geometric_data_dir,
+                  personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
+                  simulation_dir = simulation_dir, verbose=verbose)
 paths = os.listdir(personalisation_data_dir)
 population_size = 0
 for path in paths:
     if 'personalisation-biomarker' in path:
         population_size = population_size + 1
-pdt = PopulationDrugTest(name=simulation_name, personalised_population_dir=personalisation_data_dir, population_size=population_size,
+pdt = PopulationDrugTest(name=simulation_name + '_fine', personalised_population_dir=personalisation_data_dir, population_size=population_size,
                           alya_format=alya, verbose=verbose)
 drug_doses = [{'sf_gkr':0.6}, {'sf_gkr':0.5}, {'sf_gkr':0.4}, {'sf_gkr':0.34}, {'sf_gkr':0.3}, {'sf_gkr':0.27}, {'sf_gkr':0.25}]
-pdt.setup_drug_test(drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir,population_sf_names=['sf_IKs'],
-                    baseline_json_file=baseline_json_file, baseline_dir=baseline_dir)
-#
-pdt.run_jobs(simulation_dir=simulation_dir, start_id=0)
-# pdt.visualise_drug_effect_ecgs(beat=1, drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir)
+setup_and_run = False
+postprocess = False
+visualise = True
+download = False
+if setup_and_run:
+    pdt.setup_drug_test(drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir,population_sf_names=['sf_IKs'],
+                        baseline_json_file=baseline_json_file, baseline_dir=baseline_dir)
+    pdt.run_jobs(simulation_dir=simulation_dir, start_id=0)
+elif postprocess:
+    pdt.run_jobs_postprocess(simulation_dir=simulation_dir)
+elif visualise:
+    pdt.visualise_drug_effect_ecgs(beat=1, drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir)
+elif download:
+    dir_for_download = simulation_dir + '/monodomain_drug_test_results/'
+    pdt.extract_vms_for_download(simulation_dir=simulation_dir, dir_for_download=dir_for_download, drug_doses=drug_doses, drug_name='dofetilide')
+
 # pdt.evaluate_drug_effect_ecgs(drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir)
