@@ -75,8 +75,9 @@ class ECGPV_visualisation:
         aVF = LL - (LA + RA)/2.0
         aVR = RA - (LA + LL)/2.0
 
-        all_leads = numpy.concatenate((V1,V2,V3,V4,V5,V6,I,II,III,aVR,aVL,aVF))
+        all_leads = numpy.concatenate((V1,V2,V3,V4,V5,V6,I,II,III))
         max_all_leads = max(abs(all_leads))
+        max_limb_leads = max(abs(numpy.concatenate((I,II,III,aVR,aVL,aVF))))
 
         # Divide into beats
         ts, V1s = self._divide_signal(t, V1, self.CL)
@@ -96,7 +97,7 @@ class ECGPV_visualisation:
                     'aVR':aVR,'aVL':aVL,'aVF':aVF,'I':I,'II':II,'III':III,
                     'V1s':V1s,'V2s':V2s,'V3s':V3s,'V4s':V4s,'V5s':V5s,'V6s':V6s,
                     'aVRs':aVRs,'aVLs':aVLs,'aVFs':aVFs,'Is':Is,'IIs':IIs,'IIIs':IIIs,
-                    'max_all_leads':max_all_leads}
+                    'max_all_leads':max_all_leads, 'max_limb_leads':max_limb_leads}
         return output_dict
 
     def _read_PV(self,meshname):
@@ -990,16 +991,123 @@ class ECGPV_visualisation:
         # print('QT dispersion (12 leads): {:.3f}'.format(QT_dispersion_12))
         return analysis
 
+    def analysis_ECG_6leads(self,ecgs,beat,show):
+        # fig = plt.figure(tight_layout=True, figsize=[11,9])
+        # gs = GridSpec(3,4)
+        # ax5 = fig.add_subplot(gs[0,0])
+        # ax6 = fig.add_subplot(gs[1,0])
+        # ax7 = fig.add_subplot(gs[2,0])
+        # ax8 = fig.add_subplot(gs[0,1])
+        # ax9 = fig.add_subplot(gs[1,1])
+        # ax10 = fig.add_subplot(gs[2,1])
+        # ax11 = fig.add_subplot(gs[0,2])
+        # ax12 = fig.add_subplot(gs[1,2])
+        # ax13 = fig.add_subplot(gs[2,2])
+        # ax14 = fig.add_subplot(gs[0,3])
+        # ax15 = fig.add_subplot(gs[1,3])
+        # ax16 = fig.add_subplot(gs[2,3])
+
+        # ecg_biomarkers = numpy.zeros((8,6))
+        # CL = self.CL
+        # ecg_biomarkers[0, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_limb_leads'], ecgs['Is'][beat-1], 'I', CL)
+        # ecg_biomarkers[1, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_limb_leads'], ecgs['IIs'][beat-1], 'II', CL)
+        # ecg_biomarkers[2, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V1s'][beat-1], 'V1', CL)
+        # ecg_biomarkers[3, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V2s'][beat-1], 'V2', CL)
+        # ecg_biomarkers[4, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V3s'][beat-1], 'V3', CL)
+        # ecg_biomarkers[5, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V4s'][beat-1], 'V4', CL)
+        # ecg_biomarkers[6, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V5s'][beat-1], 'V5', CL)
+        # ecg_biomarkers[7, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V6s'][beat-1], 'V6', CL)
+
+        ecg_biomarkers = numpy.zeros((6, 6))
+        CL = self.CL
+        ecg_biomarkers[0, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V1s'][beat-1], 'V1', CL)
+        ecg_biomarkers[1, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V2s'][beat-1], 'V2', CL)
+        ecg_biomarkers[2, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V3s'][beat-1], 'V3', CL)
+        ecg_biomarkers[3, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V4s'][beat-1], 'V4', CL)
+        ecg_biomarkers[4, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V5s'][beat-1], 'V5', CL)
+        ecg_biomarkers[5, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V6s'][beat-1], 'V6', CL)
+
+        if show:
+            plt.show()
+        plt.savefig('ecg_analysis.png')
+        #qrs_dur, t_dur, t_pe, t_op, t_amplitude, qt_dur, landmarks
+        QRS_mean = numpy.average(ecg_biomarkers[:,0])
+        QRS_std = numpy.std(ecg_biomarkers[:,0])
+        T_dur_mean = numpy.average(ecg_biomarkers[:,1])
+        T_dur_std = numpy.std(ecg_biomarkers[:,1])
+        T_pe_mean = numpy.average(ecg_biomarkers[:,2])
+        T_pe_std = numpy.std(ecg_biomarkers[:,2])
+        T_op_mean = numpy.average(ecg_biomarkers[:,3])
+        T_op_std = numpy.std(ecg_biomarkers[:,3])
+        T_amp_mean = numpy.average(ecg_biomarkers[:,4])
+        T_amp_std = numpy.std(ecg_biomarkers[:,4])
+        QT_dur_mean = numpy.average(ecg_biomarkers[:,5])
+        QT_dur_std = numpy.std(ecg_biomarkers[:,5])
+        # QT_dispersion_6 = ecg_biomarkers[6:12,5].max() - ecg_biomarkers[6:12,5].min()
+        # QT_dispersion_12 = ecg_biomarkers[:,5].max() - ecg_biomarkers[:,5].min()
+        analysis = {'QRS':[QRS_mean, QRS_std, ecg_biomarkers[:,0]],
+            'T_dur':[T_dur_mean, T_dur_std,ecg_biomarkers[:,1]],
+            'T_pe_dur':[T_pe_mean, T_pe_std, ecg_biomarkers[:,2]],
+            'T_op_dur':[T_op_mean, T_op_std, ecg_biomarkers[:,3]],
+            'T_amp': [T_amp_mean, T_amp_std, ecg_biomarkers[:, 3]],
+            'QT':[QT_dur_mean, QT_dur_std, ecg_biomarkers[:,5]]}
+            # 'QT_dispersion_6':QT_dispersion_6,
+            # 'QT_dispersion_12':QT_dispersion_12}
+        # print('QRS: {:.3f} +- {:.3f}'.format(QRS_mean, QRS_std))
+        # print('T duration: {:.3f} +- {:.3f}'.format(T_dur_mean, T_dur_std))
+        # print('T pe: {:.3f} +- {:.3f}'.format(T_pe_mean, T_pe_std))
+        # print('T op: {:.3f} +- {:.3f}'.format(T_op_mean, T_op_std))
+        # print('QT duration: {:.3f} +- {:.3f}'.format(QT_dur_mean, QT_dur_std))
+        # print('QT dispersion (precordial): {:.3f}'.format(QT_dispersion_6))
+        # print('QT dispersion (12 leads): {:.3f}'.format(QT_dispersion_12))
+        return analysis
+
     def _plot_with_landmarks(self, t, max_all_leads, V, name, CL):
     	# ax.clear()
-    	qrs_dur, t_dur, t_amp, t_ep, t_op, qt_dur, landmarks =self._measurements(V, 0.0, CL, t, 2e-5, 0.01)
+    	qrs_dur, t_dur, t_pe, t_op, t_amplitude, qt_dur, landmarks =self._measurements_with_qrs_dur(V, 0.0, CL, t, 2e-5, 0.01)
     	# ax.plot(t, V/max_all_leads, landmarks[:,0], landmarks[:,1]/max_all_leads, '*')
     	# ax.set_title(name + ' '+str(int(qrs_dur*1000))+' '+str(int(qt_dur*1000))+'\n'+str(int(t_dur*1000))+' '+str(int(t_amp/max_all_leads)))
     	# ax.set_xlim(0.0,CL)
     	# ax.set_ylim(-1,1)
     	# ax.set_xlabel('Time (s)')
     	# ax.set_ylabel('Normalised ECG')
-    	return qrs_dur, t_dur, t_amp, t_ep, t_op, qt_dur
+    	return qrs_dur, t_dur, t_pe, t_op, t_amplitude, qt_dur
+
+
+    def _measurements_with_qrs_dur(self, V, start_t, end_t, t, t_tol, v_tol):
+        dV = abs(numpy.gradient(V))
+        ddV = abs(numpy.gradient(dV))
+        dV[0:2] = 0.0  # remove gradient artefacts
+        ddV[0:2] = 0.0
+        dVTOL_end_of_Twave = 0.0002  # mV/ms
+        q_start_idx = 0
+        qrs_end_t = 0.1
+        qrs_end_idx = numpy.where(abs(t-0.09)<1e-6)[0][0]
+        qrs_dur = qrs_end_idx - q_start_idx
+
+        # Find T peak and amplitude
+        segment = V[qrs_end_idx:]
+        t_amplitude = abs(segment).max()
+        t_peak_idx = numpy.where(abs(segment) == t_amplitude)[0][0] + qrs_end_idx
+        t_sign = numpy.sign(segment[t_peak_idx - qrs_end_idx])
+        t_peak = t_sign * t_amplitude
+        t_min = numpy.amin(segment)
+        t_max = abs(numpy.amax(segment))
+        # t_polarity = t_max/t_min * 1/(max(abs(t_max),abs(t_min))) # Value close to 1 is positive monophasic, close to 0 is negative monophasic, around 0.5 is biphasic.
+        t_polarity = (t_max + t_min) / (max(abs(t_max), abs(t_min)))
+        # Find T-wave end
+        for i in range(len(V) - 1, t_peak_idx, -1):
+            if (dV[i] > dVTOL_end_of_Twave):
+                break
+        t_end_idx = i
+        t_dur = 0
+        qt_dur = t[t_end_idx] - t[q_start_idx]
+        t_pe = t[t_end_idx] - t[t_peak_idx]
+        qtpeak_dur = t[t_peak_idx] - t[q_start_idx]
+        t_op = 0
+        landmarks = numpy.array([[t[q_start_idx], V[q_start_idx]], [t[qrs_end_idx], V[qrs_end_idx]], [t[t_peak_idx], V[t_peak_idx]],
+                                 [t[t_end_idx], V[t_end_idx]]])
+        return qrs_dur, t_dur, t_pe, t_op, t_amplitude, qt_dur, landmarks
 
     def _measurements(self, V, start_t, end_t, t, t_tol, v_tol):
     	idx_start = numpy.where(abs(numpy.array(t-start_t)) < t_tol)[0][0]
@@ -1041,18 +1149,18 @@ class ECGPV_visualisation:
     	t_end_t = t[i]
 
     	# Find QRS end
-    	window = 5000
-    	dV = abs(dV)
-    	max_window = numpy.zeros(t_end_idx-q_start_idx+1)
-    	for i in range(q_start_idx, t_end_idx):
-    		max_window[i-q_start_idx] = dV[i:(i+window)].max()
-    	# print('evaluated max window')
-    	min = max_window[0]
-    	for i in range(0, len(max_window)):
-    		if (min >= max_window[i]):
-    			min = max_window[i]
-    		elif (min < (max_window.min()+0.05)):
-    			break
+    	# window = 5000
+    	# dV = abs(dV)
+    	# max_window = numpy.zeros(t_end_idx-q_start_idx+1)
+    	# for i in range(q_start_idx, t_end_idx):
+    	# 	max_window[i-q_start_idx] = dV[i:(i+window)].max()
+    	# # print('evaluated max window')
+    	# min = max_window[0]
+    	# for i in range(0, len(max_window)):
+    	# 	if (min >= max_window[i]):
+    	# 		min = max_window[i]
+    	# 	elif (min < (max_window.min()+0.05)):
+    	# 		break
     	qrs_end_idx = i + q_start_idx
     	qrs_end_t = t[qrs_end_idx]
 

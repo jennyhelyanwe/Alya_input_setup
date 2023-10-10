@@ -20,7 +20,7 @@ elif system == 'heart':
     meta_data_dir = '/data/Personalisation_projects/meta_data/'
 geometric_data_dir = meta_data_dir + 'geometric_data/'+simulation_name+'/'+simulation_name+'_fine/'
 clinical_data_dir = meta_data_dir + 'clinical_data/'
-verbose = True
+verbose = False
 
 #######################################################################################################################
 # # Step 1: Save input mesh into CSV format, as prescribed in myformat.py
@@ -84,6 +84,7 @@ drug_doses = [{'sf_gkr':0.6}, {'sf_gkr':0.5}, {'sf_gkr':0.4}, {'sf_gkr':0.34}, {
 setup_and_run = False
 postprocess = False
 visualise = True
+evaluate_ecg = False
 download = False
 if setup_and_run:
     pdt.setup_drug_test(drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir,population_sf_names=['sf_IKs'],
@@ -94,7 +95,8 @@ elif postprocess:
 elif visualise:
     pdt.visualise_drug_effect_ecgs(beat=1, drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir)
 elif download:
-    dir_for_download = simulation_dir + '/monodomain_drug_test_results/'
+    dir_for_download = '/p/project/icei-prace-2022-0003/wang1/Personalisation_projects/meta_data/results/personalisation_data/DTI004/twave_sf_IKs_GKs5_GKr0.6_tjca60/only_endo/monodomain_drug_test_results/'
+    # simulation_dir + '/monodomain_drug_test_results/'
     pdt.extract_vms_for_download(simulation_dir=simulation_dir, dir_for_download=dir_for_download, drug_doses=drug_doses, drug_name='dofetilide')
-
-# pdt.evaluate_drug_effect_ecgs(drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir)
+elif evaluate_ecg:
+    pdt.evaluate_drug_effect_ecgs(drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir)

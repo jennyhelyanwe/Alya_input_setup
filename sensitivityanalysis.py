@@ -34,6 +34,8 @@ class SA:
 
     def setup(self, upper_bounds, lower_bounds):
         self.generate_parameter_set( upper_bounds, lower_bounds)
+        print('Number of samples/simulations to set up: ', str(self.parameter_set.shape[0]))
+        print('Number of parameters included: ', str(self.parameter_set.shape[1]))
         self.generate_alya_simulation_json(self.baseline_json_file)
 
     def generate_parameter_set(self, upper_bounds, lower_bounds):
@@ -64,6 +66,12 @@ class SA:
                         for d_i in d:
                             self.parameter_set[i, :] = [a_i, b_i, c_i, d_i]
                             i = i + 1
+
+        elif self.sampling_method == 'range':
+            self.parameter_set = np.zeros((3, 1))
+            self.parameter_set[0, 0] = lower_bounds
+            self.parameter_set[2, 0] = upper_bounds
+            self.parameter_set[1, 0] = (lower_bounds + upper_bounds) / 2
 
     def generate_alya_simulation_json(self, baseline_json_file):
         baseline_simulation_dict = json.load(open(baseline_json_file, 'r'))
@@ -137,18 +145,19 @@ class SA:
             all_simulation_dirs = f.readlines()
         finished_simulation_dirs = []
         for simulation_i in range(len(all_simulation_dirs)):
-            with open(all_simulation_dirs[simulation_i].split()[0]+'/heart.post.alyafil', 'r') as f:
-                if len(f.readlines()) == 1000:
-                    finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
+            if os.path.exists(all_simulation_dirs[simulation_i].split()[0]+'/heart.post.alyafil'):
+                with open(all_simulation_dirs[simulation_i].split()[0]+'/heart.post.alyafil', 'r') as f:
+                    if len(f.readlines()) > 1000:
+                        finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
         # all_simulation_dirs_shared = pymp.shared.array((len(all_simulation_dirs)), dtype=str)
-        threadsNum = multiprocessing.cpu_count()
+        # threadsNum = multiprocessing.cpu_count()
         # with pymp.Parallel(min(threadsNum, len(all_simulation_dirs))) as p1:
         #     for simulation_i in p1.range(len(all_simulation_dirs)):
         if True:
             for simulation_i in range(len(finished_simulation_dirs)):
                 alya_output_dir = finished_simulation_dirs[simulation_i]
                 json_file = self.simulation_dir + 'sa_' + str(simulation_i) + '.json'
-                if os.path.exists(alya_output_dir+'/results_csv/'):
+                if os.path.exists(alya_output_dir+'/results_csv/timeset_1.csv'):
                     post = PostProcessing(alya=alya, simulation_json_file=json_file,
                                           alya_output_dir=alya_output_dir, verbose=self.verbose)
                     post.evaluate_ecg_pv_biomarkers(beat=beat)
@@ -160,6 +169,75 @@ class SA:
             qois = qois.append(pd.DataFrame(qoi, index=[simulation_i]))
         qois.to_csv(qoi_save_dir+'all_qois.csv')
         self.qois_db =qois
+
+
+    def visualise_uq(self, alya, beat, parameter_name):
+        with open(self.simulation_dir+'/all_simulation_dirs.txt', 'r') as f:
+            all_simulation_dirs = f.readlines()
+        finished_simulation_dirs = []
+        for simulation_i in range(len(all_simulation_dirs)):
+            if os.path.exists(all_simulation_dirs[simulation_i].split()[0]+'/heart.post.alyafil'):
+                with open(all_simulation_dirs[simulation_i].split()[0]+'/heart.post.alyafil', 'r') as f:
+                    if len(f.readlines()) >= 1000:
+                        finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
+        if len(finished_simulation_dirs) == 3:
+            alya_output_dir = finished_simulation_dirs[0]
+            json_file = self.simulation_dir + 'uq_0.json'
+            post = PostProcessing(alya=alya, simulation_json_file=json_file,
+                                  alya_output_dir=alya_output_dir, verbose=self.verbose)
+            post.read_ecg_pv()
+            pvt_lower = post.pvs['ts'][beat-1]
+            vl_lower = post.pvs['vls'][beat-1]
+            pl_lower = post.pvs['pls'][beat-1]
+            ecgt_lower = post.ecgs['ts'][beat-1]
+            V3_lower = post.ecgs['V3s'][beat-1]
+
+            alya_output_dir = finished_simulation_dirs[1]
+            post.alya_output_dir = alya_output_dir
+            post.read_ecg_pv()
+            pvt_baseline = post.pvs['ts'][beat - 1]
+            vl_baseline = post.pvs['vls'][beat - 1]
+            pl_baseline = post.pvs['pls'][beat - 1]
+            ecgt_baseline = post.ecgs['ts'][beat - 1]
+            V3_baseline = post.ecgs['V3s'][beat - 1]
+
+            alya_output_dir = finished_simulation_dirs[2]
+            post.alya_output_dir = alya_output_dir
+            post.read_ecg_pv()
+            pvt_upper = post.pvs['ts'][beat - 1]
+            vl_upper = post.pvs['vls'][beat - 1]
+            pl_upper = post.pvs['pls'][beat - 1]
+            ecgt_upper = post.ecgs['ts'][beat - 1]
+            V3_upper = post.ecgs['V3s'][beat - 1]
+
+
+            # Plot PV and ECG UQ
+            fig = plt.figure(tight_layout=True, figsize=(18, 10))
+            fig.suptitle(parameter_name)
+            gs = GridSpec(1, 3)
+            ax_vol = fig.add_subplot(gs[0,0])
+            ax_vol.plot(pvt_lower, vl_lower, 'b')
+            ax_vol.plot(pvt_baseline, vl_baseline, 'k')
+            ax_vol.plot(pvt_upper, vl_upper, 'r')
+            ax_vol.fill(np.append(pvt_lower, pvt_upper[::-1]), np.append(vl_lower, vl_upper[::-1]), alpha=0.3,
+                        edgecolor=None, color='k')
+
+            ax_p = fig.add_subplot(gs[0, 1])
+            ax_p.plot(pvt_lower, pl_lower, 'b')
+            ax_p.plot(pvt_baseline, pl_baseline, 'k')
+            ax_p.plot(pvt_upper, pl_upper, 'r')
+            ax_p.fill(np.append(pvt_lower, pvt_upper[::-1]), np.append(pl_lower, pl_upper[::-1]), alpha=0.3,
+                        edgecolor=None, color='k')
+
+            ax_ecg = fig.add_subplot(gs[0, 2])
+            ax_ecg.plot(ecgt_lower, V3_lower, 'b')
+            ax_ecg.plot(ecgt_baseline, V3_baseline, 'k')
+            ax_ecg.plot(ecgt_upper, V3_upper, 'r')
+            ax_ecg.fill(np.append(ecgt_lower, ecgt_upper[::-1]), np.append(V3_lower, V3_upper[::-1]), alpha=0.3,
+                      edgecolor=None, color='k')
+            plt.savefig(self.simulation_dir + '/uq_plots_'+parameter_name+'.png')
+            plt.show()
+
 
 
     def analyse(self, filename):

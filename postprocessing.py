@@ -26,6 +26,7 @@ class PostProcessing(MeshStructure):
         if not os.path.exists(self.results_dir):
             os.mkdir(self.results_dir)
         self.post_nodefield = Fields(self.name, field_type='postnodefield', verbose=verbose)
+
         print ('Reading in post_nodefield CSV from: ', self.results_dir)
         self.post_nodefield.read_csv_to_attributes(input_dir=self.results_dir, field_type='postnodefield')
         self.post_elementfield = Fields(self.name, field_type='postelementfield', verbose=verbose)
@@ -90,6 +91,16 @@ class PostProcessing(MeshStructure):
         #                                        casename=self.name + '_postelementfield',
         #                                        geometry=self.geometry)
 
+    def read_ecg_pv(self):
+        ecgpv = ECGPV_visualisation(CL=1.0)
+        ecg_filename = self.alya_output_dir + self.simulation_dict['name']
+        print('Reading ECG from: ', ecg_filename)
+        self.ecgs = ecgpv._read_ECG(ecg_filename)
+        if 'SOLIDZ' in self.simulation_dict['physics']:
+            pv_filename = self.alya_output_dir + self.simulation_dict['name']
+            print('Reading PV from: ', pv_filename)
+            self.pvs = ecgpv._read_PV(pv_filename)
+
     def evaluate_ecg_pv_biomarkers(self, beat):
         if 'INTRA' not in self.post_nodefield.dict.keys():
             self.read_csv_fields(read_field_name='INTRA', read_field_type='scalar')
@@ -101,7 +112,7 @@ class PostProcessing(MeshStructure):
         ecgpv = ECGPV_visualisation(CL=1.0)
         ecg_filename = self.alya_output_dir + self.simulation_dict['name']
         print('Reading ECG from: ', ecg_filename)
-        ecgs = ecgpv._read_ECG(ecg_filename)
+        self.ecgs = ecgpv._read_ECG(ecg_filename)
         lead_names = ['Is', 'IIs', 'IIIs', 'aVLs', 'aVRs', 'aVFs', 'V1s', 'V2s', 'V3s', 'V4s', 'V5s', 'V6s']
         qrs_dur = np.zeros((len(lead_names)))
         qt_dur = np.zeros((len(lead_names)))
@@ -111,7 +122,7 @@ class PostProcessing(MeshStructure):
         t_polarity = np.zeros((len(lead_names)))
         for i, lead_i in enumerate(lead_names):
             qrs_dur[i], qt_dur[i], t_pe[i], t_peak[i], qtpeak_dur[i], t_polarity[i], landmarks_temp = \
-                self.calculate_ecg_biomarkers(time=ecgs['ts'][beat], V=ecgs[lead_i][beat],
+                self.calculate_ecg_biomarkers(time=self.ecgs['ts'][beat], V=self.ecgs[lead_i][beat],
                                               LAT=self.post_nodefield.dict['lat'])
         qoi = {}
         qoi['qrs_dur_mean'] = np.mean(qrs_dur)
@@ -129,8 +140,8 @@ class PostProcessing(MeshStructure):
         if 'SOLIDZ' in self.simulation_dict['physics']:
             pv_filename = self.alya_output_dir + self.simulation_dict['name']
             print('Reading PV from: ', pv_filename)
-            pvs = ecgpv._read_PV(pv_filename)
-            pv_analysis = ecgpv.analysis_PV(pvs=pvs, beat=1)
+            self.pvs = ecgpv._read_PV(pv_filename)
+            pv_analysis = ecgpv.analysis_PV(pvs=self.pvs, beat=1)
             qoi['EDVL'] = pv_analysis['EDVL']
             qoi['EDVR'] = pv_analysis['EDVR']
             qoi['ESVL'] = pv_analysis['ESVL']

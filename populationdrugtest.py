@@ -106,7 +106,7 @@ class PopulationDrugTest:
         fig = plt.figure(tight_layout=True, figsize=(20, 10))
         gs = GridSpec(2,4)
         axes = []
-        linewidth = 0.5
+        linewidth = 1.0
         for i in [0,1]:
             for j in [0,1,2,3]:
                 axes.append(fig.add_subplot(gs[i,j]))
@@ -121,28 +121,28 @@ class PopulationDrugTest:
         # ax = fig.add_subplot(gs[2,4])
 
         lead_names = ['Is', 'IIs', 'V1s', 'V2s', 'V3s', 'V4s', 'V5s', 'V6s']
-
+        titles = ['I', 'II', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']
         # baseline_dir ='/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/DTI004_baseline_simulation_ep_DTI004_fine/'
         # clinical_ecg = np.loadtxt(baseline_dir + 'DTI004_clinical_full_ecg.txt', delimiter=',')
         # max_leads = np.amax(clinical_ecg)
         # clinical_ecg = clinical_ecg[:, 100:] / max_leads
         # Plot clinical ECGs
-        clinical_ecg = np.loadtxt(simulation_dir + 'baseline_population/' + 'populationid_' + str(0) + '_baseline' \
-                              '_' + self.name + '/DTI004_clinical_full_ecg.txt',delimiter=',')
-        max_leads = np.amax(clinical_ecg)
-        dict = {'I': [], 'II': [], 'V1': [], 'V2': [], 'V3': [], 'V4': [], 'V5': [], 'V6': []}
-        dict['I'] = clinical_ecg[0, 100:] / max_leads
-        dict['II'] = clinical_ecg[1, 100:] / max_leads
-        dict['V1'] = clinical_ecg[2, 100:] / max_leads
-        dict['V2'] = clinical_ecg[3, 100:] / max_leads
-        dict['V3'] = clinical_ecg[4, 100:] / max_leads
-        dict['V4'] = clinical_ecg[5, 100:] / max_leads
-        dict['V5'] = clinical_ecg[6, 100:] / max_leads
-        dict['V6'] = clinical_ecg[7, 100:] / max_leads
-        clinical_t = np.arange(0, len(dict['I']), 1)
-        keys = list(dict.keys())
-        for lead_i in range(nb_leads):
-            axes[lead_i].plot(clinical_t, dict[keys[lead_i]], 'g', linewidth=linewidth*2, label='Clinical')
+        # clinical_ecg = np.loadtxt(simulation_dir + 'baseline_population/' + 'populationid_' + str(0) + '_baseline' \
+        #                       '_' + self.name + '/DTI004_clinical_full_ecg.txt',delimiter=',')
+        # max_leads = np.amax(clinical_ecg)
+        # dict = {'I': [], 'II': [], 'V1': [], 'V2': [], 'V3': [], 'V4': [], 'V5': [], 'V6': []}
+        # dict['I'] = clinical_ecg[0, 100:] / max_leads
+        # dict['II'] = clinical_ecg[1, 100:] / max_leads
+        # dict['V1'] = clinical_ecg[2, 100:] / max_leads
+        # dict['V2'] = clinical_ecg[3, 100:] / max_leads
+        # dict['V3'] = clinical_ecg[4, 100:] / max_leads
+        # dict['V4'] = clinical_ecg[5, 100:] / max_leads
+        # dict['V5'] = clinical_ecg[6, 100:] / max_leads
+        # dict['V6'] = clinical_ecg[7, 100:] / max_leads
+        # clinical_t = np.arange(0, len(dict['I']), 1)
+        # keys = list(dict.keys())
+        # for lead_i in range(nb_leads):
+        #     axes[lead_i].plot(clinical_t, dict[keys[lead_i]], 'g', linewidth=linewidth*2, label='Clinical')
 
         # Plot baseline popluation
         for population_i in range(self.population_size):
@@ -185,8 +185,9 @@ class PopulationDrugTest:
                         else:
                             axes[lead_i].plot(ecgs['ts'][beat-1], ecgs[lead_names[lead_i]][beat-1]/ecgs['max_all_leads'],
                                           colours[dose_i], linewidth=linewidth)
-                        axes[lead_i].set_title(lead_names[lead_i], fontsize=20)
-                        axes[lead_i].set_ylim([-1.5, 1.5])
+                        axes[lead_i].set_title(titles[lead_i], fontsize=20)
+                        axes[lead_i].set_ylim([-1.0, 1.0])
+                        axes[lead_i].set_xlim([0, 500])
                         for tick in axes[lead_i].xaxis.get_major_ticks():
                             tick.label1.set_fontsize(14)
                         for tick in axes[lead_i].yaxis.get_major_ticks():
@@ -197,35 +198,111 @@ class PopulationDrugTest:
         axes[7].legend()
         plt.show()
 
+
+    def evaluate_drug_effect_ecgs(self, drug_name, drug_doses, simulation_dir):
+        CL = 1.0
+        vis = ECGPV_visualisation(CL)
+        beat = 1
+        # Plot baseline population
+        mean_qt_effect = np.zeros((len(drug_doses), self.population_size))
+        # std_qt_effect = np.zeros((len(drug_doses)))
+        mean_tpe_effect = np.zeros((len(drug_doses), self.population_size))
+        # std_tpe_effect = np.zeros((len(drug_doses)))
+        mean_tpeak_effect = np.zeros((len(drug_doses), self.population_size))
+        if not os.path.exists(simulation_dir + 'ecg_drug_effects.json'):
+            for dose_i in range(len(drug_doses)):
+                # For each dose of the drug run a population of models
+                dose_dir = simulation_dir + 'dose_' + str(dose_i) + '/'
+                print('Evaluating T wave biomarkers for dose ' + str(dose_i))
+                for population_i in range(self.population_size):
+                    self.alya_format.simulation_dir = dose_dir
+                    current_sim_dir = dose_dir + 'populationid_' + str(population_i) + '_' + drug_name + \
+                                      '_dose_' + str(dose_i) + '_' + self.name + '/'
+                    if os.path.exists(current_sim_dir + '/heart.exm.vin'):
+                        ecgs = vis._read_ECG(current_sim_dir + '/heart')
+                        analysis = vis.analysis_ECG_6leads(ecgs=ecgs, beat=beat, show=False)
+                        mean_qt_effect[dose_i, population_i] = analysis['QT'][0] * 1000. # [ms]
+                        mean_tpe_effect[dose_i, population_i] = analysis['T_pe_dur'][0] * 1000. # [ms]
+                        mean_tpeak_effect[dose_i, population_i] = analysis['T_amp'][0]
+                    else:
+                        print('Simulation results missing for: ', current_sim_dir)
+            sim_ecg_drug_effects = {'concentrations':[0.5, 1, 2, 3, 4, 5, 6],
+                         'QT': list(np.mean(mean_qt_effect, axis=1)),
+                         'QT_std': list(np.std(mean_qt_effect, axis=1)),
+                         'Tpe': list(np.mean(mean_tpe_effect, axis=1)),
+                         'Tpe_std': list(np.std(mean_tpe_effect, axis=1)),
+                         'Tpeak': list(np.mean(mean_tpeak_effect, axis=1)),
+                         'Tpeak_std': list(np.std(mean_tpeak_effect, axis=1))}
+            with open(simulation_dir + 'ecg_drug_effects.json', 'w') as f:
+                json.dump(sim_ecg_drug_effects, f)
+        else:
+            sim_ecg_drug_effects = json.load(open(simulation_dir + 'ecg_drug_effects.json', 'r'))
+
+        # Compare effects against average cohort biomarkers
+        concentrations = np.array([0.5, 1, 2, 3, 4, 5, 6]) # nM dofetilide
+        cohort_qtc = np.array([390, 388, 388, 410, 440, 463, 442]) # ms
+        cohort_qtc_std = np.array([27, 22, 11, 28, 35, 45, 31]) # ms
+        cohort_tpe = np.array([76, 75, 74, 89, 104, 121, 245]) # ms
+        cohort_tpe_std = np.array([5, 7, 6, 24, 10, 41, 32]) # ms
+        cohort_tpeak = np.array([680, 703, 673, 672, 548, 475, 605]) # mV
+        cohort_tpeak_std = np.array([154, 158, 185, 133, 178, 229, 100]) # mV
+        colours = ['#fde725', '#90d743', '#35b779', '#21918c', '#31688e', '#443983', '#440154']
+        fig = plt.figure()
+        gs = GridSpec(1,2)
+        axis1 = fig.add_subplot(gs[0,0])
+        axis2 = fig.add_subplot(gs[0,1])
+        axis1.set_title('Clinical Dofetilide ECG effects')
+        axis1.plot(concentrations, cohort_qtc, colours[0])
+        axis1.fill_between(concentrations, cohort_qtc - cohort_qtc_std, cohort_qtc + cohort_qtc_std, alpha=0.5, edgecolor=None, facecolor=colours[0])
+        axis1.plot(concentrations, cohort_tpe, colours[-1])
+        axis1.fill_between(concentrations, cohort_tpe - cohort_tpe_std, cohort_tpe + cohort_tpe_std, alpha=0.5,
+                           edgecolor=None, facecolor=colours[-1])
+
+        axis2.plot(concentrations, sim_ecg_drug_effects['QT'], colours[0], label='QTc')
+        axis2.set_title('Simulated Dofetilide ECG effects')
+        top = np.array(sim_ecg_drug_effects['QT']) - np.array(sim_ecg_drug_effects['QT_std'])
+        bottom = np.array(sim_ecg_drug_effects['QT']) + np.array(sim_ecg_drug_effects['QT_std'])
+        axis2.fill_between(concentrations, top, bottom, alpha=0.5,
+                           edgecolor=None, facecolor=colours[0])
+        axis2.plot(concentrations, sim_ecg_drug_effects['Tpe'], colours[-1], label='Tpe')
+        top = np.array(sim_ecg_drug_effects['Tpe']) - np.array(sim_ecg_drug_effects['Tpe_std'])
+        bottom = np.array(sim_ecg_drug_effects['Tpe']) + np.array(sim_ecg_drug_effects['Tpe_std'])
+        axis2.fill_between(concentrations, top, bottom, alpha=0.5,
+                           edgecolor=None, facecolor=colours[-1])
+        axis2.legend()
+        plt.show()
+
     def extract_vms_for_download(self, simulation_dir, dir_for_download, drug_name, drug_doses):
         # Sort baseline CSVs
         print('Saving baseline CSVs to ' + dir_for_download)
         if not os.path.exists(dir_for_download):
             os.mkdir(dir_for_download)
-        # destination_root = dir_for_download + '/baseline_population/'
-        # if not os.path.exists(destination_root):
-        #     os.mkdir(destination_root)
-        # for population_i in range(self.population_size):
-        #     print('Processing population id: ' + str(population_i))
-        #     csv_dir = simulation_dir + 'baseline_population/' + 'populationid_' + str(population_i) + '_baseline' \
-        #                   '_' + self.name + '/results_csv/'
-        #     destination_dir = destination_root + str(population_i) + '/'
-        #     if not os.path.exists(destination_dir):
-        #         os.mkdir(destination_dir)
-        #     if os.path.exists(csv_dir):
-        #         os.system('cp ' + csv_dir + '* '+destination_dir)
-                # filenames = os.listdir(csv_dir)
-                # filenames_shared = pymp.shared.list(filenames)
-                # threadsNum = multiprocessing.cpu_count()
-                # with pymp.Parallel(min(threadsNum, len(filenames))) as p1:
-                #     for conf_i in p1.range(len(filenames)):
-                #         # for file in filenames:
-                #         file = filenames_shared[conf_i]
-                #         os.system('cp ' + csv_dir + file + ' ' + destination_dir + '/' + file.replace('heart', self.name))
+        destination_root = dir_for_download + '/baseline_population/'
+        if not os.path.exists(destination_root):
+            os.mkdir(destination_root)
+        for population_i in range(self.population_size):
+            print('Processing population id: ' + str(population_i))
+            csv_dir = simulation_dir + 'baseline_population/' + 'populationid_' + str(population_i) + '_baseline' \
+                          '_' + self.name + '/results_csv/'
+            destination_dir = destination_root + str(population_i) + '/'
+            if not os.path.exists(destination_dir):
+                os.mkdir(destination_dir)
+            if os.path.exists(csv_dir):
+                os.system('cp ' + csv_dir + '* '+destination_dir)
+                filenames = os.listdir(csv_dir)
+                filenames_shared = pymp.shared.list(filenames)
+                threadsNum = multiprocessing.cpu_count()
+                with pymp.Parallel(min(threadsNum, len(filenames))) as p1:
+                    for conf_i in p1.range(len(filenames)):
+                        # for file in filenames:
+                        file = filenames_shared[conf_i]
+                        os.system('cp ' + csv_dir + file + ' ' + destination_dir + '/' + file.replace('heart', self.name))
         # Sort dosage CSVs
         print('Saving drug simulation CSVs to ' + dir_for_download)
+        if not os.path.exists(dir_for_download + drug_name):
+            os.mkdir(dir_for_download + drug_name)
         for dose_i in range(len(drug_doses)):
-            destination_root = dir_for_download + '/dose_' + str(dose_i) + '/'
+            destination_root = dir_for_download + drug_name + '/dose_' + str(dose_i) + '/'
             if not os.path.exists(destination_root):
                 os.mkdir(destination_root)
             # For each dose of the drug run a population of models

@@ -55,60 +55,60 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 #######################################################################################################################
 # Step 2: Use sampling methods to explore sensitivity analysis
 # Parameters to change: LVR, LVE, EDP, Tascaling, af, kepi, sigma_f, sigma_s, Kct
-sa_folder_name = 'sensitivity_analyses_cellular_parameters'
-cell_parameter_names = np.array(['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup', 'cal50', 'sfkws'])
-baseline_parameter_values = np.array([1,1,1,1,1,0.805,1])
-upper_bounds = baseline_parameter_values * 2.0
-lower_bounds = baseline_parameter_values * 0.5
+uq_cell_parameters = np.array([ 'cal50_myocardium', 'sf_gcal', 'sfkws_myocardium', 'sf_jup', 'sf_gnal'])
+baseline_parameter_values = np.array([0.805, 1,1,1,1])
 baseline_json_file = 'rodero_baseline_simulation_em.json'
 if system == 'jureca':
     baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_rodero_05_fine/'
-    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + sa_folder_name + '/'
 elif system == 'heart':
     baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
-    simulation_dir = sa_folder_name + '/'
-# sa = SA(name='sa', sampling_method='saltelli', n=2 ** 4, parameter_names=cell_parameter_names,
-#        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
-#        simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-# sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
-# sa.run_jobs(simulation_dir)
-# quit()
-
-#######################################################################################################################
-# Step 2: Use sampling methods to explore sensitivity analysis
-# Parameters to change: LVR, LVE, EDP, Tascaling, af, kepi, sigma_f, sigma_s, Kct
-# cell_parameter_names = np.array(['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup', 'cal50', 'sfkws'])
-sa_folder_name = 'sensitivity_analyses_mechanical_parameters'
-haemodynamic_mechanical_parameter_names = np.array(['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'afs_myocardium', 'cal50_myocardium', 'tref_scaling_myocardium'])
-baseline_parameter_values = np.array([1200000,5000000,6100,15600,4600,0.805,12])
-upper_bounds = baseline_parameter_values * 2.0
-lower_bounds = baseline_parameter_values * 0.5
-baseline_json_file = 'rodero_baseline_simulation_em.json'
-if system == 'jureca':
-    baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_rodero_05_fine/'
-    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + sa_folder_name + '/'
-elif system == 'heart':
-    baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
-    simulation_dir = sa_folder_name + '/'
-sa = SA(name='sa', sampling_method='saltelli', n=2 ** 2, parameter_names=haemodynamic_mechanical_parameter_names,
-       baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
-       simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
-sa.run_jobs(simulation_dir)
+#
+for i, parameter_name in enumerate(uq_cell_parameters):
+    uq_folder_name = 'uq_' + parameter_name
+    if system == 'jureca':
+        simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + uq_folder_name + '/'
+    elif system == 'heart':
+        simulation_dir = uq_folder_name + '/'
+    sa = SA(name='uq', sampling_method='range', n=3, parameter_names=np.array([parameter_name]),
+            baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+            simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+    upper_bounds = baseline_parameter_values[i] * 2.0
+    lower_bounds = baseline_parameter_values[i] * 0.5
+    sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
+    sa.run_jobs(simulation_dir=simulation_dir)
 quit()
+
 ########################################################################################################################
 # Step 3: Run Alya post-processing
-if system == 'jureca':
-    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + sa_folder_name + '/'
-elif system == 'heart':
-    simulation_dir = '/users/jenang/Alya_setup_SA/alya_csv/rodero_' + mesh_number + '/'
-# sa.run_jobs_postprocess(simulation_dir)
+# for i, parameter_name in enumerate(uq_cell_parameters):
+#     uq_folder_name = 'uq_' + parameter_name
+#     if system == 'jureca':
+#         simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + uq_folder_name + '/'
+#     elif system == 'heart':
+#         simulation_dir = uq_folder_name + '/'
+#     sa = SA(name='uq', sampling_method='range', n=3, parameter_names=np.array([parameter_name]),
+#             baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+#             simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+#     sa.run_jobs_postprocess(simulation_dir=simulation_dir)
 # quit()
 ########################################################################################################################
 # Step 4: Evaluate QoIs and write out to results file
-sa.evaluate_qois(alya=alya, beat=0, qoi_save_dir=simulation_dir)
-sa.analyse(simulation_dir+'all_qois.csv')
+print('Plotting UQ curves')
+for i, parameter_name in enumerate(uq_cell_parameters):
+    print(parameter_name)
+    uq_folder_name = 'uq_' + parameter_name
+    if system == 'jureca':
+        simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + uq_folder_name + '/'
+    elif system == 'heart':
+        simulation_dir = uq_folder_name + '/'
+    sa = SA(name='uq', sampling_method='range', n=3, parameter_names=np.array([parameter_name]),
+            baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+            simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+    # sa.evaluate_qois(alya=alya, beat=0, qoi_save_dir=simulation_dir)
+    sa.visualise_uq(alya=alya, beat=1, parameter_name=parameter_name)
+    # sa.analyse(simulation_dir+'all_qois.csv')
 quit()
+
 ########################################################################################################################
 # Step 5: Evaluate Sobol indices and plot results
 sa_figures_directory = simulation_dir
