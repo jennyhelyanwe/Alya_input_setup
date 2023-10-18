@@ -79,6 +79,74 @@ class FieldGeneration(MeshStructure):
         if save:
             self.save()
 
+    def generate_orthogonal_local_bases(self, save):
+        local_c = pymp.shared.array((self.geometry.number_of_nodes, 3))
+        local_l = pymp.shared.array((self.geometry.number_of_nodes, 3))
+        local_r = pymp.shared.array((self.geometry.number_of_nodes, 3))
+        ln = pymp.shared.array(self.node_fields.dict['longitudinal-vector'].shape)
+        tn = pymp.shared.array(self.node_fields.dict['transmural-vector'].shape)
+        ln[:,:] = self.node_fields.dict['longitudinal-vector']
+        tn[:, :] = self.node_fields.dict['transmural-vector']
+        threadsNum = multiprocessing.cpu_count()
+        with pymp.Parallel(min(threadsNum, self.geometry.number_of_nodes)) as p1:
+            for node_i in p1.range(self.geometry.number_of_nodes):
+                l = ln[node_i, :]
+                t = tn[node_i, :]
+                c = np.cross(l, t)
+                r = np.cross(c, l)
+                local_c[node_i, :] = c/np.linalg.norm(c)
+                local_l[node_i, :] = l/np.linalg.norm(l)
+                local_r[node_i, :] = r/np.linalg.norm(r)
+        self.node_fields.add_field(data=local_l, data_name='local_l', field_type='nodefield')
+        self.node_fields.add_field(data=local_c, data_name='local_c', field_type='nodefield')
+        self.node_fields.add_field(data=local_r, data_name='local_r', field_type='nodefield')
+        if save:
+            self.save()
+
+
+    def generate_short_long_axes_slices(self, save):
+        num_slices = 3
+        short_axis_slices = pymp.shared.array((self.geometry.number_of_nodes))
+        long_axis_slices = pymp.shared.array((self.geometry.number_of_nodes))
+        ab = pymp.shared.array(self.node_fields.dict['ab'].shape)
+        rt = pymp.shared.array(self.node_fields.dict['rt'].shape)
+        tm = pymp.shared.array(self.node_fields.dict['tm'].shape)
+        tv = pymp.shared.array(self.node_fields.dict['tv'].shape)
+        ab[:] = self.node_fields.dict['ab']
+        rt[:] = self.node_fields.dict['rt']
+        tm[:] = self.node_fields.dict['tm']
+        tv[:] = self.node_fields.dict['tv']
+        threadsNum = multiprocessing.cpu_count()
+        with pymp.Parallel(min(threadsNum, self.geometry.number_of_nodes)) as p1:
+            for node_i in p1.range(self.geometry.number_of_nodes):
+                if (ab[node_i] > 0.25) & (ab[node_i] < 0.3) & (tv[node_i] == -1):
+                    short_axis_slices[node_i] = 1 # Apex short-axis
+                elif (ab[node_i] > 0.45) & (ab[node_i] < 0.5) & (tv[node_i] == -1):
+                    short_axis_slices[node_i] = 2 # Mid short-axis
+                elif (ab[node_i] > 0.65) & (ab[node_i] < 0.7) & (tv[node_i] == -1):
+                    short_axis_slices[node_i] = 3 # Base short-axis
+                else:
+                    short_axis_slices[node_i] = 0
+
+                if (rt[node_i] > 1.75) & (rt[node_i] < 1.95) & (tv[node_i] == -1):
+                    long_axis_slices[node_i] = 1 # 2-chamber long-axis
+                elif (rt[node_i] > -1.6) & (rt[node_i] < -1.4)  & (tv[node_i] == -1):
+                    long_axis_slices[node_i] = 1 # 2-chamber long-axis
+                elif (rt[node_i] > -2.5) & (rt[node_i] < -2.3)  & (tv[node_i] == -1):
+                    long_axis_slices[node_i] = 2 # 4-chamber long-axis
+                elif (rt[node_i] > 0.9) & (rt[node_i] < 1.1)  & (tv[node_i] == -1):
+                    long_axis_slices[node_i] = 2 # 4-chamber long-axis
+                elif (rt[node_i] > 2.8) & (rt[node_i] < 3.2)  & (tv[node_i] == -1):
+                    long_axis_slices[node_i] = 3  # 3-chamber long-axis
+                elif (rt[node_i] > -0.1) & (rt[node_i] < 0.3)  & (tv[node_i] == -1):
+                    long_axis_slices[node_i] = 3 # 3-chamber long-axis
+                else:
+                    long_axis_slices[node_i] = 0
+        self.node_fields.add_field(data=long_axis_slices, data_name='long-axis-slices', field_type='nodefield')
+        self.node_fields.add_field(data=short_axis_slices, data_name='short-axis-slices', field_type='nodefield')
+        if save:
+            self.save()
+
     def generate_electrode_locations(self, electrode_data_filename, save=False):
         self.node_fields.add_field(data=load_txt(electrode_data_filename), data_name='electrode_xyz', field_type='nodefield')
         if save:

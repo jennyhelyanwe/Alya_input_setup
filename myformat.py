@@ -153,6 +153,8 @@ def save_txt(filename, var):
         print('Saving to : ', filename)
         if len(var.shape) <= 2: # np.savetxt can only handle 1D and 2D arrays
             np.savetxt(filename, var, delimiter=',')
+        else:
+            print ('WARNING, save text can only handle 1D and 2D arrays, ', filename, ' not saved.')
 
 
 def load_txt(filename):

@@ -140,38 +140,73 @@ class SA:
         #         print('finished alya do! ')
         #         all_simulation_dirs[sample_i] = self.alya_format.output_dir
 
-    def evaluate_qois(self, alya, beat, qoi_save_dir):
-        with open(self.simulation_dir+'/all_simulation_dirs.txt', 'r') as f:
-            all_simulation_dirs = f.readlines()
-        finished_simulation_dirs = []
-        for simulation_i in range(len(all_simulation_dirs)):
-            if os.path.exists(all_simulation_dirs[simulation_i].split()[0]+'/heart.post.alyafil'):
-                with open(all_simulation_dirs[simulation_i].split()[0]+'/heart.post.alyafil', 'r') as f:
-                    if len(f.readlines()) > 1000:
-                        finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
-        # all_simulation_dirs_shared = pymp.shared.array((len(all_simulation_dirs)), dtype=str)
-        # threadsNum = multiprocessing.cpu_count()
-        # with pymp.Parallel(min(threadsNum, len(all_simulation_dirs))) as p1:
-        #     for simulation_i in p1.range(len(all_simulation_dirs)):
-        if True:
-            for simulation_i in range(len(finished_simulation_dirs)):
-                alya_output_dir = finished_simulation_dirs[simulation_i]
-                json_file = self.simulation_dir + 'sa_' + str(simulation_i) + '.json'
-                if os.path.exists(alya_output_dir+'/results_csv/timeset_1.csv'):
-                    post = PostProcessing(alya=alya, simulation_json_file=json_file,
-                                          alya_output_dir=alya_output_dir, verbose=self.verbose)
-                    post.evaluate_ecg_pv_biomarkers(beat=beat)
-                    post.save_qoi(filename=qoi_save_dir+'qoi_'+str(simulation_i)+'.csv')
+    def evaluate_qois(self, qoi_group_name, alya, beat, qoi_save_dir, analysis_type):
+        postp_objects = []
+        for simulation_i in range(len(self.finished_simulation_dirs)):
+            alya_output_dir = self.finished_simulation_dirs[simulation_i]
+            json_file = self.simulation_dir + analysis_type + '_' + str(simulation_i) + '.json'
+            if os.path.exists(alya_output_dir + '/results_csv/timeset_1.csv'):
+                post = PostProcessing(alya=alya, simulation_json_file=json_file,
+                                      alya_output_dir=alya_output_dir, verbose=self.verbose)
+                if qoi_group_name == 'ecg':
+                    post.evaluate_ecg_biomarkers(beat=beat)
+                    post.save_qoi(filename=qoi_save_dir + 'ecg_qoi_' + str(simulation_i) + '.csv')
+                elif qoi_group_name == 'pv':
+                    post.evaluate_pv_biomarkers(beat=beat)
+                    post.save_qoi(filename=qoi_save_dir + 'pv_qoi_' + str(simulation_i) + '.csv')
+                elif qoi_group_name == 'deformation':
+                    post.evaluate_deformation_biomarkers(beat=beat)
+                    post.save_qoi(filename=qoi_save_dir + 'deformation_qoi_' + str(simulation_i) + '.csv')
+                elif qoi_group_name == 'fibre_work':
+                    post.evaluate_fibre_work_biomarkers(beat=beat)
+                    post.save_qoi(filename=qoi_save_dir + 'fibrework_qoi_' + str(simulation_i) + '.csv')
+                postp_objects.append(post)
+
+        # Gather all simulated QoIs to a single CSV file for SA or UQ analysis later.
         qois = pd.DataFrame({})
-        for simulation_i in range(len(finished_simulation_dirs)):
-            filename = qoi_save_dir+'qoi_'+str(simulation_i)+'.csv'
-            qoi = json.load(open(filename, 'r'))
-            qois = qois.append(pd.DataFrame(qoi, index=[simulation_i]))
-        qois.to_csv(qoi_save_dir+'all_qois.csv')
-        self.qois_db =qois
+        if qoi_group_name == 'ecg':
+            for simulation_i in range(len(self.finished_simulation_dirs)):
+                filename = qoi_save_dir + 'ecg_qoi_' + str(simulation_i) + '.csv'
+                qoi = json.load(open(filename, 'r'))
+                qois = qois.append(pd.DataFrame(qoi, index=[simulation_i]))
+            qois.to_csv(qoi_save_dir + 'ecg_qois.csv')
+        elif qoi_group_name == 'pv':
+            for simulation_i in range(len(self.finished_simulation_dirs)):
+                filename = qoi_save_dir + 'pv_qoi_' + str(simulation_i) + '.csv'
+                qoi = json.load(open(filename, 'r'))
+                qois = qois.append(pd.DataFrame(qoi, index=[simulation_i]))
+            qois.to_csv(qoi_save_dir + 'pv_qois.csv')
+        elif qoi_group_name == 'deformation':
+            for simulation_i in range(len(self.finished_simulation_dirs)):
+                filename = qoi_save_dir + 'deformation_qoi_' + str(simulation_i) + '.csv'
+                qoi = json.load(open(filename, 'r'))
+                qois = qois.append(pd.DataFrame(qoi, index=[simulation_i]))
+            qois.to_csv(qoi_save_dir + 'deformation_qois.csv')
+        elif qoi_group_name == 'fibrework':
+            for simulation_i in range(len(self.finished_simulation_dirs)):
+                filename = qoi_save_dir + 'fibrework_qoi_' + str(simulation_i) + '.csv'
+                qoi = json.load(open(filename, 'r'))
+                qois = qois.append(pd.DataFrame(qoi, index=[simulation_i]))
+            qois.to_csv(qoi_save_dir + 'fibrework_qois.csv')
+        self.qois_db = qois
+        return postp_objects
 
 
-    def visualise_uq(self, alya, beat, parameter_name):
+
+    def sort_simulations(self):
+        with open(self.simulation_dir + '/all_simulation_dirs.txt', 'r') as f:
+            all_simulation_dirs = f.readlines()
+        self.finished_simulation_dirs = []
+        for simulation_i in range(len(all_simulation_dirs)):
+            if os.path.exists(all_simulation_dirs[simulation_i].split()[0] + '/results_csv/timeset_1.csv'):
+                self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
+            # if os.path.exists(all_simulation_dirs[simulation_i].split()[0] + '/heart.post.alyafil'):
+            #     with open(all_simulation_dirs[simulation_i].split()[0] + '/heart.post.alyafil', 'r') as f:
+            #         if len(f.readlines()) >= 1000:
+            #             self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
+
+
+    def visualise_uq(self, beat, parameter_name, ecg_post=None, pv_post=None, deformation_post=None, fibre_work_post=None):
         with open(self.simulation_dir+'/all_simulation_dirs.txt', 'r') as f:
             all_simulation_dirs = f.readlines()
         finished_simulation_dirs = []
@@ -181,70 +216,199 @@ class SA:
                     if len(f.readlines()) >= 1000:
                         finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
         if len(finished_simulation_dirs) == 3:
+            print('Visualising UQ for ', parameter_name)
             alya_output_dir = finished_simulation_dirs[0]
             json_file = self.simulation_dir + 'uq_0.json'
-            post = PostProcessing(alya=alya, simulation_json_file=json_file,
-                                  alya_output_dir=alya_output_dir, verbose=self.verbose)
-            post.read_ecg_pv()
-            pvt_lower = post.pvs['ts'][beat-1]
-            vl_lower = post.pvs['vls'][beat-1]
-            pl_lower = post.pvs['pls'][beat-1]
-            ecgt_lower = post.ecgs['ts'][beat-1]
-            V3_lower = post.ecgs['V3s'][beat-1]
+            # post = PostProcessing(alya=alya, simulation_json_file=json_file,
+            #                       alya_output_dir=alya_output_dir, verbose=self.verbose)
+            # post.read_ecg_pv()
+            pvt_lower = pv_post[0].pvs['ts'][beat-1]
+            vl_lower = pv_post[0].pvs['vls'][beat-1]
+            pl_lower = pv_post[0].pvs['pls'][beat-1]/10000
+            ecgt_lower = ecg_post[0].ecgs['ts'][beat-1]
+            V3_lower = ecg_post[0].ecgs['V3s'][beat-1]
 
-            alya_output_dir = finished_simulation_dirs[1]
-            post.alya_output_dir = alya_output_dir
-            post.read_ecg_pv()
-            pvt_baseline = post.pvs['ts'][beat - 1]
-            vl_baseline = post.pvs['vls'][beat - 1]
-            pl_baseline = post.pvs['pls'][beat - 1]
-            ecgt_baseline = post.ecgs['ts'][beat - 1]
-            V3_baseline = post.ecgs['V3s'][beat - 1]
+            pvt_baseline = pv_post[1].pvs['ts'][beat - 1]
+            vl_baseline = pv_post[1].pvs['vls'][beat - 1]
+            pl_baseline = pv_post[1].pvs['pls'][beat - 1]/10000
+            ecgt_baseline = ecg_post[1].ecgs['ts'][beat - 1]
+            V3_baseline = ecg_post[1].ecgs['V3s'][beat - 1]
 
-            alya_output_dir = finished_simulation_dirs[2]
-            post.alya_output_dir = alya_output_dir
-            post.read_ecg_pv()
-            pvt_upper = post.pvs['ts'][beat - 1]
-            vl_upper = post.pvs['vls'][beat - 1]
-            pl_upper = post.pvs['pls'][beat - 1]
-            ecgt_upper = post.ecgs['ts'][beat - 1]
-            V3_upper = post.ecgs['V3s'][beat - 1]
-
+            pvt_upper = pv_post[2].pvs['ts'][beat - 1]
+            vl_upper = pv_post[2].pvs['vls'][beat - 1]
+            pl_upper = pv_post[2].pvs['pls'][beat - 1]/10000
+            ecgt_upper = ecg_post[2].ecgs['ts'][beat - 1]
+            V3_upper = ecg_post[2].ecgs['V3s'][beat - 1]
 
             # Plot PV and ECG UQ
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             fig.suptitle(parameter_name)
-            gs = GridSpec(1, 3)
+            gs = GridSpec(2,4)
             ax_vol = fig.add_subplot(gs[0,0])
-            ax_vol.plot(pvt_lower, vl_lower, 'b')
-            ax_vol.plot(pvt_baseline, vl_baseline, 'k')
-            ax_vol.plot(pvt_upper, vl_upper, 'r')
+            ax_vol.set_title('LVV(t)')
+            ax_vol.plot(pvt_lower, vl_lower, 'k', linestyle='dotted')
+            ax_vol.plot(pvt_baseline, vl_baseline, 'k', linestyle='dashed')
+            ax_vol.plot(pvt_upper, vl_upper, 'k', linestyle='solid')
             ax_vol.fill(np.append(pvt_lower, pvt_upper[::-1]), np.append(vl_lower, vl_upper[::-1]), alpha=0.3,
                         edgecolor=None, color='k')
 
             ax_p = fig.add_subplot(gs[0, 1])
-            ax_p.plot(pvt_lower, pl_lower, 'b')
-            ax_p.plot(pvt_baseline, pl_baseline, 'k')
-            ax_p.plot(pvt_upper, pl_upper, 'r')
+            ax_p.set_title('LVP(t)')
+            ax_p.plot(pvt_lower, pl_lower, 'k', linestyle='dotted')
+            ax_p.plot(pvt_baseline, pl_baseline, 'k', linestyle='dashed')
+            ax_p.plot(pvt_upper, pl_upper, 'k', linestyle='solid')
             ax_p.fill(np.append(pvt_lower, pvt_upper[::-1]), np.append(pl_lower, pl_upper[::-1]), alpha=0.3,
                         edgecolor=None, color='k')
 
-            ax_ecg = fig.add_subplot(gs[0, 2])
-            ax_ecg.plot(ecgt_lower, V3_lower, 'b')
-            ax_ecg.plot(ecgt_baseline, V3_baseline, 'k')
-            ax_ecg.plot(ecgt_upper, V3_upper, 'r')
+            ax_pv = fig.add_subplot(gs[0, 2])
+            ax_pv.set_title('LV PV loop')
+            ax_pv.plot(vl_lower, pl_lower, 'k', linestyle='dotted')
+            ax_pv.plot(vl_baseline, pl_baseline, 'k', linestyle='dashed')
+            ax_pv.plot(vl_upper, pl_upper, 'k', linestyle='solid')
+            ax_pv.fill(np.append(vl_lower, vl_upper[::-1]), np.append(pl_lower, pl_upper[::-1]), alpha=0.3,
+                      edgecolor=None, color='k')
+
+            ax_ecg = fig.add_subplot(gs[0, 3])
+            ax_ecg.set_title('ECG V3')
+            ax_ecg.plot(ecgt_lower, V3_lower, 'k', linestyle='dotted')
+            ax_ecg.plot(ecgt_baseline, V3_baseline, 'k', linestyle='dashed')
+            ax_ecg.plot(ecgt_upper, V3_upper, 'k', linestyle='solid')
             ax_ecg.fill(np.append(ecgt_lower, ecgt_upper[::-1]), np.append(V3_lower, V3_upper[::-1]), alpha=0.3,
                       edgecolor=None, color='k')
+            if deformation_post:
+                deformation_t_lower = deformation_post[0].deformation_transients['deformation_t']
+                avpd_lower = deformation_post[0].deformation_transients['avpd']
+                wall_thickness_lower = deformation_post[0].deformation_transients['lv_wall_thickness']
+                apical_d_lower = deformation_post[0].deformation_transients['apical_displacement']
+
+                deformation_t_baseline = deformation_post[1].deformation_transients['deformation_t']
+                avpd_baseline = deformation_post[1].deformation_transients['avpd']
+                wall_thickness_baseline = deformation_post[1].deformation_transients['lv_wall_thickness']
+                apical_d_baseline = deformation_post[1].deformation_transients['apical_displacement']
+
+                deformation_t_upper = deformation_post[2].deformation_transients['deformation_t']
+                avpd_upper = deformation_post[2].deformation_transients['avpd']
+                wall_thickness_upper = deformation_post[2].deformation_transients['lv_wall_thickness']
+                apical_d_upper = deformation_post[2].deformation_transients['apical_displacement']
+
+                ax_vol = fig.add_subplot(gs[1, 0])
+                ax_vol.set_title('Deformations')
+                ax_vol.plot(deformation_t_lower, avpd_lower, 'b', deformation_t_lower, wall_thickness_lower, 'g', deformation_t_lower, apical_d_lower, 'm', linestyle='dotted')
+                ax_vol.plot(deformation_t_baseline, avpd_baseline, 'b', deformation_t_baseline, wall_thickness_baseline, 'g', deformation_t_baseline, apical_d_baseline, 'm', linestyle='dashed')
+                ax_vol.plot(deformation_t_upper, avpd_upper, 'b', label='AVPD', linestyle='solid')
+                ax_vol.plot(deformation_t_upper, wall_thickness_upper, 'g', label='Wall thickness', linestyle='solid')
+                ax_vol.plot(deformation_t_upper, apical_d_upper, 'm', label='Apical displacement', linestyle='solid')
+                ax_vol.fill(np.append(deformation_t_lower, deformation_t_upper[::-1]), np.append(avpd_lower, avpd_upper[::-1]), alpha=0.3,
+                            edgecolor=None, color='b')
+                ax_vol.fill(np.append(deformation_t_lower, deformation_t_upper[::-1]), np.append(wall_thickness_lower, wall_thickness_upper[::-1]), alpha=0.3,
+                            edgecolor=None, color='g')
+                ax_vol.fill(np.append(deformation_t_lower, deformation_t_upper[::-1]),
+                            np.append(apical_d_lower, apical_d_upper[::-1]), alpha=0.3,
+                            edgecolor=None, color='m')
+                ax_vol.legend()
+
+            if fibre_work_post:
+                fibrework_t_lower = fibre_work_post[0].fibre_work['fibrework_t']
+                apical_lambda_lower = fibre_work_post[0].fibre_work['apical_lambda']
+                midv_lambda_lower = fibre_work_post[0].fibre_work['midv_lambda']
+                basal_lambda_lower = fibre_work_post[0].fibre_work['basal_lambda']
+
+                fibrework_t_baseline = fibre_work_post[1].fibre_work['fibrework_t']
+                apical_lambda_baseline = fibre_work_post[1].fibre_work['apical_lambda']
+                midv_lambda_baseline = fibre_work_post[1].fibre_work['midv_lambda']
+                basal_lambda_baseline = fibre_work_post[1].fibre_work['basal_lambda']
+
+                fibrework_t_upper = fibre_work_post[2].fibre_work['fibrework_t']
+                apical_lambda_upper = fibre_work_post[2].fibre_work['apical_lambda']
+                midv_lambda_upper = fibre_work_post[2].fibre_work['midv_lambda']
+                basal_lambda_upper = fibre_work_post[2].fibre_work['basal_lambda']
+
+                apical_Ta_lower = fibre_work_post[0].fibre_work['apical_Ta']
+                midv_Ta_lower = fibre_work_post[0].fibre_work['midv_Ta']
+                basal_Ta_lower = fibre_work_post[0].fibre_work['basal_Ta']
+                apical_Ta_baseline = fibre_work_post[1].fibre_work['apical_Ta']
+                midv_Ta_baseline = fibre_work_post[1].fibre_work['midv_Ta']
+                basal_Ta_baseline = fibre_work_post[1].fibre_work['basal_Ta']
+                apical_Ta_upper = fibre_work_post[2].fibre_work['apical_Ta']
+                midv_Ta_upper = fibre_work_post[2].fibre_work['midv_Ta']
+                basal_Ta_upper = fibre_work_post[2].fibre_work['basal_Ta']
+
+                ax_Ta = fig.add_subplot(gs[1, 1])
+                ax_Ta.set_title('Ta(t)')
+                ax_Ta.plot(fibrework_t_lower, apical_Ta_lower, 'C0',
+                           fibrework_t_lower, midv_Ta_lower, 'C1',
+                           fibrework_t_lower, basal_Ta_lower, 'C2', linestyle='dotted')
+                ax_Ta.plot(fibrework_t_baseline, apical_Ta_baseline, 'C0',
+                           fibrework_t_baseline, midv_Ta_baseline, 'C1',
+                           fibrework_t_baseline, basal_Ta_baseline, 'C2', linestyle='dashed')
+                ax_Ta.plot(fibrework_t_upper, apical_Ta_upper, 'C0', label='Apical', linestyle='solid')
+                ax_Ta.plot(fibrework_t_upper, midv_Ta_upper, 'C1', label='Midventricular', linestyle='solid')
+                ax_Ta.plot(fibrework_t_upper, basal_Ta_upper, 'C2', label='Basal', linestyle='solid')
+                ax_Ta.fill(np.append(fibrework_t_lower, fibrework_t_upper[::-1]),
+                               np.append(apical_Ta_lower, apical_Ta_upper[::-1]), alpha=0.3,
+                               edgecolor=None, color='C0')
+                ax_Ta.fill(np.append(fibrework_t_lower, fibrework_t_upper[::-1]),
+                               np.append(midv_Ta_lower, midv_Ta_upper[::-1]), alpha=0.3,
+                               edgecolor=None, color='C1')
+                ax_Ta.fill(np.append(fibrework_t_lower, fibrework_t_upper[::-1]),
+                               np.append(basal_Ta_lower, basal_Ta_upper[::-1]), alpha=0.3,
+                               edgecolor=None, color='C2')
+                ax_Ta.legend()
+
+                ax_lambda = fig.add_subplot(gs[1, 2])
+                ax_lambda.set_title('Lambda(t)')
+                ax_lambda.plot(fibrework_t_lower, apical_lambda_lower, 'C0',
+                               fibrework_t_lower, midv_lambda_lower, 'C1',
+                            fibrework_t_lower, basal_lambda_lower, 'C2', linestyle='dotted')
+                ax_lambda.plot(fibrework_t_baseline, apical_lambda_baseline, 'C0',
+                               fibrework_t_baseline, midv_lambda_baseline, 'C1',
+                               fibrework_t_baseline, basal_lambda_baseline, 'C2', linestyle='dashed')
+                ax_lambda.plot(fibrework_t_upper, apical_lambda_upper, 'C0', label='Apical', linestyle='solid')
+                ax_lambda.plot(fibrework_t_upper, midv_lambda_upper, 'C1', label='Midventricular', linestyle='solid')
+                ax_lambda.plot(fibrework_t_upper, basal_lambda_upper, 'C2', label='Basal', linestyle='solid')
+                ax_lambda.fill(np.append(fibrework_t_lower, fibrework_t_upper[::-1]),
+                            np.append(apical_lambda_lower, apical_lambda_upper[::-1]), alpha=0.3,
+                            edgecolor=None, color='C0')
+                ax_lambda.fill(np.append(fibrework_t_lower, fibrework_t_upper[::-1]),
+                            np.append(midv_lambda_lower, midv_lambda_upper[::-1]), alpha=0.3,
+                            edgecolor=None, color='C1')
+                ax_lambda.fill(np.append(fibrework_t_lower, fibrework_t_upper[::-1]),
+                            np.append(basal_lambda_lower, basal_lambda_upper[::-1]), alpha=0.3,
+                            edgecolor=None, color='C2')
+                ax_lambda.legend()
+
+                ax_fibrework = fig.add_subplot(gs[1, 3])
+                ax_fibrework.set_title('Fibre work Ta(lambda)')
+                ax_fibrework.plot(apical_lambda_lower, apical_Ta_lower, 'C0',
+                                  midv_lambda_lower, midv_Ta_lower, 'C1',
+                                  basal_lambda_lower, basal_Ta_lower, 'C2', linestyle='dotted')
+                ax_fibrework.plot(apical_lambda_baseline, apical_Ta_baseline, 'C0',
+                                  midv_lambda_baseline, midv_Ta_baseline, 'C1',
+                                  basal_lambda_baseline, basal_Ta_baseline, 'C2', linestyle='dashed')
+                ax_fibrework.plot(apical_lambda_upper, apical_Ta_upper, 'C0',
+                                  midv_lambda_upper, midv_Ta_upper, 'C1',
+                                  basal_lambda_upper, basal_Ta_upper, 'C2', linestyle='solid')
+                ax_fibrework.fill(np.append(apical_lambda_lower, apical_lambda_upper[::-1]),
+                            np.append(apical_Ta_lower, apical_Ta_upper[::-1]), alpha=0.3,
+                            edgecolor=None, color='C0')
+                ax_fibrework.fill(np.append(midv_lambda_lower, midv_lambda_upper[::-1]),
+                                  np.append(midv_Ta_lower, midv_Ta_upper[::-1]), alpha=0.3,
+                                  edgecolor=None, color='C1')
+                ax_fibrework.fill(np.append(basal_lambda_lower, basal_lambda_upper[::-1]),
+                                  np.append(basal_Ta_lower, basal_Ta_upper[::-1]), alpha=0.3,
+                                  edgecolor=None, color='C2')
+
             plt.savefig(self.simulation_dir + '/uq_plots_'+parameter_name+'.png')
             plt.show()
 
 
 
-    def analyse(self, filename):
+    def analyse(self, filename, qois):
         self.qois_db = pd.read_csv(filename, index_col=False)
         names = self.parameter_names
         # selected_qois = self.qois_db.columns.values.tolist() # All QoIs
-        selected_qois = ['t_pe_mean', 't_peak_mean', 'qt_dur_mean', 't_polarity_mean', 'EDVL', 'LVEF', 'PmaxL', 'SVL']
+        selected_qois = qois
+        # selected_qois = ['t_pe_mean', 't_peak_mean', 'qt_dur_mean', 't_polarity_mean', 'EDVL', 'LVEF', 'PmaxL', 'SVL']
         sp = ProblemSpec({'num_vars': len(names),
                           'names': names,
                           'bounds': [[0.5, 2]] * len(names),
@@ -260,8 +424,16 @@ class SA:
             for param_i in range(len(names)):
                 if 'sf_' in names[param_i]:
                     X[simulation_i,param_i] = dict[names[param_i]][0][0]
+                elif '_lv' in names[param_i]:
+                    X[simulation_i,param_i] = dict[names[param_i].split('_lv')[0]][0]
+                elif '_rv' in names[param_i]:
+                    X[simulation_i, param_i] = dict[names[param_i].split('_rv')[0]][1]
+                elif '_myocardium' in names[param_i]:
+                    X[simulation_i, param_i] = dict[names[param_i].split('_myocardium')[0]][0]
+                elif '_valveplug' in names[param_i]:
+                    X[simulation_i, param_i] = dict[names[param_i].split('_valveplug')[0]][1]
                 else:
-                    X[simulation_i,param_i] = dict[names[param_i]][0]
+                    X[simulation_i,param_i] = dict[names[param_i]]
 
         # Scatter plots with correlation coefficients
         if len(Y.shape) == 1:
@@ -289,6 +461,8 @@ class SA:
                 if param_j == 0:
                     ax.set_ylabel(qoi_names[qoi_i])
         plt.savefig('scatter_qois_vs_parameters.png')
+        plt.show()
+        quit()
         ###############################################################################################################
         fig = plt.figure(tight_layout=True, figsize=(18, 10))
         fig.suptitle('N=' + str(Y.shape[0]))

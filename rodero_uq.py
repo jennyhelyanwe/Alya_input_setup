@@ -58,25 +58,26 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 uq_cell_parameters = np.array([ 'cal50_myocardium', 'sf_gcal', 'sfkws_myocardium', 'sf_jup', 'sf_gnal'])
 baseline_parameter_values = np.array([0.805, 1,1,1,1])
 baseline_json_file = 'rodero_baseline_simulation_em.json'
+baseline_dir = ''
 if system == 'jureca':
     baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_rodero_05_fine/'
 elif system == 'heart':
     baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
 #
-for i, parameter_name in enumerate(uq_cell_parameters):
-    uq_folder_name = 'uq_' + parameter_name
-    if system == 'jureca':
-        simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + uq_folder_name + '/'
-    elif system == 'heart':
-        simulation_dir = uq_folder_name + '/'
-    sa = SA(name='uq', sampling_method='range', n=3, parameter_names=np.array([parameter_name]),
-            baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
-            simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-    upper_bounds = baseline_parameter_values[i] * 2.0
-    lower_bounds = baseline_parameter_values[i] * 0.5
-    sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
-    sa.run_jobs(simulation_dir=simulation_dir)
-quit()
+# for i, parameter_name in enumerate(uq_cell_parameters):
+#     uq_folder_name = 'uq_' + parameter_name
+#     if system == 'jureca':
+#         simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + uq_folder_name + '/'
+#     elif system == 'heart':
+#         simulation_dir = uq_folder_name + '/'
+#     sa = SA(name='uq', sampling_method='range', n=3, parameter_names=np.array([parameter_name]),
+#             baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+#             simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+#     upper_bounds = baseline_parameter_values[i] * 2.0
+#     lower_bounds = baseline_parameter_values[i] * 0.5
+#     sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
+#     sa.run_jobs(simulation_dir=simulation_dir)
+# quit()
 
 ########################################################################################################################
 # Step 3: Run Alya post-processing
@@ -104,9 +105,15 @@ for i, parameter_name in enumerate(uq_cell_parameters):
     sa = SA(name='uq', sampling_method='range', n=3, parameter_names=np.array([parameter_name]),
             baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
             simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-    # sa.evaluate_qois(alya=alya, beat=0, qoi_save_dir=simulation_dir)
-    sa.visualise_uq(alya=alya, beat=1, parameter_name=parameter_name)
+    sa.sort_simulations()
+    deformation_post = sa.evaluate_qois(qoi_group_name='deformation', alya=alya, beat=1, qoi_save_dir=simulation_dir, analysis_type='uq')
+    fibre_work_post = sa.evaluate_qois(qoi_group_name='fibre_work', alya=alya, beat=1, qoi_save_dir=simulation_dir, analysis_type='uq')
+    pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=1, qoi_save_dir=simulation_dir, analysis_type='uq')
+    ecg_post = sa.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=1, qoi_save_dir=simulation_dir, analysis_type='uq')
+    sa.visualise_uq(beat=1, parameter_name=parameter_name, ecg_post=ecg_post, pv_post=pv_post,
+                    deformation_post=deformation_post, fibre_work_post=fibre_work_post)
     # sa.analyse(simulation_dir+'all_qois.csv')
+    quit()
 quit()
 
 ########################################################################################################################
