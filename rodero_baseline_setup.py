@@ -91,12 +91,12 @@ alya_output_dir = simulation_dir + simulation_json_file.split('/')[-1].split('.'
 pp = PostProcessing(alya=alya, simulation_json_file=simulation_json_file,
                     alya_output_dir=alya_output_dir, verbose=verbose)
 beat = 1
-pp.evaluate_strain_biomarkers(beat=beat)
-quit()
+# pp.evaluate_strain_biomarkers(beat=beat)
 pp.evaluate_pv_biomarkers(beat=beat)
 pp.evaluate_ecg_biomarkers(beat=beat)
 pp.evaluate_deformation_biomarkers(beat=beat)
-pp.evaluate_fibre_work_biomarkers(beat=beat)
-pp.visualise_compare_pv_with_clinical_ranges(beat=beat)
+# pp.evaluate_fibre_work_biomarkers(beat=beat)
+pp.visualise_calibration_comparisons_global(beat=beat)
+# pp.visualise_calibration_comparisons_strain()
 # pp.compare_ecg_with_clinical_ranges(beat=beat)
 # pp.compare_deformation_with_clinical_ranges(beat=beat)

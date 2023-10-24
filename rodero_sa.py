@@ -3,6 +3,7 @@ from postprocessing import PostProcessing
 from sensitivityanalysis import SA
 import os
 import numpy as np
+import json
 
 ########################################################################################################################
 # Global Settings
@@ -61,6 +62,7 @@ baseline_parameter_values = np.array([1,1,1,1,1,0.805,1])
 upper_bounds = baseline_parameter_values * 2.0
 lower_bounds = baseline_parameter_values * 0.5
 baseline_json_file = 'rodero_baseline_simulation_em.json'
+baseline_dir = ''
 if system == 'jureca':
     baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_rodero_05_fine/'
     simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + sa_folder_name + '/'
@@ -74,12 +76,12 @@ elif system == 'heart':
 # sa.run_jobs(simulation_dir)
 # quit()
 
-#######################################################################################################################
+######################################################################################################################
 # Step 2: Use sampling methods to explore sensitivity analysis
 # Parameters to change: LVR, LVE, EDP, Tascaling, af, kepi, sigma_f, sigma_s, Kct
 # cell_parameter_names = np.array(['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup', 'cal50', 'sfkws'])
 sa_folder_name = 'sensitivity_analyses_mechanical_parameters'
-haemodynamic_mechanical_parameter_names = np.array(['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'afs_myocardium', 'cal50_myocardium', 'tref_scaling_myocardium'])
+mechanical_parameter_names = np.array(['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'afs_myocardium', 'cal50_myocardium', 'tref_scaling_myocardium'])
 baseline_parameter_values = np.array([1200000,4000000,4500,15600,3000,0.805,15])
 upper_bounds = baseline_parameter_values * 2.0
 lower_bounds = baseline_parameter_values * 0.5
@@ -90,9 +92,40 @@ if system == 'jureca':
 elif system == 'heart':
     baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
     simulation_dir = sa_folder_name + '/'
-sa = SA(name='sa', sampling_method='saltelli', n=2 ** 2, parameter_names=haemodynamic_mechanical_parameter_names,
+sa = SA(name='sa', sampling_method='saltelli', n=2 ** 2, parameter_names=mechanical_parameter_names,
        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
        simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+# sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
+# sa.run_jobs(simulation_dir)
+# quit()
+
+#######################################################################################################################
+# # Step 2: Use sampling methods to explore sensitivity analysis
+# sa_folder_name = 'sensitivity_analyses_haemodynamic_parameters'
+# baseline_json_file = 'rodero_baseline_simulation_em.json'
+# simulation_json_file = baseline_json_file
+# simulation_dict = json.load(open(simulation_json_file, 'r'))
+# haemodynamic_parameter_names = np.array(['arterial_compliance_lv',
+#                                          'arterial_resistance_lv',
+#                                          'gain_derror_relaxation_lv',
+#                                          'gain_error_relaxation_lv',
+#                                          'ejection_pressure_threshold_lv'])
+# baseline_parameter_values = np.array([simulation_dict['arterial_compliance'][0],
+#                                       simulation_dict['arterial_resistance'][0],
+#                                       simulation_dict['gain_derror_relaxation'][0],
+#                                       simulation_dict['gain_error_relaxation'][0],
+#                                       simulation_dict['ejection_pressure_threshold'][0]])
+# upper_bounds = baseline_parameter_values * 2.0
+# lower_bounds = baseline_parameter_values * 0.5
+# if system == 'jureca':
+#     baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_rodero_05_fine/'
+#     simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + sa_folder_name + '/'
+# elif system == 'heart':
+#     baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
+#     simulation_dir = sa_folder_name + '/'
+# sa = SA(name='sa', sampling_method='saltelli', n=2 ** 2, parameter_names=haemodynamic_parameter_names,
+#        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+#        simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
 # sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
 # sa.run_jobs(simulation_dir)
 # quit()
@@ -102,17 +135,23 @@ if system == 'jureca':
     simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + sa_folder_name + '/'
 elif system == 'heart':
     simulation_dir = '/users/jenang/Alya_setup_SA/alya_csv/rodero_' + mesh_number + '/'
-sa.run_jobs_postprocess(simulation_dir)
-quit()
+# sa.run_jobs_postprocess(simulation_dir)
+# quit()
 ########################################################################################################################
 # Step 4: Evaluate QoIs and write out to results file
 beat = 1
+sa.sort_simulations() # Collate list of finished simulations by checking the existence of particular files.
+# The lines below only need to be run once, it will write out the QoIs to the save directories as txt files.
 pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
-ecg_post = sa.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
-fibre_work_post = sa.evaluate_qois(qoi_group_name='fibre_work', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
-deformation_post = sa.evaluate_qois(qoi_group_name='deformation', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
-sa.analyse(simulation_dir+'pv_qois.csv', qois = ['EDVL', 'LVEF', 'PmaxL', 'SVL'])
-sa.analyse(simulation_dir+'deformation_qois.csv', qois=['max_basal_ab_displacement', 'min_basal_ab_displacement', 'max_apical_ab_displacement', 'min_apical_ab_displacement'])
+# ecg_post = sa.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
+# fibre_work_post = sa.evaluate_qois(qoi_group_name='fibre_work', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
+# deformation_post = sa.evaluate_qois(qoi_group_name='deformation', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
+
+# Visualise scatter plots
+sa.analyse(filename=simulation_dir+'pv_qois.csv', qois = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max'])
+# sa.analyse(filename=simulation_dir+'deformation_qois.csv', qois=['es_ed_avpd', 'es_ed_apical_displacement'])
+# sa.analyse_qoi_vs_qoi(filename_1=simulation_dir+'pv_qois.csv', filename_2=simulation_dir+'ecg_qois.csv',
+#                       qois_1=['EDVL', 'ESVL', 'PmaxL', 'LVEF'], qois_2=['qt_dur_mean', 't_pe_mean'])
 quit()
 ########################################################################################################################
 # Step 5: Evaluate Sobol indices and plot results

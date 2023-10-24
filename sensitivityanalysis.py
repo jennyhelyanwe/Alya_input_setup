@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 from postprocessing import PostProcessing, mapIndices
 import pandas as pd
+from healthy_qoi_ranges import HealthyBiomarkerRanges
 class SA:
     def __init__(self, name, sampling_method, n, parameter_names, baseline_parameter_values, baseline_json_file, baseline_dir,
                  simulation_dir, alya_format, verbose):
@@ -31,6 +32,7 @@ class SA:
         if not os.path.exists(self.simulation_dir):
             os.mkdir(self.simulation_dir)
         self.baseline_json_file = baseline_json_file
+        self.healthy_ranges = HealthyBiomarkerRanges().healthy_ranges
 
     def setup(self, upper_bounds, lower_bounds):
         self.generate_parameter_set( upper_bounds, lower_bounds)
@@ -199,7 +201,8 @@ class SA:
         self.finished_simulation_dirs = []
         for simulation_i in range(len(all_simulation_dirs)):
             if os.path.exists(all_simulation_dirs[simulation_i].split()[0] + '/results_csv/timeset_1.csv'):
-                self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
+                if os.path.exists(all_simulation_dirs[simulation_i].split()[0]+'/heart-cardiac-cycle.sld.res'):
+                    self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
             # if os.path.exists(all_simulation_dirs[simulation_i].split()[0] + '/heart.post.alyafil'):
             #     with open(all_simulation_dirs[simulation_i].split()[0] + '/heart.post.alyafil', 'r') as f:
             #         if len(f.readlines()) >= 1000:
@@ -460,59 +463,158 @@ class SA:
                     ax.set_xlabel(names[param_j])
                 if param_j == 0:
                     ax.set_ylabel(qoi_names[qoi_i])
+
+                if qoi_names[qoi_i] == 'LVEF':
+                    ax.axhspan(self.healthy_ranges['LVEF'][0], self.healthy_ranges['LVEF'][1], alpha=0.3, facecolor='green')
+                elif qoi_names[qoi_i] == 'EDVL':
+                    ax.axhspan(self.healthy_ranges['LVEDV'][0], self.healthy_ranges['LVEDV'][1], alpha=0.3, facecolor='green')
+                elif qoi_names[qoi_i] == 'ESVL':
+                    ax.axhspan(self.healthy_ranges['LVESV'][0], self.healthy_ranges['LVESV'][1], alpha=0.3, facecolor='green')
+                elif qoi_names[qoi_i] == 'PmaxL':
+                    ax.axhspan(self.healthy_ranges['LVESP'][0], self.healthy_ranges['LVESP'][1], alpha=0.3,
+                               facecolor='green')
+                elif qoi_names[qoi_i] == 'es_ed_avpd':
+                    ax.axhspan(self.healthy_ranges['AVPD'][0], self.healthy_ranges['AVPD'][1], alpha=0.3,
+                               facecolor='green')
+                elif qoi_names[qoi_i] == 'es_ed_apical_displacement':
+                    ax.axhspan(self.healthy_ranges['apical_displacement'][0],
+                               self.healthy_ranges['apical_displacement'][1], alpha=0.3,
+                               facecolor='green')
+                elif qoi_names[qoi_i] == 'qt_dur_mean':
+                    ax.axhspan(self.healthy_ranges['QTc'][0],
+                               self.healthy_ranges['QTc'][1], alpha=0.3,
+                               facecolor='green')
+                elif qoi_names[qoi_i] == 'qrs_dur_mean':
+                    ax.axhspan(self.healthy_ranges['QRS_duration'][0],
+                               self.healthy_ranges['QRS_duration'][1], alpha=0.3,
+                               facecolor='green')
+                elif qoi_names[qoi_i] == 't_pe_mean':
+                    ax.axhspan(self.healthy_ranges['Tpe'][0],
+                               self.healthy_ranges['Tpe'][1], alpha=0.3,
+                               facecolor='green')
+                elif qoi_names[qoi_i] == 'dvdt_ejection':
+                    ax.axhspan(self.healthy_ranges['dvdt_ejection'][0],
+                               self.healthy_ranges['dvdt_ejection'][1], alpha=0.3,
+                               facecolor='green')
+                elif qoi_names[qoi_i] == 'dvdt_filling':
+                    ax.axhspan(self.healthy_ranges['dvdt_filling'][0],
+                               self.healthy_ranges['dvdt_filling'][1], alpha=0.3,
+                               facecolor='green')
+                elif qoi_names[qoi_i] == 'dpdt_max':
+                    ax.axhspan(self.healthy_ranges['dpdt_max'][0],
+                               self.healthy_ranges['dpdt_max'][1], alpha=0.3,
+                               facecolor='green')
+
         plt.savefig('scatter_qois_vs_parameters.png')
         plt.show()
-        quit()
-        ###############################################################################################################
+
+        # ###############################################################################################################
+        # fig = plt.figure(tight_layout=True, figsize=(18, 10))
+        # fig.suptitle('N=' + str(Y.shape[0]))
+        # gs = GridSpec(num_qois, num_qois)
+        # for qoi_i in range(num_qois):
+        #     for qoi_j in range(num_qois):
+        #         if qoi_i >= qoi_j:
+        #             ax = fig.add_subplot(gs[qoi_i, qoi_j])
+        #             if num_qois == 1:
+        #                 y = Y
+        #             else:
+        #                 y = Y[:, qoi_i]
+        #             x = Y[:, qoi_j]
+        #             sns.regplot(x=x, y=y, ax=ax, scatter_kws={'s': 1})
+        #             ax.text(x=np.amin(x), y=np.amax(y), va='top', ha='left',
+        #                     s='p=%.2f' % (np.corrcoef(x, y)[0, 1]))
+        #         if qoi_i == num_qois - 1:
+        #             ax.set_xlabel(qoi_names[qoi_j])
+        #         if qoi_j == 0:
+        #             ax.set_ylabel(qoi_names[qoi_i])
+        # plt.savefig('scatter_qois_vs_qois.png')
+        # plt.show()
+        # ####################################################################################################################
+        # # Tornado plot of sensitivity indices https://seaborn.pydata.org/examples/part_whole_bars.html
+        # sp.set_results(Y)
+        # Si = sp.analyze_sobol(print_to_console=False, calc_second_order=False)
+        # fig = plt.figure(tight_layout=True, figsize=(15,6))
+        # fig.suptitle('N=' + str(Y.shape[0]))
+        # gs = GridSpec(1, num_qois)
+        # data = Si.to_df()
+        # sns.set_theme(style="whitegrid")
+        # for qoi_i in range(num_qois):
+        #     ax = fig.add_subplot(gs[0, qoi_i])
+        #     st_s1_data = pd.concat([data[qoi_i][0], data[qoi_i][1]], axis=1)
+        #     sorted_data = st_s1_data.reindex(st_s1_data.abs().sort_values('ST', ascending=False).index)
+        #     names = []
+        #     for row in sorted_data.index:
+        #         names.append(row)
+        #     sns.set_color_codes("pastel")
+        #     sns.barplot(data=sorted_data, x='ST', y=names, label='ST', color='b')
+        #     sns.set_color_codes("muted")
+        #     sns.barplot(data=sorted_data, x='S1', y=names, label='S1', color='b')
+        #
+        #     ax.set( ylabel="",
+        #            xlabel=qoi_names[qoi_i])
+        #     if qoi_i == num_qois-1:
+        #         ax.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left', frameon=True)
+        # plt.show()
+        # plt.savefig('ST_S1_tornado.png')
+
+    def analyse_qoi_vs_qoi(self, filename_1, filename_2, qois_1, qois_2):
+        self.qois_db_1 = pd.read_csv(filename_1, index_col=False)
+        self.qois_db_2 = pd.read_csv(filename_2, index_col=False)
+        names = self.parameter_names
+        sp_1 = ProblemSpec({'num_vars': len(names),
+                          'names': names,
+                          'bounds': [[0.5, 2]] * len(names),
+                          'outputs': qois_1
+                          })
+        sp_2 = ProblemSpec({'num_vars': len(names),
+                            'names': names,
+                            'bounds': [[0.5, 2]] * len(names),
+                            'outputs': qois_2
+                            })
+        qoi_names_1 = sp_1.get('outputs')
+        qoi_names_2 = sp_2.get('outputs')
+        Y_1 = self.qois_db_1[qois_1].values
+        Y_2 = self.qois_db_2[qois_2].values
+
+        ################################################################################################################
+        # Scatter plots with correlation coefficients
+        if len(Y_1.shape) == 1:
+            num_qois_1 = 1
+        else:
+            num_qois_1 = Y_1.shape[1]
+        if len(Y_2.shape) == 1:
+            num_qois_2 = 1
+        else:
+            num_qois_2 = Y_2.shape[1]
         fig = plt.figure(tight_layout=True, figsize=(18, 10))
-        fig.suptitle('N=' + str(Y.shape[0]))
-        gs = GridSpec(num_qois, num_qois)
-        for qoi_i in range(num_qois):
-            for qoi_j in range(num_qois):
-                if qoi_i >= qoi_j:
-                    ax = fig.add_subplot(gs[qoi_i, qoi_j])
-                    if num_qois == 1:
-                        y = Y
-                    else:
-                        y = Y[:, qoi_i]
-                    x = Y[:, qoi_j]
-                    sns.regplot(x=x, y=y, ax=ax, scatter_kws={'s': 1})
-                    ax.text(x=np.amin(x), y=np.amax(y), va='top', ha='left',
-                            s='p=%.2f' % (np.corrcoef(x, y)[0, 1]))
-                if qoi_i == num_qois - 1:
-                    ax.set_xlabel(qoi_names[qoi_j])
-                if qoi_j == 0:
-                    ax.set_ylabel(qoi_names[qoi_i])
-        plt.savefig('scatter_qois_vs_qois.png')
+        fig.suptitle('N=' + str(Y_1.shape[0]))
+        gs = GridSpec(num_qois_2, num_qois_1)
+        for qoi_i_1 in range(num_qois_1):
+            for qoi_i_2 in range(num_qois_2):
+                ax = fig.add_subplot(gs[qoi_i_2, qoi_i_1])
+                y = Y_2[:, qoi_i_2]
+                x = Y_1[:, qoi_i_1]
+                sns.regplot(x=x, y=y, ax=ax, scatter_kws={'s':1})
+                ax.text(x=np.amin(x), y=np.amax(y), va='top', ha='left',
+                        s='p=%.2f' % (np.corrcoef(x, y)[0, 1]))
+                if qoi_i_2 == num_qois_2-1:
+                    ax.set_xlabel(qoi_names_1[qoi_i_1])
+                if qoi_i_1 == 0:
+                    ax.set_ylabel(qoi_names_2[qoi_i_2])
+                if qoi_names_1[qoi_i_1] == 'EDVL':
+                    ax.set_xlim(145, 160)
+                elif qoi_names_1[qoi_i_1] == 'ESVL':
+                    ax.set_xlim(60, 90)
+                elif qoi_names_1[qoi_i_1] == 'LVEF':
+                    ax.set_xlim(35, 60)
+                elif qoi_names_1[qoi_i_1] == 'PmaxL':
+                    ax.set_xlim(11, 13)
+                if qoi_names_2[qoi_i_2] == 'qt_dur_mean':
+                    ax.set_ylim(0.48, 0.50)
+                elif qoi_names_2[qoi_i_2] == 't_pe_mean':
+                    ax.set_ylim(0.28, 0.29)
         plt.show()
-        ####################################################################################################################
-        # Tornado plot of sensitivity indices https://seaborn.pydata.org/examples/part_whole_bars.html
-        sp.set_results(Y)
-        Si = sp.analyze_sobol(print_to_console=False, calc_second_order=False)
-        fig = plt.figure(tight_layout=True, figsize=(15,6))
-        fig.suptitle('N=' + str(Y.shape[0]))
-        gs = GridSpec(1, num_qois)
-        data = Si.to_df()
-        sns.set_theme(style="whitegrid")
-        for qoi_i in range(num_qois):
-            ax = fig.add_subplot(gs[0, qoi_i])
-            st_s1_data = pd.concat([data[qoi_i][0], data[qoi_i][1]], axis=1)
-            sorted_data = st_s1_data.reindex(st_s1_data.abs().sort_values('ST', ascending=False).index)
-            names = []
-            for row in sorted_data.index:
-                names.append(row)
-            sns.set_color_codes("pastel")
-            sns.barplot(data=sorted_data, x='ST', y=names, label='ST', color='b')
-            sns.set_color_codes("muted")
-            sns.barplot(data=sorted_data, x='S1', y=names, label='S1', color='b')
-
-            ax.set( ylabel="",
-                   xlabel=qoi_names[qoi_i])
-            if qoi_i == num_qois-1:
-                ax.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left', frameon=True)
-        plt.show()
-        plt.savefig('ST_S1_tornado.png')
-
 
 
     def run_jobs(self, simulation_dir, start_id=0):

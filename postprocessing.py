@@ -12,6 +12,7 @@ from ECGPV_visualisation import ECGPV_visualisation
 from meshstructure import MeshStructure
 from myformat import Fields
 import pandas as pd
+import healthy_qoi_ranges
 
 class PostProcessing(MeshStructure):
     def __init__(self, alya, simulation_json_file, alya_output_dir, verbose):
@@ -34,6 +35,7 @@ class PostProcessing(MeshStructure):
         self.simulation_dict = json.load(open(simulation_json_file, 'r'))
         self.verbose = verbose
         self.qoi = {}
+        self.healthy_ranges = healthy_qoi_ranges.HealthyBiomarkerRanges().healthy_ranges
         # print('Read Alya log outputs')
         # self.read_log_files()
         # super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
@@ -112,31 +114,35 @@ class PostProcessing(MeshStructure):
         ecg_filename = self.alya_output_dir + self.simulation_dict['name']
         print('Reading ECG from: ', ecg_filename)
         self.ecgs = ecgpv._read_ECG(ecg_filename)
-        # lead_names = ['Is', 'IIs', 'IIIs', 'aVLs', 'aVRs', 'aVFs', 'V1s', 'V2s', 'V3s', 'V4s', 'V5s', 'V6s']
-        # qrs_dur = np.zeros((len(lead_names)))
-        # qt_dur = np.zeros((len(lead_names)))
-        # t_pe = np.zeros((len(lead_names)))
-        # t_peak = np.zeros((len(lead_names)))
-        # qtpeak_dur = np.zeros((len(lead_names)))
-        # t_polarity = np.zeros((len(lead_names)))
-        # for i, lead_i in enumerate(lead_names):
-        #     qrs_dur[i], qt_dur[i], t_pe[i], t_peak[i], qtpeak_dur[i], t_polarity[i], landmarks_temp = \
-        #         self.calculate_ecg_biomarkers(time=self.ecgs['ts'][beat], V=self.ecgs[lead_i][beat],
-        #                                       LAT=self.post_nodefield.dict['lat'])
-        # qoi = {}
-        # qoi['qrs_dur_mean'] = np.mean(qrs_dur)
-        # qoi['qt_dur_mean'] = np.mean(qt_dur)
-        # qoi['t_pe_mean'] = np.mean(t_pe)
-        # qoi['t_peak_mean'] = np.mean(t_peak)
-        # qoi['qtpeak_dur_mean'] = np.mean(qtpeak_dur)
-        # qoi['t_polarity_mean'] = np.mean(t_polarity)
-        # qoi['qrs_dur_std'] = np.std(qrs_dur)
-        # qoi['qt_dur_std'] = np.std(qt_dur)
-        # qoi['t_pe_std'] = np.std(t_pe)
-        # qoi['t_peak_std'] = np.std(t_peak)
-        # qoi['qtpeak_dur_std']  = np.std(qtpeak_dur)
-        # qoi['t_polarity_std'] = np.std(t_polarity)
-        # self.qoi.update(qoi)
+        lead_names = ['Is', 'IIs', 'IIIs', 'aVLs', 'aVRs', 'aVFs', 'V1s', 'V2s', 'V3s', 'V4s', 'V5s', 'V6s']
+        qrs_dur = np.zeros((len(lead_names)))
+        qt_dur = np.zeros((len(lead_names)))
+        t_pe = np.zeros((len(lead_names)))
+        t_peak = np.zeros((len(lead_names)))
+        qtpeak_dur = np.zeros((len(lead_names)))
+        t_polarity = np.zeros((len(lead_names)))
+        for i, lead_i in enumerate(lead_names):
+            # qrs_dur[i], qt_dur[i], t_pe[i], t_peak[i], qtpeak_dur[i], t_polarity[i], landmarks_temp = \
+            #     self.calculate_ecg_biomarkers(time=self.ecgs['ts'][beat-1], V=self.ecgs[lead_i][beat-1],
+            #                                   LAT=self.post_nodefield.dict['lat'])
+            qrs_dur[i], qt_dur[i], t_pe[i], t_peak[i], qtpeak_dur[i], t_polarity[i], landmarks_temp = \
+                    self.calculate_ecg_biomarkers(time=self.ecgs['ts'][beat-1], V=self.ecgs[lead_i][beat-1],
+                                                  qrs_end_t=0.1)
+
+        qoi = {}
+        qoi['qrs_dur_mean'] = np.mean(qrs_dur)
+        qoi['qt_dur_mean'] = np.mean(qt_dur)
+        qoi['t_pe_mean'] = np.mean(t_pe)
+        qoi['t_peak_mean'] = np.mean(t_peak)
+        qoi['qtpeak_dur_mean'] = np.mean(qtpeak_dur)
+        qoi['t_polarity_mean'] = np.mean(t_polarity)
+        qoi['qrs_dur_std'] = np.std(qrs_dur)
+        qoi['qt_dur_std'] = np.std(qt_dur)
+        qoi['t_pe_std'] = np.std(t_pe)
+        qoi['t_peak_std'] = np.std(t_peak)
+        qoi['qtpeak_dur_std']  = np.std(qtpeak_dur)
+        qoi['t_polarity_std'] = np.std(t_polarity)
+        self.qoi.update(qoi)
 
     def evaluate_pv_biomarkers(self, beat):
         pv_filename = self.alya_output_dir + self.simulation_dict['name']
@@ -144,6 +150,28 @@ class PostProcessing(MeshStructure):
         print('Reading PV from: ', pv_filename)
         self.pvs = ecgpv._read_PV(pv_filename)
         pv_analysis = ecgpv.analysis_PV(pvs=self.pvs, beat=beat)
+
+        def get_first_derivative(self, t, y):
+            dydt = [0]
+            for i in range(len(y) - 1):
+                i += 1
+                dydt.append((y[i] - y[i - 1]) / (t[i] - t[i - 1]))
+            assert len(dydt) == len(y)
+            return np.array(dydt)
+        # Get volume flow rates
+        t = self.pvs['ts'][beat-1]
+        y = self.pvs['vls'][beat-1]
+        end_systole_idx = np.argmin(y)
+        dvdt = self.get_first_derivative(t=t, y=y)
+        dvdt_ejection = abs(np.amin(dvdt[10:end_systole_idx]))
+        dvdt_filling = abs(np.amax(dvdt[end_systole_idx:]))
+
+        t = self.pvs['ts'][beat - 1]
+        y = self.pvs['pls'][beat - 1]
+        end_systole_idx = np.argmax(y)
+        dpdt = self.get_first_derivative(t=t, y=y)
+        dpdt_max = abs(np.amax(dvdt[10:end_systole_idx]))
+
         qoi = {}
         qoi['EDVL'] = pv_analysis['EDVL']
         qoi['EDVR'] = pv_analysis['EDVR']
@@ -151,10 +179,13 @@ class PostProcessing(MeshStructure):
         qoi['ESVR'] = pv_analysis['ESVR']
         qoi['LVEF'] = pv_analysis['LVEF']
         qoi['RVEF'] = pv_analysis['RVEF']
-        qoi['PmaxL'] = pv_analysis['PmaxL']
-        qoi['PmaxR'] = pv_analysis['PmaxR']
+        qoi['PmaxL'] = pv_analysis['PmaxL']/10000
+        qoi['PmaxR'] = pv_analysis['PmaxR']/10000
         qoi['SVL'] = pv_analysis['SVL']
         qoi['SVR'] = pv_analysis['SVR']
+        qoi['dvdt_ejection'] = dvdt_ejection
+        qoi['dvdt_filling'] = dvdt_filling
+        qoi['dpdt_max'] = dpdt_max
         self.qoi.update(qoi)
 
     def evaluate_deformation_biomarkers(self, beat):
@@ -231,8 +262,10 @@ class PostProcessing(MeshStructure):
         qoi = {}
         qoi['peak_avpd'] = np.amax(avpd)
         qoi['min_avpd'] = np.amin(avpd)
+        qoi['es_ed_avpd'] = np.amax(avpd) - np.amin(avpd)
         qoi['peak_apical_displacement'] = np.amax(apical_displacement)
         qoi['min_apical_displacement'] = np.amin(apical_displacement)
+        qoi['es_ed_apical_displacement'] = np.amax(apical_displacement) - np.amin(apical_displacement)
         qoi['peak_lv_wall_thickness'] = np.amax(lv_wall_thickness)
         qoi['min_lv_wall_thickness'] = np.amin(lv_wall_thickness)
         qoi['peak_rv_wall_thickness'] = np.amax(rv_wall_thickness)
@@ -268,6 +301,13 @@ class PostProcessing(MeshStructure):
         epi_mesh_nodes = np.nonzero(self.node_fields.dict['tm'] <= epi_cutoff)[0]
         midw_mesh_nodes = np.nonzero((self.node_fields.dict['tm'] < endo_cutoff) & (self.node_fields.dict['tm'] > epi_cutoff))[0]
 
+        mid_short_axis_nodes = np.nonzero(self.node_fields.dict['short-axis-slices'] == 2)[0]
+        endo_midshort_nodes = mid_short_axis_nodes[np.nonzero(self.node_fields.dict['tm'][mid_short_axis_nodes]>=endo_cutoff)[0]]
+        epi_midshort_nodes = mid_short_axis_nodes[np.nonzero(self.node_fields.dict['tm'][mid_short_axis_nodes]<= epi_cutoff)[0]]
+        mid_midshort_nodes = mid_short_axis_nodes[np.nonzero((self.node_fields.dict['tm'][mid_short_axis_nodes] < endo_cutoff)
+                                                             & (self.node_fields.dict['tm'][mid_short_axis_nodes] > epi_cutoff))[0]]
+
+
         # Apical lambda and Ta
         apical_lambda = pymp.shared.array(time_idx.shape[0], dtype=float)
         midv_lambda = pymp.shared.array(time_idx.shape[0], dtype=float)
@@ -287,40 +327,89 @@ class PostProcessing(MeshStructure):
         midw_cross_lambda = pymp.shared.array(time_idx.shape[0], dtype=float)
         epi_cross_lambda = pymp.shared.array(time_idx.shape[0], dtype=float)
 
+        endo_midshort_lambda = pymp.shared.array((endo_midshort_nodes.shape[0], time_idx.shape[0]))
+        epi_midshort_lambda = pymp.shared.array((epi_midshort_nodes.shape[0], time_idx.shape[0]))
+        mid_midshort_lambda = pymp.shared.array((mid_midshort_nodes.shape[0], time_idx.shape[0]))
+
         ta_shared = pymp.shared.array(self.post_nodefield.dict['ACTST'].shape, dtype=float)
         lambda_shared = pymp.shared.array(self.post_nodefield.dict['LAMBD'].shape, dtype=float)
         ta_shared[:,:] = self.post_nodefield.dict['ACTST']
         lambda_shared[:,:] = self.post_nodefield.dict['LAMBD']
         threadsNum = multiprocessing.cpu_count()
+        print('Regionally dividing lambda and Ta')
         with pymp.Parallel(min(threadsNum, time_idx.shape[0])) as p1:
             for time_i in p1.range(time_idx.shape[0]):
-                apical_lambda[time_i] = np.mean(lambda_shared[apical_mesh_nodes, 0, time_i])
-                midv_lambda[time_i] = np.mean(lambda_shared[midv_mesh_nodes, 0, time_i])
-                basal_lambda[time_i] = np.mean(lambda_shared[basal_mesh_nodes, 0, time_i])
-                endo_lambda[time_i] = np.mean(lambda_shared[endo_mesh_nodes, 0, time_i])
-                midw_lambda[time_i] = np.mean(lambda_shared[midw_mesh_nodes, 0, time_i])
-                epi_lambda[time_i] = np.mean(lambda_shared[epi_mesh_nodes, 0, time_i])
-                endo_cross_lambda[time_i] = np.mean(lambda_shared[endo_mesh_nodes, 1, time_i])
-                midw_cross_lambda[time_i] = np.mean(lambda_shared[midw_mesh_nodes, 1, time_i])
-                epi_cross_lambda[time_i] = np.mean(lambda_shared[epi_mesh_nodes, 1, time_i])
-
+                # apical_lambda[time_i] = np.mean(lambda_shared[apical_mesh_nodes, 0, time_i])
+                # midv_lambda[time_i] = np.mean(lambda_shared[midv_mesh_nodes, 0, time_i])
+                # basal_lambda[time_i] = np.mean(lambda_shared[basal_mesh_nodes, 0, time_i])
+                # endo_lambda[time_i] = np.mean(lambda_shared[endo_mesh_nodes, 0, time_i])
+                # midw_lambda[time_i] = np.mean(lambda_shared[midw_mesh_nodes, 0, time_i])
+                # epi_lambda[time_i] = np.mean(lambda_shared[epi_mesh_nodes, 0, time_i])
+                # endo_cross_lambda[time_i] = np.mean(lambda_shared[endo_mesh_nodes, 1, time_i])
+                # midw_cross_lambda[time_i] = np.mean(lambda_shared[midw_mesh_nodes, 1, time_i])
+                # epi_cross_lambda[time_i] = np.mean(lambda_shared[epi_mesh_nodes, 1, time_i])
+                #
                 apical_Ta[time_i] = np.mean(ta_shared[apical_mesh_nodes, 0, time_i])
                 midv_Ta[time_i] = np.mean(ta_shared[midv_mesh_nodes, 0, time_i])
                 basal_Ta[time_i] = np.mean(ta_shared[basal_mesh_nodes, 0, time_i])
                 endo_Ta[time_i] = np.mean(ta_shared[endo_mesh_nodes, 0, time_i])
                 midw_Ta[time_i] = np.mean(ta_shared[midw_mesh_nodes, 0, time_i])
                 epi_Ta[time_i] = np.mean(ta_shared[epi_mesh_nodes, 0, time_i])
+
+                endo_midshort_lambda[:, time_i] = lambda_shared[endo_midshort_nodes, 0, time_i]
+                epi_midshort_lambda[:, time_i] = lambda_shared[epi_midshort_nodes, 0, time_i]
+                mid_midshort_lambda[:, time_i] = lambda_shared[mid_midshort_nodes, 0, time_i]
+        systole = np.min(endo_midshort_lambda, axis=1)
+        tol = 0.01 * abs(np.min(systole))
+        endo_midshort_lambda_median = endo_midshort_lambda[np.where(abs(systole - np.percentile(systole, 50)) < tol)[0][0], :]
+        endo_midshort_lambda_uq = endo_midshort_lambda[np.where(abs(systole - np.percentile(systole, 75)) < tol)[0][0], :]
+        endo_midshort_lambda_lq = endo_midshort_lambda[np.where(abs(systole - np.percentile(systole, 25)) < tol)[0][0], :]
+
+        systole = np.min(epi_midshort_lambda, axis=1)
+        tol = 0.01 * abs(np.min(systole))
+        epi_midshort_lambda_median = epi_midshort_lambda[
+                                      np.where(abs(systole - np.percentile(systole, 50)) < tol)[0][0], :]
+        epi_midshort_lambda_uq = epi_midshort_lambda[np.where(abs(systole - np.percentile(systole, 75)) < tol)[0][0],
+                                  :]
+        epi_midshort_lambda_lq = epi_midshort_lambda[np.where(abs(systole - np.percentile(systole, 25)) < tol)[0][0],
+                                  :]
+
+        systole = np.min(mid_midshort_lambda, axis=1)
+        tol = 0.01 * abs(np.min(systole))
+        mid_midshort_lambda_median = mid_midshort_lambda[
+                                      np.where(abs(systole - np.percentile(systole, 50)) < tol)[0][0], :]
+        mid_midshort_lambda_uq = mid_midshort_lambda[np.where(abs(systole - np.percentile(systole, 75)) < tol)[0][0],
+                                  :]
+        mid_midshort_lambda_lq = mid_midshort_lambda[np.where(abs(systole - np.percentile(systole, 25)) < tol)[0][0],
+                                  :]
+
+
         self.fibre_work = {}
         self.fibre_work['fibrework_t'] = fibrework_t
-        self.fibre_work['apical_lambda'] = apical_lambda
-        self.fibre_work['midv_lambda'] = midv_lambda
-        self.fibre_work['basal_lambda'] = basal_lambda
-        self.fibre_work['endo_lambda'] = endo_lambda
-        self.fibre_work['midw_lambda'] = midw_lambda
-        self.fibre_work['epi_lambda'] = epi_lambda
-        self.fibre_work['endo_cross_lambda'] = endo_cross_lambda
-        self.fibre_work['midw_cross_lambda'] = midw_cross_lambda
-        self.fibre_work['epi_cross_lambda'] = epi_cross_lambda
+        # self.fibre_work['apical_lambda'] = apical_lambda
+        # self.fibre_work['midv_lambda'] = midv_lambda
+        # self.fibre_work['basal_lambda'] = basal_lambda
+        # self.fibre_work['endo_lambda'] = endo_lambda
+        # self.fibre_work['midw_lambda'] = midw_lambda
+        # self.fibre_work['epi_lambda'] = epi_lambda
+        # self.fibre_work['endo_cross_lambda'] = endo_cross_lambda
+        # self.fibre_work['midw_cross_lambda'] = midw_cross_lambda
+        # self.fibre_work['epi_cross_lambda'] = epi_cross_lambda
+
+        self.fibre_work['endo_midshort_lambda']= endo_midshort_lambda
+        self.fibre_work['endo_midshort_lambda_median'] = endo_midshort_lambda_median
+        self.fibre_work['endo_midshort_lambda_uq'] = endo_midshort_lambda_uq
+        self.fibre_work['endo_midshort_lambda_lq'] = endo_midshort_lambda_lq
+
+        self.fibre_work['epi_midshort_lambda'] = epi_midshort_lambda
+        self.fibre_work['epi_midshort_lambda_median'] = epi_midshort_lambda_median
+        self.fibre_work['epi_midshort_lambda_uq'] = epi_midshort_lambda_uq
+        self.fibre_work['epi_midshort_lambda_lq'] = epi_midshort_lambda_lq
+
+        self.fibre_work['mid_midshort_lambda'] = mid_midshort_lambda
+        self.fibre_work['mid_midshort_lambda_median'] = mid_midshort_lambda_median
+        self.fibre_work['mid_midshort_lambda_uq'] = mid_midshort_lambda_uq
+        self.fibre_work['mid_midshort_lambda_lq'] = mid_midshort_lambda_lq
 
         self.fibre_work['apical_Ta'] = apical_Ta
         self.fibre_work['midv_Ta'] = midv_Ta
@@ -336,8 +425,7 @@ class PostProcessing(MeshStructure):
         qoi['min_lambda'] = np.amin(np.mean(lambda_shared[:, 0, :], axis=0))
         self.qoi.update(qoi)
 
-
-    def calculate_ecg_biomarkers(self, time, V, LAT):
+    def calculate_ecg_biomarkers(self, time, V, LAT=None, qrs_end_t=None):
         """This is not to be used with clinical data because it assumes that the signal returns to baseline after the end
             of the T wave."""
         # TODO: Assumes ECGs are at 1000 Hz.
@@ -354,12 +442,16 @@ class PostProcessing(MeshStructure):
         #     if (dV[i] > dVTOL_start_of_QRS) & (i > 10):
         #         break
         # q_start_idx = i
-        q_start_idx = np.nanargmin(LAT)
+
 
         # Set QRS end
-        qrs_end_idx = np.nanargmax(LAT).astype(int)
+        if LAT:
+            q_start_idx = np.nanargmin(LAT)
+            qrs_end_idx = np.nanargmax(LAT).astype(int)
+        elif qrs_end_t:
+            q_start_idx = 0
+            qrs_end_idx = np.argmin(abs(time-0.1)) # TODO Use actual LAT to calculate this!
         qrs_dur = time[qrs_end_idx] - time[q_start_idx]  # TODO code how to find end of QRS
-
 
         # Find T peak and amplitude
         segment = V[qrs_end_idx:]
@@ -372,6 +464,7 @@ class PostProcessing(MeshStructure):
         # t_polarity = t_max/t_min * 1/(max(abs(t_max),abs(t_min))) # Value close to 1 is positive monophasic, close to 0 is negative monophasic, around 0.5 is biphasic.
         t_polarity = (t_max + t_min) / (max(abs(t_max), abs(t_min)))
         # Find T-wave end
+        i = len(V) - 1
         for i in range(len(V) - 1, t_peak_idx, -1):
             if (dV[i] > dVTOL_end_of_Twave):
                 break
@@ -476,6 +569,8 @@ class PostProcessing(MeshStructure):
                                       float(self.simulation_dict['cycle_length'])])
         rt[self.node_fields.dict['tv'] == -10] = np.nan
         lat[self.node_fields.dict['tv'] == -10] = np.nan
+        print('Max LAT: ', str(np.nanmax(lat)))
+        print('Max RT: ', str(np.nanmax(rt)))
         self.post_nodefield.add_field(data=lat, data_name='lat', field_type='postnodefield')
         self.post_nodefield.add_field(data=rt, data_name='rt', field_type='postnodefield')
 
@@ -665,13 +760,7 @@ class PostProcessing(MeshStructure):
 
     def evaluate_strain_biomarkers(self, beat):
         print('Strain evaluations in ventricular coordinates')
-        self.read_csv_fields(read_field_name='EPSXX', read_field_type='scalar')
-        self.read_csv_fields(read_field_name='EPSYY', read_field_type='scalar')
-        self.read_csv_fields(read_field_name='EPSZZ', read_field_type='scalar')
-        self.read_csv_fields(read_field_name='EPSXY', read_field_type='scalar')
-        self.read_csv_fields(read_field_name='EPSXZ', read_field_type='scalar')
-        self.read_csv_fields(read_field_name='EPSYZ', read_field_type='scalar')
-
+        self.read_csv_fields(read_field_name='EPSXX', read_field_type='scalar') # to get time information
         # Select time segment according to specified beat # TODO assuming CL is always 1.0 s
         CL = 1.0
         time_idx = []
@@ -685,118 +774,150 @@ class PostProcessing(MeshStructure):
         time_idx = np.array(time_idx, dtype=int)
 
         # Evaluate longitudinal, circumferential, and radial strains
-        E = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0], 3, 3)) # Strain tensors at each node over time
-        E_cc = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
-        E_ll = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
-        E_rr = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
-        exx = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
-        eyy = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
-        ezz = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
-        exy = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
-        exz = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
-        eyz = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
-        local_l = pymp.shared.array((self.geometry.number_of_nodes, 3))
-        local_c = pymp.shared.array((self.geometry.number_of_nodes, 3))
-        local_r = pymp.shared.array((self.geometry.number_of_nodes, 3))
-        local_l[:, :] = self.node_fields.dict['local_l']
-        local_c[:, :] = self.node_fields.dict['local_c']
-        local_r[:, :] = self.node_fields.dict['local_r']
-        exx[:, :] = self.post_nodefield.dict['EPSXX'][:, time_idx]
-        eyy[:, :] = self.post_nodefield.dict['EPSYY'][:, time_idx]
-        ezz[:, :] = self.post_nodefield.dict['EPSZZ'][:, time_idx]
-        exy[:, :] = self.post_nodefield.dict['EPSXY'][:, time_idx]
-        exz[:, :] = self.post_nodefield.dict['EPSXZ'][:, time_idx]
-        eyz[:, :] = self.post_nodefield.dict['EPSYZ'][:, time_idx]
-        threadsNum = multiprocessing.cpu_count()
-        for time_i in range(time_idx.shape[0]):
-            E[:, time_i, 0, 0] = exx[:, time_i]
-            E[:, time_i, 0, 1] = exy[:, time_i]
-            E[:, time_i, 0, 2] = exz[:, time_i]
-            E[:, time_i, 1, 0] = exy[:, time_i]
-            E[:, time_i, 1, 1] = eyy[:, time_i]
-            E[:, time_i, 1, 2] = eyz[:, time_i]
-            E[:, time_i, 2, 0] = exz[:, time_i]
-            E[:, time_i, 2, 1] = eyz[:, time_i]
-            E[:, time_i, 2, 2] = ezz[:, time_i]
-            with pymp.Parallel(min(threadsNum, self.geometry.number_of_nodes)) as p1:
-                for node_i in p1.range(self.geometry.number_of_nodes):
-                    E_cc[node_i, time_i] = np.dot(np.dot(E[node_i, time_i, :, :], local_c[node_i, :]), local_c[node_i, :])
-                    E_ll[node_i, time_i] = np.dot(np.dot(E[node_i, time_i, :, :], local_l[node_i, :]), local_l[node_i, :])
-                    E_rr[node_i, time_i] = np.dot(np.dot(E[node_i, time_i, :, :], local_r[node_i, :]), local_r[node_i, :])
+        if 'E_cc' not in self.post_nodefield.dict.keys():
+            self.read_csv_fields(read_field_name='EPSYY', read_field_type='scalar')
+            self.read_csv_fields(read_field_name='EPSZZ', read_field_type='scalar')
+            self.read_csv_fields(read_field_name='EPSXY', read_field_type='scalar')
+            self.read_csv_fields(read_field_name='EPSXZ', read_field_type='scalar')
+            self.read_csv_fields(read_field_name='EPSYZ', read_field_type='scalar')
+            print('Evaluating E_cc, E_ll, E_rr...')
+            E = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0], 3, 3)) # Strain tensors at each node over time
+            E_cc = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
+            E_ll = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
+            E_rr = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
+            exx = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
+            eyy = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
+            ezz = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
+            exy = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
+            exz = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
+            eyz = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
+            local_l = pymp.shared.array((self.geometry.number_of_nodes, 3))
+            local_c = pymp.shared.array((self.geometry.number_of_nodes, 3))
+            local_r = pymp.shared.array((self.geometry.number_of_nodes, 3))
+            local_l[:, :] = self.node_fields.dict['local_l']
+            local_c[:, :] = self.node_fields.dict['local_c']
+            local_r[:, :] = self.node_fields.dict['local_r']
+            exx[:, :] = self.post_nodefield.dict['EPSXX'][:, time_idx]
+            eyy[:, :] = self.post_nodefield.dict['EPSYY'][:, time_idx]
+            ezz[:, :] = self.post_nodefield.dict['EPSZZ'][:, time_idx]
+            exy[:, :] = self.post_nodefield.dict['EPSXY'][:, time_idx]
+            exz[:, :] = self.post_nodefield.dict['EPSXZ'][:, time_idx]
+            eyz[:, :] = self.post_nodefield.dict['EPSYZ'][:, time_idx]
+            threadsNum = multiprocessing.cpu_count()
+            with pymp.Parallel(min(threadsNum, time_idx.shape[0])) as p1:
+                for time_i in p1.range(time_idx.shape[0]):
+                    E[:, time_i, 0, 0] = exx[:, time_i]
+                    E[:, time_i, 0, 1] = exy[:, time_i]
+                    E[:, time_i, 0, 2] = exz[:, time_i]
+                    E[:, time_i, 1, 0] = exy[:, time_i]
+                    E[:, time_i, 1, 1] = eyy[:, time_i]
+                    E[:, time_i, 1, 2] = eyz[:, time_i]
+                    E[:, time_i, 2, 0] = exz[:, time_i]
+                    E[:, time_i, 2, 1] = eyz[:, time_i]
+                    E[:, time_i, 2, 2] = ezz[:, time_i]
+                    for node_i in range(self.geometry.number_of_nodes):
+                        E_cc[node_i, time_i] = np.dot(np.dot(E[node_i, time_i, :, :], local_c[node_i, :]), local_c[node_i, :])
+                        E_ll[node_i, time_i] = np.dot(np.dot(E[node_i, time_i, :, :], local_l[node_i, :]), local_l[node_i, :])
+                        E_rr[node_i, time_i] = np.dot(np.dot(E[node_i, time_i, :, :], local_r[node_i, :]), local_r[node_i, :])
+            # Delete raw inputs
+            temp = self.post_nodefield.dict.pop('EPSXX')
+            temp = self.post_nodefield.dict.pop('EPSYY')
+            temp = self.post_nodefield.dict.pop('EPSZZ')
+            temp = self.post_nodefield.dict.pop('EPSXY')
+            temp = self.post_nodefield.dict.pop('EPSXZ')
+            temp = self.post_nodefield.dict.pop('EPSYZ')
+            # Save local strain values
+            self.post_nodefield.add_field(data=E_cc, data_name='E_cc', field_type='postnodefield')
+            self.post_nodefield.add_field(data=E_rr, data_name='E_rr', field_type='postnodefield')
+            self.post_nodefield.add_field(data=E_ll, data_name='E_ll', field_type='postnodefield')
+            self.save_postprocessing_fields()
+        else:
+            print('E_ll, E_cc, E_rr have already been calculated')
 
         # Save strains in short and long axis slices for comparison with https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.28724
+        print('Extract strain transients in short and long axis slices')
         base_short_axis_nodes = np.nonzero(self.node_fields.dict['short-axis-slices'] == 3)[0]
         mid_short_axis_nodes = np.nonzero(self.node_fields.dict['short-axis-slices'] == 2)[0]
         apex_short_axis_nodes = np.nonzero(self.node_fields.dict['short-axis-slices'] == 1)[0]
         two_chamber_long_axis_nodes = np.nonzero(self.node_fields.dict['long-axis-slices'] == 1)[0]
         four_chamber_long_axis_nodes = np.nonzero(self.node_fields.dict['long-axis-slices'] == 2)[0]
         three_chamber_long_axis_nodes = np.nonzero(self.node_fields.dict['long-axis-slices'] == 3)[0]
-        base_E_cc = pymp.shared.array((time_idx.shape[0], base_short_axis_nodes.shape[0]))
-        mid_E_cc = pymp.shared.array((time_idx.shape[0], mid_short_axis_nodes.shape[0]))
-        apex_E_cc = pymp.shared.array((time_idx.shape[0], apex_short_axis_nodes.shape[0]))
-        base_E_rr = pymp.shared.array((time_idx.shape[0], base_short_axis_nodes.shape[0]))
-        mid_E_rr = pymp.shared.array((time_idx.shape[0], mid_short_axis_nodes.shape[0]))
-        apex_E_rr = pymp.shared.array((time_idx.shape[0], apex_short_axis_nodes.shape[0]))
-        two_chamber_E_ll = pymp.shared.array((time_idx.shape[0], two_chamber_long_axis_nodes.shape[0]))
-        four_chamber_E_ll = pymp.shared.array((time_idx.shape[0], four_chamber_long_axis_nodes.shape[0]))
-        three_chamber_E_ll = pymp.shared.array((time_idx.shape[0], three_chamber_long_axis_nodes.shape[0]))
+        base_E_cc = pymp.shared.array((base_short_axis_nodes.shape[0], time_idx.shape[0], ))
+        mid_E_cc = pymp.shared.array((mid_short_axis_nodes.shape[0], time_idx.shape[0]))
+        apex_E_cc = pymp.shared.array((apex_short_axis_nodes.shape[0], time_idx.shape[0]))
+        base_E_rr = pymp.shared.array((base_short_axis_nodes.shape[0], time_idx.shape[0]))
+        mid_E_rr = pymp.shared.array((mid_short_axis_nodes.shape[0], time_idx.shape[0]))
+        apex_E_rr = pymp.shared.array((apex_short_axis_nodes.shape[0], time_idx.shape[0]))
+        two_chamber_E_ll = pymp.shared.array((two_chamber_long_axis_nodes.shape[0], time_idx.shape[0]))
+        four_chamber_E_ll = pymp.shared.array((four_chamber_long_axis_nodes.shape[0], time_idx.shape[0], ))
+        three_chamber_E_ll = pymp.shared.array((three_chamber_long_axis_nodes.shape[0], time_idx.shape[0]))
+        E_cc = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
+        E_ll = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
+        E_rr = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
+        E_cc[:,:] = self.post_nodefield.dict['E_cc']
+        E_ll[:, :] = self.post_nodefield.dict['E_ll']
+        E_rr[:, :] = self.post_nodefield.dict['E_rr']
+        threadsNum = multiprocessing.cpu_count()
         with pymp.Parallel(min(threadsNum, time_idx.shape[0])) as p1:
             for time_i in p1.range(time_idx.shape[0]):
                 # Circumferential strains
-                base_E_cc[time_i, :] = E_cc[time_i, base_short_axis_nodes]
-                mid_E_cc[time_i, :] = E_cc[time_i, mid_short_axis_nodes]
-                apex_E_cc[time_i, :] = E_cc[time_i, apex_short_axis_nodes]
+                base_E_cc[:, time_i] = E_cc[base_short_axis_nodes, time_i]
+                mid_E_cc[:, time_i] = E_cc[mid_short_axis_nodes, time_i]
+                apex_E_cc[:, time_i] = E_cc[apex_short_axis_nodes, time_i]
                 # Radial strains
-                base_E_rr[time_i, :] = E_rr[time_i, base_short_axis_nodes]
-                mid_E_rr[time_i, :] = E_rr[time_i, mid_short_axis_nodes]
-                apex_E_rr[time_i, :] = E_rr[time_i, apex_short_axis_nodes]
+                base_E_rr[:, time_i] = E_rr[base_short_axis_nodes, time_i]
+                mid_E_rr[:, time_i] = E_rr[mid_short_axis_nodes, time_i]
+                apex_E_rr[:, time_i] = E_rr[apex_short_axis_nodes, time_i]
                 # Longitudinal strains
-                two_chamber_E_ll[time_i, :] = E_ll[time_i, two_chamber_long_axis_nodes]
-                four_chamber_E_ll[time_i, :] = E_ll[time_i, four_chamber_long_axis_nodes]
-                three_chamber_E_ll[time_i, :] = E_ll[time_i, three_chamber_long_axis_nodes]
+                two_chamber_E_ll[:, time_i] = E_ll[two_chamber_long_axis_nodes, time_i]
+                four_chamber_E_ll[:, time_i] = E_ll[four_chamber_long_axis_nodes, time_i]
+                three_chamber_E_ll[:, time_i] = E_ll[three_chamber_long_axis_nodes, time_i]
 
         # Evaluate median and upper and lower quartiles of traces
+        print('Evaluate median and interquartile ranges of strain traces')
         # Circumferential
-        systole = np.min(base_E_cc, axis=0)
-        base_E_cc_median = base_E_cc[:, np.where(systole == np.percentile(systole, 50))[0]]
-        base_E_cc_uq = base_E_cc[:, np.where(systole == np.percentile(systole, 75))[0]]
-        base_E_cc_lq = base_E_cc[:, np.where(systole == np.percentile(systole, 25))[0]]
-        systole = np.min(mid_E_cc, axis=0)
-        mid_E_cc_median = mid_E_cc[:, np.where(systole == np.percentile(systole, 50))[0]]
-        mid_E_cc_uq = mid_E_cc[:, np.where(systole == np.percentile(systole, 75))[0]]
-        mid_E_cc_lq = mid_E_cc[:, np.where(systole == np.percentile(systole, 25))[0]]
-        systole = np.min(apex_E_cc, axis=0)
-        apex_E_cc_median = apex_E_cc[:, np.where(systole == np.percentile(systole, 50))[0]]
-        apex_E_cc_uq = apex_E_cc[:, np.where(systole == np.percentile(systole, 75))[0]]
-        apex_E_cc_lq = apex_E_cc[:, np.where(systole == np.percentile(systole, 25))[0]]
+        systole = np.min(base_E_cc, axis=1)
+        tol = 0.01 * abs(np.min(systole))
+        base_E_cc_median = base_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        base_E_cc_uq = base_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        base_E_cc_lq = base_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        systole = np.min(mid_E_cc, axis=1)
+        mid_E_cc_median = mid_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        mid_E_cc_uq = mid_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        mid_E_cc_lq = mid_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        systole = np.min(apex_E_cc, axis=1)
+        apex_E_cc_median = apex_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        apex_E_cc_uq = apex_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        apex_E_cc_lq = apex_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
         # Radial
-        systole = np.min(base_E_rr, axis=0)
-        base_E_rr_median = base_E_rr[:, np.where(systole == np.percentile(systole, 50))[0]]
-        base_E_rr_uq = base_E_rr[:, np.where(systole == np.percentile(systole, 75))[0]]
-        base_E_rr_lq = base_E_rr[:, np.where(systole == np.percentile(systole, 25))[0]]
-        systole = np.min(mid_E_rr, axis=0)
-        mid_E_rr_median = mid_E_rr[:, np.where(systole == np.percentile(systole, 50))[0]]
-        mid_E_rr_uq = mid_E_rr[:, np.where(systole == np.percentile(systole, 75))[0]]
-        mid_E_rr_lq = mid_E_rr[:, np.where(systole == np.percentile(systole, 25))[0]]
-        systole = np.min(apex_E_rr, axis=0)
-        apex_E_rr_median = apex_E_rr[:, np.where(systole == np.percentile(systole, 50))[0]]
-        apex_E_rr_uq = apex_E_rr[:, np.where(systole == np.percentile(systole, 75))[0]]
-        apex_E_rr_lq = apex_E_rr[:, np.where(systole == np.percentile(systole, 25))[0]]
+        systole = np.min(base_E_rr, axis=1)
+        base_E_rr_median = base_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        base_E_rr_uq = base_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        base_E_rr_lq = base_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        systole = np.min(mid_E_rr, axis=1)
+        mid_E_rr_median = mid_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        mid_E_rr_uq = mid_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        mid_E_rr_lq = mid_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        systole = np.min(apex_E_rr, axis=1)
+        apex_E_rr_median = apex_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        apex_E_rr_uq = apex_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        apex_E_rr_lq = apex_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
         # Longitudinal
-        systole = np.min(two_chamber_E_ll, axis=0)
-        two_chamber_E_ll_median = two_chamber_E_ll[:, np.where(systole == np.percentile(systole, 50))[0]]
-        two_chamber_E_ll_uq = two_chamber_E_ll[:, np.where(systole == np.percentile(systole, 75))[0]]
-        two_chamber_E_ll_lq = two_chamber_E_ll[:, np.where(systole == np.percentile(systole, 25))[0]]
-        systole = np.min(four_chamber_E_ll, axis=0)
-        four_chamber_E_ll_median = four_chamber_E_ll[:, np.where(systole == np.percentile(systole, 50))[0]]
-        four_chamber_E_ll_uq = four_chamber_E_ll[:, np.where(systole == np.percentile(systole, 75))[0]]
-        four_chamber_E_ll_lq = four_chamber_E_ll[:, np.where(systole == np.percentile(systole, 25))[0]]
-        systole = np.min(three_chamber_E_ll, axis=0)
-        three_chamber_E_ll_median = three_chamber_E_ll[:, np.where(systole == np.percentile(systole, 50))[0]]
-        three_chamber_E_ll_uq = three_chamber_E_ll[:, np.where(systole == np.percentile(systole, 75))[0]]
-        three_chamber_E_ll_lq = three_chamber_E_ll[:, np.where(systole == np.percentile(systole, 25))[0]]
+        systole = np.min(two_chamber_E_ll, axis=1)
+        two_chamber_E_ll_median = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        two_chamber_E_ll_uq = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        two_chamber_E_ll_lq = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        systole = np.min(four_chamber_E_ll, axis=1)
+        four_chamber_E_ll_median = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        four_chamber_E_ll_uq = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        four_chamber_E_ll_lq = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        systole = np.min(three_chamber_E_ll, axis=1)
+        three_chamber_E_ll_median = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        three_chamber_E_ll_uq = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        three_chamber_E_ll_lq = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
 
         self.strains = {}
+        self.strains['strain_t'] = strain_t
         self.strains['base_E_cc'] = base_E_cc
         self.strains['base_E_cc_median'] = base_E_cc_median
         self.strains['base_E_cc_uq'] = base_E_cc_uq
@@ -852,8 +973,275 @@ class PostProcessing(MeshStructure):
         self.qoi.update(qoi)
 
 
+    def shift_to_start_at_ED(self, t, trace):
+        t_tol = 1e-3
+        ed_idx = np.argmin(abs(t-self.simulation_dict['end_diastole_t'][0]))
+        return np.concatenate((trace[ed_idx:], trace[:ed_idx]))
 
-    def visualise_compare_pv_with_clinical_ranges(self, beat):
+
+    def get_first_derivative(self, t, y):
+        dydt = [0]
+        for i in range(len(y)-1):
+            i += 1
+            dydt.append( (y[i] - y[i - 1]) / (t[i] - t[i - 1]))
+        assert len(dydt) == len(y)
+        return np.array(dydt)
+
+
+    def visualise_calibration_comparisons_global(self, beat):
+        fig = plt.figure(tight_layout=True, figsize=(18, 10))
+        gs = GridSpec(3, 6)
+        ax_lv_pv = fig.add_subplot(gs[0:2, 0:2])
+        ax_lv_pv.set_title('Left PV')
+        ax_rv_pv = fig.add_subplot(gs[0:2, 2:4])
+        ax_rv_pv.set_title('Right PV')
+        ax_rv_pv.set_ylim([0, 5])
+        ax_avpd = fig.add_subplot(gs[0, 4:6])
+        ax_avpd.set_title('AVPD & apex')
+        ax_vt = fig.add_subplot(gs[1, 4:6])
+        ax_vt.set_title('V(t)')
+        ax_V1 = fig.add_subplot(gs[2, 0])
+        ax_V1.set_title('V1')
+        ax_V2 = fig.add_subplot(gs[2, 1])
+        ax_V1.set_title('V2')
+        ax_V3 = fig.add_subplot(gs[2, 2])
+        ax_V1.set_title('V3')
+        ax_V4 = fig.add_subplot(gs[2, 3])
+        ax_V1.set_title('V4')
+        ax_V5 = fig.add_subplot(gs[2, 4])
+        ax_V1.set_title('V5')
+        ax_V6 = fig.add_subplot(gs[2, 5])
+        ax_V1.set_title('V6')
+
+        # Pressure volume loops
+        ax_lv_pv.plot(self.pvs['vls'][beat - 1], self.pvs['pls'][beat - 1] / 10000)
+        ax_lv_pv.axvspan(self.healthy_ranges['LVEDV'][0], self.healthy_ranges['LVEDV'][1], alpha=0.3, color='green')
+        ax_lv_pv.axvspan(self.healthy_ranges['LVESV'][0], self.healthy_ranges['LVESV'][1], alpha=0.3, color='green')
+        ax_lv_pv.axhspan(self.healthy_ranges['LVESP'][0], self.healthy_ranges['LVESP'][1], alpha=0.3, color='green')
+        ax_lv_pv.axhspan(self.healthy_ranges['LVEDP'][0], self.healthy_ranges['LVEDP'][1], alpha=0.3, color='green')
+        ax_lv_pv.set_title('LVEF: ' + str((np.amax(self.pvs['vls'][beat - 1]) - np.amin(self.pvs['vls'][beat - 1])) /
+                                          np.amax(self.pvs['vls'][beat - 1]) * 100) + ' %')
+
+        ax_rv_pv.plot(self.pvs['vrs'][beat - 1], self.pvs['prs'][beat - 1] / 10000)
+        ax_rv_pv.axvspan(self.healthy_ranges['RVEDV'][0], self.healthy_ranges['RVEDV'][1], alpha=0.3, color='green')
+        ax_rv_pv.axvspan(self.healthy_ranges['RVESV'][0], self.healthy_ranges['RVESV'][1], alpha=0.3, color='green')
+        ax_rv_pv.axhspan(self.healthy_ranges['RVESP'][0], self.healthy_ranges['RVESP'][1], alpha=0.3, color='green')
+        ax_rv_pv.set_title('RVEF: ' + str((np.amax(self.pvs['vrs'][beat - 1]) - np.amin(self.pvs['vrs'][beat - 1])) /
+                                          np.amax(self.pvs['vrs'][beat - 1]) * 100) + '%')
+
+        end_systole_idx = np.argmin(self.pvs['vls'][beat-1])
+        ldvdt = self.get_first_derivative(t=self.pvs['ts'][beat-1], y=self.pvs['vls'][beat-1])
+        dvdt_ejection = np.amin(ldvdt[10:end_systole_idx])
+        idx_ejection = np.argmin(ldvdt[10:end_systole_idx]) + 10
+        dvdt_filling = np.amax(ldvdt[end_systole_idx:-10])
+        idx_filling = np.argmin(ldvdt[end_systole_idx:-10]) + end_systole_idx
+        landmarks = np.zeros(len(self.pvs['ts'][beat-1]))
+        landmarks[idx_ejection] = 1
+        landmarks[idx_filling] = 2
+        landmarks_shifted = self.shift_to_start_at_ED(self.pvs['ts'][beat-1], landmarks)
+        t = self.pvs['ts'][beat - 1]
+        vl = self.shift_to_start_at_ED(self.pvs['ts'][beat-1], self.pvs['vls'][beat-1])
+        vr = self.shift_to_start_at_ED(self.pvs['ts'][beat-1], self.pvs['vrs'][beat-1])
+        ax_vt.plot(self.pvs['ts'][beat-1], vl, label='LV', color='C0')
+        ax_vt.plot(self.pvs['ts'][beat-1], vr, label='RV', color='C1')
+        ax_vt.axhspan(self.healthy_ranges['LVEDV'][0], self.healthy_ranges['LVEDV'][1], alpha=0.3, color='green')
+        ax_vt.axhspan(self.healthy_ranges['LVESV'][0], self.healthy_ranges['LVESV'][1], alpha=0.3, color='green')
+        ax_vt.axline((t[np.where(landmarks_shifted==1)[0]],
+                      vl[np.where(landmarks_shifted==1)[0]]),
+                     slope=dvdt_ejection, color='grey', linestyle='--')
+        intercept_0 = vl[np.where(landmarks_shifted==1)[0]] +  self.healthy_ranges['dvdt_ejection'][0] * t[np.where(landmarks_shifted==1)[0]]
+        intercept_1 = vl[np.where(landmarks_shifted==1)[0]] +  self.healthy_ranges['dvdt_ejection'][1] * t[np.where(landmarks_shifted==1)[0]]
+        ax_vt.fill_between(t, -self.healthy_ranges['dvdt_ejection'][0] * t + intercept_0, -self.healthy_ranges['dvdt_ejection'][1] * t + intercept_1, alpha=0.3, facecolor='green')
+        # Diastolic filling rate
+        ax_vt.axline((t[np.where(landmarks_shifted==2)[0]],
+                      vl[np.where(landmarks_shifted==2)[0]]),
+                     slope=dvdt_filling, color='grey', linestyle='--')
+        intercept_0 = vl[np.where(landmarks_shifted==2)[0]] - self.healthy_ranges['dvdt_filling'][0] * t[np.where(landmarks_shifted==2)[0]]
+        intercept_1 = vl[np.where(landmarks_shifted==2)[0]] - self.healthy_ranges['dvdt_filling'][1] * t[np.where(landmarks_shifted==2)[0]]
+        ax_vt.fill_between(t, self.healthy_ranges['dvdt_filling'][0] * t + intercept_0,
+                           self.healthy_ranges['dvdt_filling'][1] * t + intercept_1, alpha=0.3, facecolor='green')
+        ax_vt.set_ylim(self.healthy_ranges['LVESV'][0] - 10, self.healthy_ranges['LVEDV'][1] + 10)
+
+        # Displacements
+        avpd = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['avpd'])
+        apical_displacement = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'],
+                                         self.deformation_transients['apical_displacement'])
+        ax_avpd.plot(self.deformation_transients['deformation_t'], avpd, label='AVPD',
+                     color='C0')
+        ax_avpd.plot(self.deformation_transients['deformation_t'], apical_displacement, label='Apex displacement', color='C1')
+        ax_avpd.legend()
+        ax_avpd.axhspan(np.amax(avpd)-self.healthy_ranges['AVPD'][0],np.amax(avpd)-self.healthy_ranges['AVPD'][1], alpha=0.3, color='C0')
+        ax_avpd.axhspan(np.amax(apical_displacement)-self.healthy_ranges['apical_displacement'][0],
+                        np.amax(apical_displacement)-self.healthy_ranges['apical_displacement'][1], alpha=0.3,
+                        color='C1')
+
+        # ECGs
+        ax_V1.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
+                   self.ecgs['V1s'][beat - 1] / self.ecgs['max_all_leads'])
+        ax_V1.axvspan(self.healthy_ranges['QTc'][0], self.healthy_ranges['QTc'][1], alpha=0.3, color='green')
+        ax_V1.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3, color='green')
+        ax_V2.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
+                   self.ecgs['V2s'][beat - 1] / self.ecgs['max_all_leads'])
+        ax_V3.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
+                   self.ecgs['V3s'][beat - 1] / self.ecgs['max_all_leads'])
+        ax_V4.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
+                   self.ecgs['V4s'][beat - 1] / self.ecgs['max_all_leads'])
+        ax_V5.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
+                   self.ecgs['V5s'][beat - 1] / self.ecgs['max_all_leads'])
+        ax_V6.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
+                   self.ecgs['V6s'][beat - 1] / self.ecgs['max_all_leads'])
+        ax_V1.set_xlim([0, 500])
+        ax_V2.set_xlim([0, 500])
+        ax_V3.set_xlim([0, 500])
+        ax_V4.set_xlim([0, 500])
+        ax_V5.set_xlim([0, 500])
+        ax_V6.set_xlim([0, 500])
+        ax_V1.set_ylim([-1, 1])
+        ax_V2.set_ylim([-1, 1])
+        ax_V3.set_ylim([-1, 1])
+        ax_V4.set_ylim([-1, 1])
+        ax_V5.set_ylim([-1, 1])
+        ax_V6.set_ylim([-1, 1])
+
+        plt.show()
+
+
+    def visualise_calibration_comparisons_strain(self):
+        fig = plt.figure(tight_layout=True, figsize=(10, 12))
+        gs = GridSpec(4, 3)
+
+        ax_E_ff_endo = fig.add_subplot(gs[0, 0])
+        ax_E_ff_endo.set_title('E_ff endo')
+        ax_E_ff_endo.axhline(y=-0.15, color='red', linestyle='--')
+        ax_E_ff_mid = fig.add_subplot(gs[0, 1])
+        ax_E_ff_mid.set_title('E_ff mid')
+        ax_E_ff_mid.axhline(y=-0.15, color='red', linestyle='--')
+        ax_E_ff_epi = fig.add_subplot(gs[0, 2])
+        ax_E_ff_epi.set_title('E_ff epi')
+        ax_E_ff_epi.axhline(y=-0.15, color='red', linestyle='--')
+
+        ax_E_cc_base = fig.add_subplot(gs[1, 0])
+        ax_E_cc_base.set_title('E_cc Base')
+        ax_E_cc_base.axhline(y=-0.15, color='red', linestyle='--')
+        ax_E_cc_mid = fig.add_subplot(gs[2, 0])
+        ax_E_cc_mid.set_title('E_cc Mid')
+        ax_E_cc_mid.axhline(y=-0.15, color='red', linestyle='--')
+        ax_E_cc_apex = fig.add_subplot(gs[3, 0])
+        ax_E_cc_apex.set_title('E_cc Apex')
+        ax_E_cc_apex.axhline(y=-0.15, color='red', linestyle='--')
+
+        ax_E_rr_base = fig.add_subplot(gs[1, 1])
+        ax_E_rr_base.set_title('E_rr Base')
+        ax_E_rr_base.axhline(y=-0.15, color='red', linestyle='--')
+        ax_E_rr_mid = fig.add_subplot(gs[2, 1])
+        ax_E_rr_mid.set_title('E_rr Mid')
+        ax_E_rr_mid.axhline(y=-0.15, color='red', linestyle='--')
+        ax_E_rr_apex = fig.add_subplot(gs[3, 1])
+        ax_E_rr_apex.set_title('E_rr Apex')
+        ax_E_rr_apex.axhline(y=-0.15, color='red', linestyle='--')
+
+        ax_E_ll_two = fig.add_subplot(gs[1, 2])
+        ax_E_ll_two.set_title('E_ll 2-chamber')
+        ax_E_ll_two.axhline(y=-0.15, color='red', linestyle='--')
+        ax_E_ll_four = fig.add_subplot(gs[2, 2])
+        ax_E_ll_four.set_title('E_ll 4-chamber')
+        ax_E_ll_four.axhline(y=-0.15, color='red', linestyle='--')
+        ax_E_ll_three = fig.add_subplot(gs[3, 2])
+        ax_E_ll_three.set_title('E_ll 3-chamber')
+        ax_E_ll_three.axhline(y=-0.15, color='red', linestyle='--')
+
+        # Fibre strain
+        endo_E_ff = 0.5*(self.fibre_work['endo_midshort_lambda']**2-1)
+        endo_E_ff_median = 0.5*(self.fibre_work['endo_midshort_lambda_median']**2 - 1)
+        endo_E_ff_lq = 0.5 * (self.fibre_work['endo_midshort_lambda_lq'] ** 2 - 1)
+        endo_E_ff_uq = 0.5 * (self.fibre_work['endo_midshort_lambda_uq'] ** 2 - 1)
+        for node_i in range(self.fibre_work['endo_midshort_lambda'].shape[0]):
+            ax_E_ff_endo.plot(self.fibre_work['fibrework_t'], endo_E_ff[node_i, :], color='m', alpha=0.3, linewidth=0.1)
+        ax_E_ff_endo.plot(self.fibre_work['fibrework_t'], endo_E_ff_median, color='k', linestyle='--')
+        ax_E_ff_endo.plot(self.fibre_work['fibrework_t'], endo_E_ff_lq, color='k', linestyle='-')
+        ax_E_ff_endo.plot(self.fibre_work['fibrework_t'], endo_E_ff_uq, color='k', linestyle='-')
+
+        mid_E_ff = 0.5 * (self.fibre_work['mid_midshort_lambda'] ** 2 - 1)
+        mid_E_ff_median = 0.5 * (self.fibre_work['mid_midshort_lambda_median'] ** 2 - 1)
+        mid_E_ff_lq = 0.5 * (self.fibre_work['mid_midshort_lambda_lq'] ** 2 - 1)
+        mid_E_ff_uq = 0.5 * (self.fibre_work['mid_midshort_lambda_uq'] ** 2 - 1)
+        for node_i in range(self.fibre_work['mid_midshort_lambda'].shape[0]):
+            ax_E_ff_mid.plot(self.fibre_work['fibrework_t'], mid_E_ff[node_i, :], color='g', alpha=0.3, linewidth=0.1)
+        ax_E_ff_mid.plot(self.fibre_work['fibrework_t'], mid_E_ff_median, color='k', linestyle='--')
+        ax_E_ff_mid.plot(self.fibre_work['fibrework_t'], mid_E_ff_lq, color='k', linestyle='-')
+        ax_E_ff_mid.plot(self.fibre_work['fibrework_t'], mid_E_ff_uq, color='k', linestyle='-')
+
+        epi_E_ff = 0.5 * (self.fibre_work['epi_midshort_lambda'] ** 2 - 1)
+        epi_E_ff_median = 0.5 * (self.fibre_work['epi_midshort_lambda_median'] ** 2 - 1)
+        epi_E_ff_lq = 0.5 * (self.fibre_work['epi_midshort_lambda_lq'] ** 2 - 1)
+        epi_E_ff_uq = 0.5 * (self.fibre_work['epi_midshort_lambda_uq'] ** 2 - 1)
+        for node_i in range(self.fibre_work['epi_midshort_lambda'].shape[0]):
+            ax_E_ff_epi.plot(self.fibre_work['fibrework_t'], epi_E_ff[node_i, :], color='b', alpha=0.3, linewidth=0.1)
+        ax_E_ff_epi.plot(self.fibre_work['fibrework_t'], epi_E_ff_median, color='k', linestyle='--')
+        ax_E_ff_epi.plot(self.fibre_work['fibrework_t'], epi_E_ff_lq, color='k', linestyle='-')
+        ax_E_ff_epi.plot(self.fibre_work['fibrework_t'], epi_E_ff_uq, color='k', linestyle='-')
+
+        # Strains
+        for node_i in range(self.strains['base_E_cc'].shape[0]):
+            ax_E_cc_base.plot(self.strains['strain_t'], self.strains['base_E_cc'][node_i, :], color='m', alpha=0.3, linewidth=0.1)
+        ax_E_cc_base.plot(self.strains['strain_t'],self.strains['base_E_cc_median'], color='k', linestyle='--')
+        ax_E_cc_base.plot(self.strains['strain_t'], self.strains['base_E_cc_uq'], color='k', linestyle='-')
+        ax_E_cc_base.plot(self.strains['strain_t'], self.strains['base_E_cc_lq'], color='k', linestyle='-')
+
+        for node_i in range(self.strains['mid_E_cc'].shape[0]):
+            ax_E_cc_mid.plot(self.strains['strain_t'], self.strains['mid_E_cc'][node_i, :], color='m', alpha=0.3, linewidth=0.1)
+        ax_E_cc_mid.plot(self.strains['strain_t'],self.strains['mid_E_cc_median'], color='k', linestyle='--')
+        ax_E_cc_mid.plot(self.strains['strain_t'], self.strains['mid_E_cc_uq'], color='k', linestyle='-')
+        ax_E_cc_mid.plot(self.strains['strain_t'], self.strains['mid_E_cc_lq'], color='k', linestyle='-')
+
+        for node_i in range(self.strains['apex_E_cc'].shape[0]):
+            ax_E_cc_apex.plot(self.strains['strain_t'], self.strains['apex_E_cc'][node_i, :], color='m', alpha=0.3, linewidth=0.1)
+        ax_E_cc_apex.plot(self.strains['strain_t'],self.strains['apex_E_cc_median'], color='k', linestyle='--')
+        ax_E_cc_apex.plot(self.strains['strain_t'], self.strains['apex_E_cc_uq'], color='k', linestyle='-')
+        ax_E_cc_apex.plot(self.strains['strain_t'], self.strains['apex_E_cc_lq'], color='k', linestyle='-')
+
+        for node_i in range(self.strains['base_E_rr'].shape[0]):
+            ax_E_rr_base.plot(self.strains['strain_t'], self.strains['base_E_rr'][node_i, :], color='g', alpha=0.3, linewidth=0.1)
+        ax_E_rr_base.plot(self.strains['strain_t'],self.strains['base_E_rr_median'], color='k', linestyle='--')
+        ax_E_rr_base.plot(self.strains['strain_t'], self.strains['base_E_rr_uq'], color='k', linestyle='-')
+        ax_E_rr_base.plot(self.strains['strain_t'], self.strains['base_E_rr_lq'], color='k', linestyle='-')
+
+        for node_i in range(self.strains['mid_E_rr'].shape[0]):
+            ax_E_rr_mid.plot(self.strains['strain_t'], self.strains['mid_E_rr'][node_i, :], color='g', alpha=0.3, linewidth=0.1)
+        ax_E_rr_mid.plot(self.strains['strain_t'],self.strains['mid_E_rr_median'], color='k', linestyle='--')
+        ax_E_rr_mid.plot(self.strains['strain_t'], self.strains['mid_E_rr_uq'], color='k', linestyle='-')
+        ax_E_rr_mid.plot(self.strains['strain_t'], self.strains['mid_E_rr_lq'], color='k', linestyle='-')
+
+        for node_i in range(self.strains['apex_E_rr'].shape[0]):
+            ax_E_rr_apex.plot(self.strains['strain_t'], self.strains['apex_E_rr'][node_i, :], color='g', alpha=0.3, linewidth=0.1)
+        ax_E_rr_apex.plot(self.strains['strain_t'],self.strains['apex_E_rr_median'], color='k', linestyle='--')
+        ax_E_rr_apex.plot(self.strains['strain_t'], self.strains['apex_E_rr_uq'], color='k', linestyle='-')
+        ax_E_rr_apex.plot(self.strains['strain_t'], self.strains['apex_E_rr_lq'], color='k', linestyle='-')
+
+        for node_i in range(self.strains['two_chamber_E_ll'].shape[0]):
+            ax_E_ll_two.plot(self.strains['strain_t'], self.strains['two_chamber_E_ll'][node_i, :], color='b', alpha=0.3, linewidth=0.1)
+        ax_E_ll_two.plot(self.strains['strain_t'],self.strains['two_chamber_E_ll_median'], color='k', linestyle='--')
+        ax_E_ll_two.plot(self.strains['strain_t'], self.strains['two_chamber_E_ll_uq'], color='k', linestyle='-')
+        ax_E_ll_two.plot(self.strains['strain_t'], self.strains['two_chamber_E_ll_lq'], color='k', linestyle='-')
+
+        for node_i in range(self.strains['four_chamber_E_ll'].shape[0]):
+            ax_E_ll_four.plot(self.strains['strain_t'], self.strains['four_chamber_E_ll'][node_i, :], color='b', alpha=0.3, linewidth=0.1)
+        ax_E_ll_four.plot(self.strains['strain_t'],self.strains['four_chamber_E_ll_median'], color='k', linestyle='--')
+        ax_E_ll_four.plot(self.strains['strain_t'], self.strains['four_chamber_E_ll_uq'], color='k', linestyle='-')
+        ax_E_ll_four.plot(self.strains['strain_t'], self.strains['four_chamber_E_ll_lq'], color='k', linestyle='-')
+
+        for node_i in range(self.strains['three_chamber_E_ll'].shape[0]):
+            ax_E_ll_three.plot(self.strains['strain_t'], self.strains['three_chamber_E_ll'][node_i, :], color='b', alpha=0.3, linewidth=0.1)
+        ax_E_ll_three.plot(self.strains['strain_t'],self.strains['three_chamber_E_ll_median'], color='k', linestyle='--')
+        ax_E_ll_three.plot(self.strains['strain_t'], self.strains['three_chamber_E_ll_uq'], color='k', linestyle='-')
+        ax_E_ll_three.plot(self.strains['strain_t'], self.strains['three_chamber_E_ll_lq'], color='k', linestyle='-')
+
+        plt.show()
+
+
+
+
+    def visualise_compare_with_clinical_ranges(self, beat):
         healthy_ranges = {'LVEDV': [88, 161], # [mL] female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3 95% confidence interval
                           'LVESV': [31, 68], # [mL] female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
                           'LVSV': [49, 100], # [mL] female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
@@ -888,14 +1276,14 @@ class PostProcessing(MeshStructure):
         ax_rv_pv = fig.add_subplot(gs[0:2, 2:4])
         ax_rv_pv.set_title('Right PV')
         ax_rv_pv.set_ylim([0, 5])
-        ax_avpd = fig.add_subplot(gs[0, 4])
-        ax_avpd.set_title('AVPD')
-        ax_lambda = fig.add_subplot(gs[0, 5])
-        ax_lambda.set_title('Lambda')
-        ax_wall = fig.add_subplot(gs[1, 4])
-        ax_wall.set_title('Wall thickness')
-        ax_cross_lambda = fig.add_subplot(gs[1, 5])
-        ax_cross_lambda.set_title('Cross lambda')
+        ax_lambda = fig.add_subplot(gs[0, 4])
+        ax_lambda.set_title('lambda')
+        ax_E_ll = fig.add_subplot(gs[0, 5])
+        ax_E_ll.set_title('E_ll')
+        ax_E_rr = fig.add_subplot(gs[1, 4])
+        ax_E_rr.set_title('E_rr')
+        ax_E_cc = fig.add_subplot(gs[1, 5])
+        ax_E_cc.set_title('E_cc')
         ax_V1 = fig.add_subplot(gs[2, 0])
         ax_V1.set_title('V1')
         ax_V2 = fig.add_subplot(gs[2, 1])
@@ -948,25 +1336,30 @@ class PostProcessing(MeshStructure):
         ax_V5.set_ylim([-1, 1])
         ax_V6.set_ylim([-1, 1])
 
+
+        # Fibre work
+        ax_lambda.plot(self.fibre_work['fibrework_t'], self.fibre_work['endo_lambda'], label='endo', color='C0')
+        ax_lambda.plot(self.fibre_work['fibrework_t'], self.fibre_work['midw_lambda'], label='mid', color='C1')
+        ax_lambda.plot(self.fibre_work['fibrework_t'], self.fibre_work['epi_lambda'], label='epi', color='C2')
+        ax_lambda.legend()
+        ax_lambda.axhspan(healthy_ranges['lambda_endo'][0], healthy_ranges['lambda_endo'][1], alpha=0.3, color='C0')
+        ax_lambda.axhspan(healthy_ranges['lambda_mid'][0], healthy_ranges['lambda_mid'][1], alpha=0.3, color='C1')
+        ax_lambda.axhspan(healthy_ranges['lambda_epi'][0], healthy_ranges['lambda_epi'][1], alpha=0.3, color='C2')
+
         # Displacements deformations
-        ax_avpd.plot(self.deformation_transients['deformation_t'], self.deformation_transients['avpd'], label='AVPD', color='C0')
-        ax_avpd.plot(self.deformation_transients['deformation_t'], self.deformation_transients['apical_displacement'], label='Apex displacemet', color='C1')
-        ax_avpd.legend()
-        ax_avpd.axhspan(healthy_ranges['AVPD'][0], healthy_ranges['AVPD'][1], alpha=0.3, color='C0')
-        ax_avpd.axhspan(healthy_ranges['apical_displacement'][0], healthy_ranges['apical_displacement'][1], alpha=0.3, color='C1')
+        ax_E_ll.plot(self.strains['strain_t'], self.strains['two_chamber_E_ll_median'], label='Two chamber', color='C0')
+        ax_E_ll.plot(self.strains['strain_t'], self.strains['four_chamber_E_ll_median'], label='Four chamber', color='C1')
+        ax_E_ll.plot(self.strains['strain_t'], self.strains['three_chamber_E_ll_median'], label='Three chamber',
+                     color='C1')
+
+        ax_E_ll.legend()
+        ax_E_ll.axhspan(healthy_ranges['AVPD'][0], healthy_ranges['AVPD'][1], alpha=0.3, color='C0')
+        ax_E_ll.axhspan(healthy_ranges['apical_displacement'][0], healthy_ranges['apical_displacement'][1], alpha=0.3, color='C1')
 
         ax_wall.plot(self.deformation_transients['deformation_t'], self.deformation_transients['lv_wall_thickness'])
         ax_wall.axhspan(healthy_ranges['ED_wall_thickness'][0], healthy_ranges['ED_wall_thickness'][1], alpha=0.3, color='green')
         ax_wall.axhspan(healthy_ranges['ES_wall_thickness'][0], healthy_ranges['ES_wall_thickness'][1], alpha=0.3, color='green')
 
-        # Fibre work
-        ax_lambda.plot(self.fibre_work['fibrework_t'], self.fibre_work['endo_lambda'], label='endo',color='C0')
-        ax_lambda.plot(self.fibre_work['fibrework_t'], self.fibre_work['midw_lambda'], label='mid',color='C1')
-        ax_lambda.plot(self.fibre_work['fibrework_t'], self.fibre_work['epi_lambda'], label='epi',color='C2')
-        ax_lambda.legend()
-        ax_lambda.axhspan(healthy_ranges['lambda_endo'][0], healthy_ranges['lambda_endo'][1], alpha=0.3, color='C0')
-        ax_lambda.axhspan(healthy_ranges['lambda_mid'][0], healthy_ranges['lambda_mid'][1], alpha=0.3, color='C1')
-        ax_lambda.axhspan(healthy_ranges['lambda_epi'][0], healthy_ranges['lambda_epi'][1], alpha=0.3, color='C2')
 
         ax_cross_lambda.plot(self.fibre_work['fibrework_t'], self.fibre_work['endo_cross_lambda'], label='endo', color='C0')
         ax_cross_lambda.plot(self.fibre_work['fibrework_t'], self.fibre_work['midw_cross_lambda'], label='mid', color='C1')

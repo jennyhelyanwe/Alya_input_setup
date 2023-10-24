@@ -119,11 +119,11 @@ class FieldGeneration(MeshStructure):
         threadsNum = multiprocessing.cpu_count()
         with pymp.Parallel(min(threadsNum, self.geometry.number_of_nodes)) as p1:
             for node_i in p1.range(self.geometry.number_of_nodes):
-                if (ab[node_i] > 0.25) & (ab[node_i] < 0.3) & (tv[node_i] == -1):
+                if (ab[node_i] > 0.27) & (ab[node_i] < 0.3) & (tv[node_i] == -1):
                     short_axis_slices[node_i] = 1 # Apex short-axis
-                elif (ab[node_i] > 0.45) & (ab[node_i] < 0.5) & (tv[node_i] == -1):
+                elif (ab[node_i] > 0.47) & (ab[node_i] < 0.5) & (tv[node_i] == -1):
                     short_axis_slices[node_i] = 2 # Mid short-axis
-                elif (ab[node_i] > 0.65) & (ab[node_i] < 0.7) & (tv[node_i] == -1):
+                elif (ab[node_i] > 0.67) & (ab[node_i] < 0.7) & (tv[node_i] == -1):
                     short_axis_slices[node_i] = 3 # Base short-axis
                 else:
                     short_axis_slices[node_i] = 0
