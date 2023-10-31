@@ -3,7 +3,7 @@ from generatefields import FieldGeneration
 from calibratecv import CalibrateCV
 from alyaformat import AlyaFormat
 from postprocessing import PostProcessing
-from sensitivityanalysis import SA
+from sensitivityanalysis_uncertaintyquantification import SAUQ
 import os
 import numpy as np
 
@@ -72,7 +72,7 @@ if system == 'jureca':
 elif system == 'heart':
     baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
     simulation_dir = 'sensitivity_analyses/'
-# sa = SA(name='sa', sampling_method='saltelli', n=2 ** 2, parameter_names=cell_parameter_names,
+# sa = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 2, parameter_names=cell_parameter_names,
 #        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
 #        simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
 
