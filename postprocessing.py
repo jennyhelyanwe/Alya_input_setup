@@ -15,7 +15,7 @@ import pandas as pd
 import healthy_qoi_ranges
 
 class PostProcessing(MeshStructure):
-    def __init__(self, alya, simulation_json_file, alya_output_dir, verbose):
+    def __init__(self, alya, simulation_json_file, alya_output_dir, protocol, verbose):
         # super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
         self.geometry = alya.geometry
         self.name = alya.name
@@ -27,11 +27,13 @@ class PostProcessing(MeshStructure):
         if not os.path.exists(self.results_dir):
             os.mkdir(self.results_dir)
         self.post_nodefield = Fields(self.name, field_type='postnodefield', verbose=verbose)
-        print ('Reading in post_nodefield CSV from: ', self.results_dir)
-        self.post_nodefield.read_csv_to_attributes(input_dir=self.results_dir, field_type='postnodefield')
         self.post_elementfield = Fields(self.name, field_type='postelementfield', verbose=verbose)
-        print('Reading in post_elementfield CSV from: ', self.results_dir)
-        self.post_elementfield.read_csv_to_attributes(input_dir=self.results_dir, field_type='postelementfield')
+        if protocol == 'postprocess':
+            print ('Reading in post_nodefield CSV from: ', self.results_dir)
+            self.post_nodefield.read_csv_to_attributes(input_dir=self.results_dir, field_type='postnodefield')
+
+            print('Reading in post_elementfield CSV from: ', self.results_dir)
+            self.post_elementfield.read_csv_to_attributes(input_dir=self.results_dir, field_type='postelementfield')
         self.simulation_dict = json.load(open(simulation_json_file, 'r'))
         self.verbose = verbose
         self.qoi = {}
@@ -206,11 +208,11 @@ class PostProcessing(MeshStructure):
         # AVPD atrioventricular plane displacement
         print('Evaluating AVPD')
         base_cutoff = 0.7
-        truncated_mesh_nodes = np.nonzero(self.node_fields.dict['ab'] < base_cutoff)[0]
-        basal_mesh_nodes = np.nonzero(self.node_fields.dict['ab'] >= base_cutoff)[0]
+        truncated_mesh_nodes = np.nonzero((self.node_fields.dict['ab'] < base_cutoff) & (self.node_fields.dict['tv'] == self.geometry.lv))[0]
+        basal_mesh_nodes = np.nonzero((self.node_fields.dict['ab'] >= base_cutoff)& (self.node_fields.dict['tv'] == self.geometry.lv))[0]
         mean_ab_vector = np.mean(self.node_fields.dict['longitudinal-vector'][truncated_mesh_nodes, :], axis=0)
         apical_cutoff = 0.2
-        apical_mesh_nodes = np.nonzero(self.node_fields.dict['ab'] <= apical_cutoff)[0]
+        apical_mesh_nodes = np.nonzero((self.node_fields.dict['ab'] <= apical_cutoff)& (self.node_fields.dict['tv'] == self.geometry.lv))[0]
         avpd = pymp.shared.array(time_idx.shape[0], dtype=float)
         apical_displacement = pymp.shared.array(time_idx.shape[0], dtype=float)
         displacement_shared = pymp.shared.array(self.post_nodefield.dict['DISPL'].shape, dtype=float)
@@ -993,13 +995,18 @@ class PostProcessing(MeshStructure):
         gs = GridSpec(3, 6)
         ax_lv_pv = fig.add_subplot(gs[0:2, 0:2])
         ax_lv_pv.set_title('Left PV')
-        ax_rv_pv = fig.add_subplot(gs[0:2, 2:4])
-        ax_rv_pv.set_title('Right PV')
-        ax_rv_pv.set_ylim([0, 5])
+        # ax_rv_pv = fig.add_subplot(gs[0:2, 2:4])
+        # ax_rv_pv.set_title('Right PV')
+        # ax_rv_pv.set_ylim([0, 5])
+        ax_vt = fig.add_subplot(gs[0, 2:4])
+        ax_vt.set_title('V(t)')
+        ax_pt = fig.add_subplot(gs[1, 2:4])
         ax_avpd = fig.add_subplot(gs[0, 4:6])
         ax_avpd.set_title('AVPD & apex')
-        ax_vt = fig.add_subplot(gs[1, 4:6])
-        ax_vt.set_title('V(t)')
+        ax_avpd.set_xlim(0, 1)
+        ax_apex = fig.add_subplot(gs[1, 4:6])
+        ax_apex.set_title('Apical displacement')
+
         ax_V1 = fig.add_subplot(gs[2, 0])
         ax_V1.set_title('V1')
         ax_V2 = fig.add_subplot(gs[2, 1])
@@ -1015,52 +1022,74 @@ class PostProcessing(MeshStructure):
 
         # Pressure volume loops
         ax_lv_pv.plot(self.pvs['vls'][beat - 1], self.pvs['pls'][beat - 1] / 10000)
-        ax_lv_pv.axvspan(self.healthy_ranges['LVEDV'][0], self.healthy_ranges['LVEDV'][1], alpha=0.3, color='green')
-        ax_lv_pv.axvspan(self.healthy_ranges['LVESV'][0], self.healthy_ranges['LVESV'][1], alpha=0.3, color='green')
-        ax_lv_pv.axhspan(self.healthy_ranges['LVESP'][0], self.healthy_ranges['LVESP'][1], alpha=0.3, color='green')
-        ax_lv_pv.axhspan(self.healthy_ranges['LVEDP'][0], self.healthy_ranges['LVEDP'][1], alpha=0.3, color='green')
+        ax_lv_pv.axvspan(self.healthy_ranges['LVEDV'][0], self.healthy_ranges['LVEDV'][1], alpha=0.3, color='C0')
+        ax_lv_pv.axvspan(self.healthy_ranges['LVESV'][0], self.healthy_ranges['LVESV'][1], alpha=0.3, color='C0')
+        ax_lv_pv.axhspan(self.healthy_ranges['LVESP'][0], self.healthy_ranges['LVESP'][1], alpha=0.3, color='C0')
+        ax_lv_pv.axhspan(self.healthy_ranges['LVEDP'][0], self.healthy_ranges['LVEDP'][1], alpha=0.3, color='C0')
         ax_lv_pv.set_title('LVEF: ' + str((np.amax(self.pvs['vls'][beat - 1]) - np.amin(self.pvs['vls'][beat - 1])) /
                                           np.amax(self.pvs['vls'][beat - 1]) * 100) + ' %')
 
-        ax_rv_pv.plot(self.pvs['vrs'][beat - 1], self.pvs['prs'][beat - 1] / 10000)
-        ax_rv_pv.axvspan(self.healthy_ranges['RVEDV'][0], self.healthy_ranges['RVEDV'][1], alpha=0.3, color='green')
-        ax_rv_pv.axvspan(self.healthy_ranges['RVESV'][0], self.healthy_ranges['RVESV'][1], alpha=0.3, color='green')
-        ax_rv_pv.axhspan(self.healthy_ranges['RVESP'][0], self.healthy_ranges['RVESP'][1], alpha=0.3, color='green')
-        ax_rv_pv.set_title('RVEF: ' + str((np.amax(self.pvs['vrs'][beat - 1]) - np.amin(self.pvs['vrs'][beat - 1])) /
-                                          np.amax(self.pvs['vrs'][beat - 1]) * 100) + '%')
+        ax_lv_pv.plot(self.pvs['vrs'][beat - 1], self.pvs['prs'][beat - 1] / 10000)
+        ax_lv_pv.axvspan(self.healthy_ranges['RVEDV'][0], self.healthy_ranges['RVEDV'][1], alpha=0.3, color='C1')
+        ax_lv_pv.axvspan(self.healthy_ranges['RVESV'][0], self.healthy_ranges['RVESV'][1], alpha=0.3, color='C1')
+        ax_lv_pv.axhspan(self.healthy_ranges['RVESP'][0], self.healthy_ranges['RVESP'][1], alpha=0.3, color='C1')
+        # ax_lv_pv.set_title('RVEF: ' + str((np.amax(self.pvs['vrs'][beat - 1]) - np.amin(self.pvs['vrs'][beat - 1])) /
+        #                                   np.amax(self.pvs['vrs'][beat - 1]) * 100) + '%')
 
+        # Pressure transients
+        ax_pt.plot(self.pvs['ts'][beat-1], self.pvs['pls'][beat-1]/10000, color='C0', label='LV')
+        ax_pt.plot(self.pvs['ts'][beat-1], self.pvs['prs'][beat-1]/10000, color='C1', label='RV')
+        ax_pt.legend()
+        t = self.pvs['ts'][beat - 1]
+        p = self.pvs['pls'][beat - 1] / 10000
+        dpdt = self.get_first_derivative(t=t, y=p)
+        peak = np.argmax(dpdt)
+        peak_dpdt = np.amax(dpdt)
+        ax_pt.axline((t[peak], p[peak]), slope=peak_dpdt, color='grey', linestyle='--')
+        intercept_0 = p[peak] - self.healthy_ranges['dpdt_max'][0] * t[peak]
+        intercept_1 = p[peak] - self.healthy_ranges['dpdt_max'][1] * t[peak]
+        ax_pt.fill_between(t, self.healthy_ranges['dpdt_max'][0] * t + intercept_0,
+                           self.healthy_ranges['dpdt_max'][1] * t + intercept_1, alpha=0.3, facecolor='green')
+        ax_pt.set_ylim(0, 17)
+        # Diastolic fill
         end_systole_idx = np.argmin(self.pvs['vls'][beat-1])
         ldvdt = self.get_first_derivative(t=self.pvs['ts'][beat-1], y=self.pvs['vls'][beat-1])
         dvdt_ejection = np.amin(ldvdt[10:end_systole_idx])
         idx_ejection = np.argmin(ldvdt[10:end_systole_idx]) + 10
-        dvdt_filling = np.amax(ldvdt[end_systole_idx:-10])
-        idx_filling = np.argmin(ldvdt[end_systole_idx:-10]) + end_systole_idx
+        dvdt_filling = np.amax(ldvdt[(end_systole_idx+400):])
+        idx_filling = np.argmax(ldvdt[(end_systole_idx+400):]) + end_systole_idx + 400
         landmarks = np.zeros(len(self.pvs['ts'][beat-1]))
         landmarks[idx_ejection] = 1
         landmarks[idx_filling] = 2
         landmarks_shifted = self.shift_to_start_at_ED(self.pvs['ts'][beat-1], landmarks)
         t = self.pvs['ts'][beat - 1]
-        vl = self.shift_to_start_at_ED(self.pvs['ts'][beat-1], self.pvs['vls'][beat-1])
-        vr = self.shift_to_start_at_ED(self.pvs['ts'][beat-1], self.pvs['vrs'][beat-1])
+        vl = self.pvs['vls'][beat-1]
+        vr = self.pvs['vrs'][beat-1]
+        # vl = self.shift_to_start_at_ED(self.pvs['ts'][beat-1], self.pvs['vls'][beat-1])
+        # vr = self.shift_to_start_at_ED(self.pvs['ts'][beat-1], self.pvs['vrs'][beat-1])
         ax_vt.plot(self.pvs['ts'][beat-1], vl, label='LV', color='C0')
         ax_vt.plot(self.pvs['ts'][beat-1], vr, label='RV', color='C1')
-        ax_vt.axhspan(self.healthy_ranges['LVEDV'][0], self.healthy_ranges['LVEDV'][1], alpha=0.3, color='green')
-        ax_vt.axhspan(self.healthy_ranges['LVESV'][0], self.healthy_ranges['LVESV'][1], alpha=0.3, color='green')
-        ax_vt.axline((t[np.where(landmarks_shifted==1)[0]],
-                      vl[np.where(landmarks_shifted==1)[0]]),
+        ax_vt.legend()
+        # ax_vt.axhspan(self.healthy_ranges['LVEDV'][0], self.healthy_ranges['LVEDV'][1], alpha=0.3, color='C0')
+        # ax_vt.axhspan(self.healthy_ranges['LVESV'][0], self.healthy_ranges['LVESV'][1], alpha=0.3, color='C0')
+        # ax_vt.axhspan(self.healthy_ranges['RVEDV'][0], self.healthy_ranges['RVEDV'][1], alpha=0.3, color='C1')
+        # ax_vt.axhspan(self.healthy_ranges['RVESV'][0], self.healthy_ranges['RVESV'][1], alpha=0.3, color='C1')
+        ax_vt.axline((t[np.where(landmarks==1)[0][0]],
+                      vl[np.where(landmarks==1)[0][0]]),
                      slope=dvdt_ejection, color='grey', linestyle='--')
-        intercept_0 = vl[np.where(landmarks_shifted==1)[0]] +  self.healthy_ranges['dvdt_ejection'][0] * t[np.where(landmarks_shifted==1)[0]]
-        intercept_1 = vl[np.where(landmarks_shifted==1)[0]] +  self.healthy_ranges['dvdt_ejection'][1] * t[np.where(landmarks_shifted==1)[0]]
+        intercept_0 = vl[np.where(landmarks==1)[0][0]] +  self.healthy_ranges['dvdt_ejection'][0] * t[np.where(landmarks==1)[0][0]]
+        intercept_1 = vl[np.where(landmarks==1)[0][0]] +  self.healthy_ranges['dvdt_ejection'][1] * t[np.where(landmarks==1)[0][0]]
         ax_vt.fill_between(t, -self.healthy_ranges['dvdt_ejection'][0] * t + intercept_0, -self.healthy_ranges['dvdt_ejection'][1] * t + intercept_1, alpha=0.3, facecolor='green')
         # Diastolic filling rate
-        ax_vt.axline((t[np.where(landmarks_shifted==2)[0]],
-                      vl[np.where(landmarks_shifted==2)[0]]),
+        ax_vt.axline((t[np.where(landmarks==2)[0][0]],
+                      vl[np.where(landmarks==2)[0][0]]),
                      slope=dvdt_filling, color='grey', linestyle='--')
-        intercept_0 = vl[np.where(landmarks_shifted==2)[0]] - self.healthy_ranges['dvdt_filling'][0] * t[np.where(landmarks_shifted==2)[0]]
-        intercept_1 = vl[np.where(landmarks_shifted==2)[0]] - self.healthy_ranges['dvdt_filling'][1] * t[np.where(landmarks_shifted==2)[0]]
+        intercept_0 = vl[np.where(landmarks==2)[0][0]] - self.healthy_ranges['dvdt_filling'][0] * t[np.where(landmarks==2)[0][0]]
+        intercept_1 = vl[np.where(landmarks==2)[0][0]] - self.healthy_ranges['dvdt_filling'][1] * t[np.where(landmarks==2)[0][0]]
         ax_vt.fill_between(t, self.healthy_ranges['dvdt_filling'][0] * t + intercept_0,
                            self.healthy_ranges['dvdt_filling'][1] * t + intercept_1, alpha=0.3, facecolor='green')
-        ax_vt.set_ylim(self.healthy_ranges['LVESV'][0] - 10, self.healthy_ranges['LVEDV'][1] + 10)
+        ax_vt.set_ylim(self.healthy_ranges['LVESV'][0], self.healthy_ranges['LVEDV'][1])
+        ax_vt.set_xlim(0, 1)
 
         # Displacements
         avpd = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['avpd'])
@@ -1068,17 +1097,16 @@ class PostProcessing(MeshStructure):
                                          self.deformation_transients['apical_displacement'])
         ax_avpd.plot(self.deformation_transients['deformation_t'], avpd, label='AVPD',
                      color='C0')
-        ax_avpd.plot(self.deformation_transients['deformation_t'], apical_displacement, label='Apex displacement', color='C1')
-        ax_avpd.legend()
+        ax_apex.plot(self.deformation_transients['deformation_t'], apical_displacement, label='Apex displacement', color='C0')
         ax_avpd.axhspan(np.amax(avpd)-self.healthy_ranges['AVPD'][0],np.amax(avpd)-self.healthy_ranges['AVPD'][1], alpha=0.3, color='C0')
-        ax_avpd.axhspan(np.amax(apical_displacement)-self.healthy_ranges['apical_displacement'][0],
-                        np.amax(apical_displacement)-self.healthy_ranges['apical_displacement'][1], alpha=0.3,
-                        color='C1')
+        ax_apex.axhspan(self.healthy_ranges['apical_displacement'][0],
+                        self.healthy_ranges['apical_displacement'][1], alpha=0.3,
+                        color='C0')
 
         # ECGs
         ax_V1.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
                    self.ecgs['V1s'][beat - 1] / self.ecgs['max_all_leads'])
-        ax_V1.axvspan(self.healthy_ranges['QTc'][0], self.healthy_ranges['QTc'][1], alpha=0.3, color='green')
+        ax_V1.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
         ax_V1.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3, color='green')
         ax_V2.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
                    self.ecgs['V2s'][beat - 1] / self.ecgs['max_all_leads'])
@@ -1090,6 +1118,21 @@ class PostProcessing(MeshStructure):
                    self.ecgs['V5s'][beat - 1] / self.ecgs['max_all_leads'])
         ax_V6.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
                    self.ecgs['V6s'][beat - 1] / self.ecgs['max_all_leads'])
+        ax_V2.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
+        ax_V2.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
+                      color='green')
+        ax_V3.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
+        ax_V3.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
+                      color='green')
+        ax_V4.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
+        ax_V4.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
+                      color='green')
+        ax_V5.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
+        ax_V5.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
+                      color='green')
+        ax_V6.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
+        ax_V6.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
+                      color='green')
         ax_V1.set_xlim([0, 500])
         ax_V2.set_xlim([0, 500])
         ax_V3.set_xlim([0, 500])
@@ -1102,7 +1145,6 @@ class PostProcessing(MeshStructure):
         ax_V4.set_ylim([-1, 1])
         ax_V5.set_ylim([-1, 1])
         ax_V6.set_ylim([-1, 1])
-
         plt.show()
 
 

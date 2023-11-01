@@ -1,4 +1,4 @@
-function [] = poms_torordland(param_values,celltype)
+function [] = poms_torordland(param_values,celltype, outputdir)
 % Population of models generation for evaluation of sensitivity analysis
 % Adapted from scriptDemonstration_2_ParameterComparison.m:
 
@@ -50,6 +50,7 @@ Tamax = zeros(size(params));
 Tamin = zeros(size(params));
 TaD50 = zeros(size(params));
 TaD90 = zeros(size(params));
+dTadt_max = zeros(size(params));
 CTD50 = zeros(size(params));
 CTD90 = zeros(size(params));
 CaTmax = zeros(size(params));
@@ -80,6 +81,7 @@ parfor i = 1:length(params)
     Tamax(i) = max(currents.Ta);
     TaD50(i) = DataReporter.getAPD(currents.time, currents.Ta, 0.5);
     TaD90(i) = DataReporter.getAPD(currents.time, currents.Ta, 0.9);
+    dTadt_max(i) = DataReporter.getPeakDVDT(currents.time, currents.Ta, -1.0);
     Tamin(i) = min(currents.Ta);
     vpeak(i) = max(currents.V);
     RMP(i) = min(currents.V);
@@ -142,6 +144,6 @@ end
 % CaT_min = CaTmin(calibrated_population_biomarkers_index)';
 % Ta_max = Tamax(calibrated_population_biomarkers_index)';
 % Ta_min = Tamin(calibrated_population_biomarkers_index)';
-T = table(apd40', apd50', apd90', CTD50', CTD90', CaTmax', CaTmin', Tamax', Tamin', TaD50', TaD90');
-writetable(T,[celltype '_output.txt'],'WriteRowNames',true)
+T = table(apd40', apd50', apd90', CTD50', CTD90', CaTmax', CaTmin', Tamax', Tamin', TaD50', TaD90', dTadt_max');
+writetable(T,[outputdir celltype '_output.txt'],'WriteRowNames',true)
 end

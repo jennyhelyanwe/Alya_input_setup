@@ -14,7 +14,7 @@ import seaborn as sns
 from postprocessing import PostProcessing, mapIndices
 import pandas as pd
 from healthy_qoi_ranges import HealthyBiomarkerRanges
-class SA:
+class SAUQ:
     def __init__(self, name, sampling_method, n, parameter_names, baseline_parameter_values, baseline_json_file, baseline_dir,
                  simulation_dir, alya_format, verbose):
         self.name = name
@@ -39,6 +39,26 @@ class SA:
         print('Number of samples/simulations to set up: ', str(self.parameter_set.shape[0]))
         print('Number of parameters included: ', str(self.parameter_set.shape[1]))
         self.generate_alya_simulation_json(self.baseline_json_file)
+
+    def setup_fibre_sa(self, fields, fibre_filenames, sheet_filenames, normal_filenames, baseline_json_file):
+        print('Set up Alya simulations with difference fibre fields')
+        baseline_simulation_dict = json.load(open(baseline_json_file, 'r'))
+        for fibre_i in range(len(fibre_filenames)):
+            print('Reading in fibres: ', fibre_filenames[fibre_i])
+            fields.read_doste_fibre_fields_vtk(
+                fibre_vtk_filename=fibre_filenames[fibre_i],
+                sheet_vtk_filename=sheet_filenames[fibre_i],
+                normal_vtk_filename=normal_filenames[fibre_i])
+            with open(self.simulation_dir + self.name + '_' + str(fibre_i) + '.json', 'w') as f:
+                json.dump(baseline_simulation_dict, f)
+            self.alya_format.simulation_dir = self.simulation_dir
+            print('Writing out Alya simulation files')
+            self.alya_format.do(simulation_json_file=self.simulation_dir + self.name + '_' + str(fibre_i) + '.json',
+                                SA_flag=False, baseline_dir=self.baseline_dir)
+            self.all_simulation_dirs.append(self.alya_format.output_dir)
+        with open(self.simulation_dir + '/all_simulation_dirs.txt', 'w') as f:
+            for i in range(len(self.all_simulation_dirs)):
+                f.write(self.all_simulation_dirs[i] + '\n')
 
     def generate_parameter_set(self, upper_bounds, lower_bounds):
         # upper_bounds = self.baseline_parameter_values * 2.0
@@ -147,24 +167,37 @@ class SA:
         for simulation_i in range(len(self.finished_simulation_dirs)):
             alya_output_dir = self.finished_simulation_dirs[simulation_i]
             json_file = self.simulation_dir + analysis_type + '_' + str(simulation_i) + '.json'
-            if os.path.exists(alya_output_dir + '/results_csv/timeset_1.csv'):
+            if qoi_group_name == 'ecg':
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
-                                      alya_output_dir=alya_output_dir, verbose=self.verbose)
-                if qoi_group_name == 'ecg':
-                    post.evaluate_ecg_biomarkers(beat=beat)
-                    post.save_qoi(filename=qoi_save_dir + 'ecg_qoi_' + str(simulation_i) + '.csv')
-                elif qoi_group_name == 'pv':
-                    post.evaluate_pv_biomarkers(beat=beat)
-                    post.save_qoi(filename=qoi_save_dir + 'pv_qoi_' + str(simulation_i) + '.csv')
-                elif qoi_group_name == 'deformation':
-                    post.evaluate_deformation_biomarkers(beat=beat)
-                    post.save_qoi(filename=qoi_save_dir + 'deformation_qoi_' + str(simulation_i) + '.csv')
-                elif qoi_group_name == 'fibre_work':
-                    post.evaluate_fibre_work_biomarkers(beat=beat)
-                    post.save_qoi(filename=qoi_save_dir + 'fibrework_qoi_' + str(simulation_i) + '.csv')
+                                      alya_output_dir=alya_output_dir, protocol='raw',
+                                      verbose=self.verbose)
+                post.evaluate_ecg_biomarkers(beat=beat)
+                post.save_qoi(filename=qoi_save_dir + 'ecg_qoi_' + str(simulation_i) + '.csv')
+                postp_objects.append(post)
+            elif qoi_group_name == 'pv':
+                post = PostProcessing(alya=alya, simulation_json_file=json_file,
+                                      alya_output_dir=alya_output_dir, protocol='raw',
+                                      verbose=self.verbose)
+                post.evaluate_pv_biomarkers(beat=beat)
+                post.save_qoi(filename=qoi_save_dir + 'pv_qoi_' + str(simulation_i) + '.csv')
+                postp_objects.append(post)
+            elif qoi_group_name == 'deformation':
+                post = PostProcessing(alya=alya, simulation_json_file=json_file,
+                                      alya_output_dir=alya_output_dir, protocol='postprocess',
+                                      verbose=self.verbose)
+                post.evaluate_deformation_biomarkers(beat=beat)
+                post.save_qoi(filename=qoi_save_dir + 'deformation_qoi_' + str(simulation_i) + '.csv')
+                postp_objects.append(post)
+            elif qoi_group_name == 'fibre_work':
+                post = PostProcessing(alya=alya, simulation_json_file=json_file,
+                                      alya_output_dir=alya_output_dir, protocol='postprocess',
+                                      verbose=self.verbose)
+                post.evaluate_fibre_work_biomarkers(beat=beat)
+                post.save_qoi(filename=qoi_save_dir + 'fibrework_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
 
-        # Gather all simulated QoIs to a single CSV file for SA or UQ analysis later.
+
+        # Gather all simulated QoIs to a single CSV file for SAUQ or UQ analysis later.
         qois = pd.DataFrame({})
         if qoi_group_name == 'ecg':
             for simulation_i in range(len(self.finished_simulation_dirs)):
@@ -194,19 +227,170 @@ class SA:
         return postp_objects
 
 
+    def visualise_ed_es_pvr_biomarkers(self, beat, pv_post):
+        fig = plt.figure(tight_layout=True, figsize=(18, 10))
+        gs = GridSpec(1, 2)
+        ax_pv = fig.add_subplot(gs[0, 0])
+        ax_edpvr = fig.add_subplot(gs[0, 1])
+        lvedp = []
+        lvedv = []
+        lvesp = []
+        lvesv = []
+        V0 = pv_post[0].pvs['vls'][beat-1][0] # Volume at EDP = 0 mmHg
+        V30 = 0
+        # Find V30 - volume when pressure = 30 mmHg = 4 kPa
+        for simulation_i in range(len(pv_post)):
+            p30_idx = np.where(abs(pv_post[simulation_i].pvs['pls'][beat-1] - 4)<0.01)[0]
+            if p30_idx.size:
+                V30 = pv_post[simulation_i].pvs['vls'][beat-1][p30_idx[0]]
 
-    def sort_simulations(self):
+        for simulation_i in range(len(pv_post)):
+            ax_pv.plot(pv_post[simulation_i].pvs['vls'][beat - 1], pv_post[simulation_i].pvs['pls'][beat - 1] / 10000,
+                       color='C0', label='LV')
+            ax_pv.plot(pv_post[simulation_i].pvs['vrs'][beat - 1], pv_post[simulation_i].pvs['prs'][beat - 1] / 10000,
+                       color='C1', label='RV')
+            # ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['vls'][beat - 1],
+            #            color='C0', label='LV')
+            # ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['vrs'][beat - 1],
+            #            color='C1', label='RV')
+            # ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['pls'][beat - 1] / 10000*7.5,
+            #            color='C0', label='LV')
+            # ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['prs'][beat - 1] / 10000*7.5,
+            #            color='C1', label='RV')
+            lved_idx = np.where(pv_post[simulation_i].pvs['phasels'][beat - 1] == 0)[0][-1]
+            lves_idx = np.where(pv_post[simulation_i].pvs['phasels'][beat - 1] == 2)[0][-1]
+            lvedv.append(pv_post[simulation_i].pvs['vls'][beat - 1][lved_idx])
+            lvedp.append(pv_post[simulation_i].pvs['pls'][beat - 1][lved_idx]/10000)
+            lvesv.append(pv_post[simulation_i].pvs['vls'][beat - 1][lves_idx])
+            lvesp.append(pv_post[simulation_i].pvs['pls'][beat - 1][lves_idx]/10000)
+        ax_pv.set_xlabel('Volume (mL)')
+        ax_pv.set_ylabel('Pressure (kPa)')
+        # ax_vt.set_xlabel('Time (s)')
+        # ax_vt.set_ylabel('Volume (mL)')
+        # ax_pt.set_xlabel('Time (s)')
+        # ax_pt.set_ylabel('Pressure (mmHg)')
+        ed_idx = np.argsort(lvedv)
+        es_idx = np.argsort(lvesv)
+        lvedv = np.array(lvedv)[ed_idx]
+        lvesv = np.array(lvesv)[es_idx]
+        lvedp = np.array(lvedp)[ed_idx]
+        lvesp = np.array(lvesp)[es_idx]
+        es_a, es_b = np.polyfit(lvesv, lvesp, 1)
+        # ax_pv.plot(lvedv, lvedp, color='k', linestyle='--')
+        # ax_pv.axline((lvesv[0], lvesv[0]), slope=es_a, color='k', linestyle='--')
+        # ax_pv.scatter(lvesv, lvesp)
+        # # Plot Klotz curve for EDPVR
+        # ax_pv.plot(lvedv, self.healthy_ranges['edpvr_a_klotz'] * lvedv ** self.healthy_ranges['edpvr_b_klotz'], color='g', linestyle='--')
+        # # Plot healthy ranges for EDVPR and ESPVR
+        # es_intercept_0 = lvesp[0] - self.healthy_ranges['espvr'][0] * lvesv[0]
+        # es_intercept_1 = lvesp[0] - self.healthy_ranges['espvr'][1] * lvesv[0]
+        # ax_pv.fill_between(lvesv, self.healthy_ranges['espvr'][0] * lvesv + es_intercept_0,
+        #                    self.healthy_ranges['espvr'][1] * lvesv + es_intercept_1,
+        #                    alpha=0.3, facecolor='green')
+        plt.show()
+
+
+    def sort_simulations(self, tag='postprocess'):
         with open(self.simulation_dir + '/all_simulation_dirs.txt', 'r') as f:
             all_simulation_dirs = f.readlines()
         self.finished_simulation_dirs = []
-        for simulation_i in range(len(all_simulation_dirs)):
-            if os.path.exists(all_simulation_dirs[simulation_i].split()[0] + '/results_csv/timeset_1.csv'):
+        if tag=='postprocess':
+            for simulation_i in range(len(all_simulation_dirs)):
+                if os.path.exists(all_simulation_dirs[simulation_i].split()[0] + '/heart-cardiac-cycle.sld.res'):
+                    if os.path.exists(all_simulation_dirs[simulation_i].split()[0] + '/results_csv/timeset_1.csv'):
+                        self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
+        elif tag== 'raw':
+            for simulation_i in range(len(all_simulation_dirs)):
                 if os.path.exists(all_simulation_dirs[simulation_i].split()[0]+'/heart-cardiac-cycle.sld.res'):
                     self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
             # if os.path.exists(all_simulation_dirs[simulation_i].split()[0] + '/heart.post.alyafil'):
             #     with open(all_simulation_dirs[simulation_i].split()[0] + '/heart.post.alyafil', 'r') as f:
             #         if len(f.readlines()) >= 1000:
             #             self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
+
+
+    def visualise_sa(self, beat, ecg_post=None, pv_post=None, deformation_post=None, fibre_work_post=None):
+        if pv_post:
+            fig = plt.figure(tight_layout=True, figsize=(18, 10))
+            gs = GridSpec(2, 2)
+            ax_pv = fig.add_subplot(gs[0:2, 0])
+            ax_vt = fig.add_subplot(gs[0, 1])
+            ax_pt = fig.add_subplot(gs[1, 1])
+            for simulation_i in range(len(pv_post)):
+                ax_pv.plot(pv_post[simulation_i].pvs['vls'][beat-1], pv_post[simulation_i].pvs['pls'][beat-1]/10000, color='C0', label='LV')
+                ax_pv.plot(pv_post[simulation_i].pvs['vrs'][beat - 1], pv_post[simulation_i].pvs['prs'][beat - 1]/10000,
+                           color='C1', label='RV')
+                ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat-1], pv_post[simulation_i].pvs['vls'][beat-1], color='C0', label='LV')
+                ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['vrs'][beat - 1],
+                           color='C1', label='RV')
+                ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['pls'][beat - 1]/10000,
+                           color='C0', label='LV')
+                ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['prs'][beat - 1]/10000,
+                           color='C1', label='RV')
+            ax_pv.set_xlabel('Volume (mL)')
+            ax_pv.set_ylabel('Pressure (kPa)')
+            ax_vt.set_xlabel('Time (s)')
+            ax_vt.set_ylabel('Volume (mL)')
+            ax_pt.set_xlabel('Time (s)')
+            ax_pt.set_ylabel('Pressure (kPa)')
+            plt.show()
+        if ecg_post:
+            fig = plt.figure(tight_layout=True, figsize=(18, 10))
+            gs = GridSpec(1, 6)
+            ax_V1 = fig.add_subplot(gs[0, 0])
+            ax_V2 = fig.add_subplot(gs[0, 1])
+            ax_V3 = fig.add_subplot(gs[0, 2])
+            ax_V4 = fig.add_subplot(gs[0, 3])
+            ax_V5 = fig.add_subplot(gs[0, 4])
+            ax_V6 = fig.add_subplot(gs[0, 5])
+            for simulation_i in range(len(ecg_post)):
+                ax_V1.plot(ecg_post[simulation_i].ecgs['ts'][beat-1],
+                           ecg_post[simulation_i].ecgs['V1s'][beat-1]/ecg_post[simulation_i].ecgs['max_all_leads'])
+                ax_V2.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                           ecg_post[simulation_i].ecgs['V2s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                ax_V3.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                           ecg_post[simulation_i].ecgs['V3s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                ax_V4.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                           ecg_post[simulation_i].ecgs['V4s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                ax_V5.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                           ecg_post[simulation_i].ecgs['V5s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                ax_V6.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                           ecg_post[simulation_i].ecgs['V6s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+            ax_V1.set_xlabel('Time (s)')
+            ax_V1.set_title('V1')
+            ax_V1.set_ylim([-1, 1])
+            ax_V2.set_xlabel('Time (s)')
+            ax_V2.set_title('V2')
+            ax_V2.set_ylim([-1, 1])
+            ax_V3.set_xlabel('Time (s)')
+            ax_V3.set_title('V3')
+            ax_V3.set_ylim([-1, 1])
+            ax_V4.set_xlabel('Time (s)')
+            ax_V4.set_title('V4')
+            ax_V4.set_ylim([-1, 1])
+            ax_V5.set_xlabel('Time (s)')
+            ax_V5.set_title('V5')
+            ax_V5.set_ylim([-1, 1])
+            ax_V6.set_xlabel('Time (s)')
+            ax_V6.set_title('V6')
+            ax_V6.set_ylim([-1, 1])
+            plt.show()
+        if deformation_post:
+            fig = plt.figure(tight_layout=True, figsize=(18, 10))
+            gs = GridSpec(1, 2)
+            ax_avpd = fig.add_subplot(gs[0,0])
+            ax_apex = fig.add_subplot(gs[0,1])
+            for simulation_i in range(len(deformation_post)):
+                ax_avpd.plot(deformation_post[simulation_i].deformation_transients['deformation_t'], deformation_post[simulation_i].deformation_transients['avpd'])
+                ax_apex.plot(deformation_post[simulation_i].deformation_transients['deformation_t'], deformation_post[simulation_i].deformation_transients['apical_displacement'])
+            ax_avpd.set_title('AVPD')
+            ax_avpd.set_xlabel('Time (s)')
+            ax_avpd.set_ylabel('AVPD (cm)')
+            ax_apex.set_title('Apical displacement')
+            ax_apex.set_xlabel('Time (s)')
+            ax_apex.set_ylabel('(cm)')
+            plt.show()
+
 
 
     def visualise_uq(self, beat, parameter_name, ecg_post=None, pv_post=None, deformation_post=None, fibre_work_post=None):

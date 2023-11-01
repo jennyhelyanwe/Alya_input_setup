@@ -1,6 +1,6 @@
 from alyaformat import AlyaFormat
 from postprocessing import PostProcessing
-from sensitivityanalysis import SA
+from sensitivityanalysis_uncertaintyquantification import SAUQ
 import os
 import numpy as np
 
@@ -45,7 +45,7 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 # elif system == 'heart':
 #     baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
 #     simulation_dir = sa_folder_name + '/'
-# sa = SA(name='sa', sampling_method='saltelli', n=2 ** 4, parameter_names=cell_parameter_names,
+# sa = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 4, parameter_names=cell_parameter_names,
 #        baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
 #        simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
 # # sa.setup()
@@ -70,7 +70,7 @@ elif system == 'heart':
 #         simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + uq_folder_name + '/'
 #     elif system == 'heart':
 #         simulation_dir = uq_folder_name + '/'
-#     sa = SA(name='uq', sampling_method='range', n=3, parameter_names=np.array([parameter_name]),
+#     sa = SAUQ(name='uq', sampling_method='range', n=3, parameter_names=np.array([parameter_name]),
 #             baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
 #             simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
 #     upper_bounds = baseline_parameter_values[i] * 2.0
@@ -87,7 +87,7 @@ elif system == 'heart':
 #         simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + uq_folder_name + '/'
 #     elif system == 'heart':
 #         simulation_dir = uq_folder_name + '/'
-#     sa = SA(name='uq', sampling_method='range', n=3, parameter_names=np.array([parameter_name]),
+#     sa = SAUQ(name='uq', sampling_method='range', n=3, parameter_names=np.array([parameter_name]),
 #             baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
 #             simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
 #     sa.run_jobs_postprocess(simulation_dir=simulation_dir)
@@ -102,21 +102,21 @@ for i, parameter_name in enumerate(uq_cell_parameters):
         simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + uq_folder_name + '/'
     elif system == 'heart':
         simulation_dir = uq_folder_name + '/'
-    sa = SA(name='uq', sampling_method='range', n=3, parameter_names=np.array([parameter_name]),
-            baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
-            simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-    sa.sort_simulations()
-    deformation_post = sa.evaluate_qois(qoi_group_name='deformation', alya=alya, beat=1, qoi_save_dir=simulation_dir, analysis_type='uq')
-    fibre_work_post = sa.evaluate_qois(qoi_group_name='fibre_work', alya=alya, beat=1, qoi_save_dir=simulation_dir, analysis_type='uq')
-    pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=1, qoi_save_dir=simulation_dir, analysis_type='uq')
-    ecg_post = sa.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=1, qoi_save_dir=simulation_dir, analysis_type='uq')
-    sa.visualise_uq(beat=1, parameter_name=parameter_name, ecg_post=ecg_post, pv_post=pv_post,
+    uq = SAUQ(name='uq', sampling_method='range', n=3, parameter_names=np.array([parameter_name]),
+              baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+              simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+    uq.sort_simulations()
+    deformation_post = uq.evaluate_qois(qoi_group_name='deformation', alya=alya, beat=1, qoi_save_dir=simulation_dir, analysis_type='uq')
+    fibre_work_post = uq.evaluate_qois(qoi_group_name='fibre_work', alya=alya, beat=1, qoi_save_dir=simulation_dir, analysis_type='uq')
+    pv_post = uq.evaluate_qois(qoi_group_name='pv', alya=alya, beat=1, qoi_save_dir=simulation_dir, analysis_type='uq')
+    ecg_post = uq.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=1, qoi_save_dir=simulation_dir, analysis_type='uq')
+    uq.visualise_uq(beat=1, parameter_name=parameter_name, ecg_post=ecg_post, pv_post=pv_post,
                     deformation_post=deformation_post, fibre_work_post=fibre_work_post)
-    # sa.analyse(simulation_dir+'all_qois.csv')
+    # uq.analyse(simulation_dir+'all_qois.csv')
     quit()
 quit()
 
 ########################################################################################################################
 # Step 5: Evaluate Sobol indices and plot results
-sa_figures_directory = simulation_dir
-sa.analyse(sa_figures_directory)
+# sa_figures_directory = simulation_dir
+# sa.analyse(sa_figures_directory)

@@ -177,7 +177,15 @@ class FieldGeneration(MeshStructure):
                                    field_type='nodefield')
         self.save()
 
-    def generate_prestress_field(self):
+    def read_cavity_landmarks(self, save=False):
+        lv_posterior_node = 5078
+        lv_anterior_node = 5151
+        self.node_fields.add_field(data=np.array([lv_posterior_node, lv_anterior_node]), data_name='lv-cavity-nodes',
+                                   field_type='nodefield')
+        if save:
+            self.save()
+
+    def generate_prestress_field(self, save=False):
         # Prestress field
         prestress_field = np.zeros(self.element_fields.dict['tv-element'].shape[0]).astype(int)
         for element_i in range(self.element_fields.dict['tv-element'].shape[0]):
@@ -190,17 +198,52 @@ class FieldGeneration(MeshStructure):
                     (self.element_fields.dict['tv-element'][element_i] == 2):
                 prestress_field[element_i] = 2
         self.element_fields.add_field(data=prestress_field, data_name='prestress', field_type='elementfield')
-        self.save()
+        if save:
+            self.save()
 
-    def read_fibre_fields(self, fibre_field_filename, sheet_field_filename, normal_field_filename):
+    def generate_prestress_field_cardiax(self, save=False):
+        prestress_field = np.zeros(self.geometry.number_of_elements).astype(int)
+        prestress_field[:] = 1
+        self.element_fields.add_field(data=prestress_field, data_name='prestress', field_type='elementfield')
+        if save:
+            self.save()
+
+    def read_fibre_fields(self, fibre_field_filename, sheet_field_filename, normal_field_filename, save=False):
         self.node_fields.add_field(data=pd.read_csv(fibre_field_filename, header=None).values, data_name='fibre', field_type='nodefield')
         self.node_fields.add_field(data=pd.read_csv(sheet_field_filename, header=None).values, data_name='sheet',
                                    field_type='nodefield')
         self.node_fields.add_field(data=pd.read_csv(normal_field_filename, header=None).values, data_name='normal',
                                    field_type='nodefield')
-        self.save()
+        if save:
+            self.save()
 
-    def read_doste_fibre_fields_vtk(self, fibre_vtk_filename, sheet_vtk_filename, normal_vtk_filename):
+    def read_cardiax_ellipsoid_fibre_fields_vtk(self, fibre_vtk_filename, save=False):
+        if self.verbose:
+            print('Reading in fibres, ensuring node correspondence using nearest node mapping...')
+        reader = vtk.vtkUnstructuredGridReader()
+        reader.SetFileName(fibre_vtk_filename)
+        reader.ReadAllVectorsOn()
+        reader.ReadAllScalarsOn()
+        reader.Update()
+        data = reader.GetOutput()
+        fibre_xyz = VN.vtk_to_numpy(data.GetPoints().GetData())
+        # Nearest node mapping
+        map = map_indexes(points_to_map_xyz=self.geometry.nodes_xyz, reference_points_xyz=fibre_xyz)
+
+        # Read fibres
+        if self.verbose:
+            print('Reading in fibre field...')
+        fibre = VN.vtk_to_numpy(data.GetPointData().GetArray('f0'))
+        # Check for zero vectors:
+        n_zero_vectors = len(np.where(~fibre.any(axis=1))[0])
+        n_nan_vectors = len(np.where(np.isnan(fibre).any(axis=1))[0])
+        print('Number of zero fibre vectors: ', n_zero_vectors)
+        print('Number of NaN fibre vectors: ', n_nan_vectors)
+        self.node_fields.add_field(data=fibre[map], data_name='fibre', field_type='nodefield')
+        if save:
+            self.save()
+
+    def read_doste_fibre_fields_vtk(self, fibre_vtk_filename, sheet_vtk_filename, normal_vtk_filename, save=False):
         if self.verbose:
             print('Reading in Doste fibres, ensuring node correspondence using nearest node mapping...')
         reader = vtk.vtkUnstructuredGridReader()
@@ -251,7 +294,8 @@ class FieldGeneration(MeshStructure):
         print('Number of zero normal vectors: ', n_zero_vectors)
         print('Number of NaN normal vectors: ', n_nan_vectors)
         self.node_fields.add_field(data=normal[map], data_name='normal', field_type='nodefield')
-        self.save()
+        if save:
+            self.save()
 
     def generate_infarct_borderzone(self):
         # Using UVC to define infarct and border zone geometry.

@@ -1,6 +1,6 @@
 from alyaformat import AlyaFormat
 from postprocessing import PostProcessing
-from sensitivityanalysis import SA
+from sensitivityanalysis_uncertaintyquantification import SAUQ
 import os
 import numpy as np
 
@@ -51,9 +51,9 @@ if system == 'jureca':
 elif system == 'heart':
     print('Not implemented for heart! ')
     quit()
-sa = SA(name='sa', sampling_method='gridsampling', n=4, parameter_names=cell_parameter_names,
-       baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
-       simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+sa = SAUQ(name='sa', sampling_method='gridsampling', n=4, parameter_names=cell_parameter_names,
+          baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+          simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
 # sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
 # quit()
 sa.run_jobs(simulation_dir, start_id=0)

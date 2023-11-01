@@ -13,18 +13,18 @@ class MeshPreprocessing(MeshStructure):
             input_dir = input_dir + '/'
         self.vtk_name = vtk_name
         self.input_dir = input_dir
-        self.read_geometry_from_vtk_rodero()
-        self.lv_endocardium = 3
+        # self.read_geometry_from_vtk_rodero()
+        self.lv_endocardium = 3 # default values for Rodero meshes
         self.rv_endocardium = 2
         self.epicardium = 1
         self.valve_plug = 4
         # Generate fields
-        self.generate_boundary_data_rodero()
-        self.generate_fibre_sheet_normal()
+        # self.generate_boundary_data_rodero()
+        # self.generate_fibre_sheet_normal()
 
-        self.save()
-        self.check_fields_for_qrs_inference()
-        self.check_fields_for_twave_inference()
+        # self.save()
+        # self.check_fields_for_qrs_inference()
+        # self.check_fields_for_twave_inference()
 
     def check_fields_for_qrs_inference(self):
         assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_xyz.csv')
@@ -53,7 +53,157 @@ class MeshPreprocessing(MeshStructure):
         assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_material_tetra.csv')
         print('Everything set for T wave inference')
 
-    def read_geometry_from_vtk_rodero(self):
+    def read_geometry_from_vtk_cardiax_ellipsoid(self, save=False):
+        print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '.vtk')
+        reader = vtk.vtkUnstructuredGridReader()
+        reader.SetFileName(self.input_dir + self.vtk_name + '.vtk')
+        reader.ReadAllVectorsOn()
+        reader.ReadAllScalarsOn()
+        reader.Update()
+        data = reader.GetOutput()
+        self.geometry.number_of_elements = data.GetNumberOfCells()
+        self.geometry.number_of_nodes = data.GetNumberOfPoints()
+        self.geometry.tetrahedrons = np.zeros((self.geometry.number_of_elements, 4)).astype(int)
+        self.geometry.nodes_xyz = np.zeros((self.geometry.number_of_nodes, 3))
+        for i in range(0, self.geometry.number_of_elements):
+            self.geometry.tetrahedrons[i, 0] = int(data.GetCell(i).GetPointId(0))
+            self.geometry.tetrahedrons[i, 1] = int(data.GetCell(i).GetPointId(1))
+            self.geometry.tetrahedrons[i, 2] = int(data.GetCell(i).GetPointId(2))
+            self.geometry.tetrahedrons[i, 3] = int(data.GetCell(i).GetPointId(3))
+        nodes_xyz = VN.vtk_to_numpy(data.GetPoints().GetData())  # Convert from mm to cm
+        self.geometry.nodes_xyz = nodes_xyz
+        self.geometry.edges = []
+        for element_i in range(self.geometry.number_of_elements):
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 1]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 2]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 2], self.geometry.tetrahedrons[element_i, 3]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 3], self.geometry.tetrahedrons[element_i, 0]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 3]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 2]])
+        self.geometry.edges = np.unique(np.sort(self.geometry.edges, axis=1), axis=0)
+        unfolded_edges = np.concatenate((self.geometry.edges, np.flip(self.geometry.edges, axis=1))).astype(int)
+        aux = [[] for i in range(0, self.geometry.number_of_nodes, 1)]
+        for i in range(0, len(unfolded_edges)):
+            aux[unfolded_edges[i, 0]].append(unfolded_edges[i, 1])
+        neighbours = [np.array(n) for n in aux]  # Node numbers starting 0
+        self.neighbours = neighbours
+        self.geometry.tetrahedron_centres = (nodes_xyz[self.geometry.tetrahedrons[:, 0], :] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:, 1], :] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:, 2], :] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:, 3], :]) / 4.
+
+        print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_surface_connectivity.vtk')
+        reader = vtk.vtkPolyDataReader()
+        reader.SetFileName(self.input_dir + self.vtk_name + '_surface_connectivity.vtk')
+        reader.ReadAllVectorsOn()
+        reader.ReadAllScalarsOn()
+        reader.Update()
+        data = reader.GetOutput()
+
+        # Read faces
+        self.geometry.number_of_triangles = data.GetNumberOfCells()
+        self.geometry.triangles = np.zeros([self.geometry.number_of_triangles, 3])
+        self.boundary_node_fields.add_field(data=VN.vtk_to_numpy(data.GetPointData().GetArray('PointIds')).astype(int),
+                                            data_name='surface-node-id', field_type='boundarynodefield')
+        for i in range(0, self.geometry.number_of_triangles):
+            self.geometry.triangles[i, :] = [
+                int(self.boundary_node_fields.dict['surface-node-id'][data.GetCell(i).GetPointId(0)]),
+                int(self.boundary_node_fields.dict['surface-node-id'][data.GetCell(i).GetPointId(1)]),
+                int(self.boundary_node_fields.dict['surface-node-id'][data.GetCell(i).GetPointId(2)])]
+        self.geometry.triangles = self.geometry.triangles.astype(int)
+        materials = np.zeros(self.geometry.number_of_elements).astype(int)
+        materials[:] = 1
+        self.materials.add_field(data=materials, data_name='tetra', field_type='material')
+        if save:
+            self.save()
+
+    def generate_boundary_data_cardiax_ellipsoid(self, save=False):
+        print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_surface_connectivity.vtk')
+        reader = vtk.vtkPolyDataReader()
+        reader.SetFileName(self.input_dir + self.vtk_name + '_surface_connectivity.vtk')
+        reader.ReadAllVectorsOn()
+        reader.ReadAllScalarsOn()
+        reader.Update()
+        data = reader.GetOutput()
+        elem_ids = VN.vtk_to_numpy(data.GetCellData().GetArray('RegionId'))
+        self.boundary_element_fields.add_field(VN.vtk_to_numpy(data.GetCellData().GetArray('RegionId')).astype(int),
+                                               'boundary-label', 'boundaryelementfield')
+        self.boundary_node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('RegionId')).astype(int),
+                                            'boundary-label', 'boundarynodefield')
+        for i in range(0, len(self.boundary_element_fields.dict['boundary-label'])):
+            if self.boundary_element_fields.dict['boundary-label'][i] == 1:
+                self.boundary_element_fields.dict['boundary-label'][i] = self.geometry.epicardium  # Epicardial
+            elif self.boundary_element_fields.dict['boundary-label'][i] == 2:
+                self.boundary_element_fields.dict['boundary-label'][i] = self.geometry.lv_endocardium  # LV endocardial
+            elif self.boundary_element_fields.dict['boundary-label'][i] == 0:
+                self.boundary_element_fields.dict['boundary-label'][i] = self.geometry.lid  # Basal truncated surface
+
+        for i in range(0, len(self.boundary_node_fields.dict['boundary-label'])):
+            if self.boundary_node_fields.dict['boundary-label'][i] == 1:
+                self.boundary_node_fields.dict['boundary-label'][i] = self.geometry.epicardium  # Epicardial
+            elif self.boundary_node_fields.dict['boundary-label'][i] == 2:
+                self.boundary_node_fields.dict['boundary-label'][i] = self.geometry.lv_endocardium  # LV endocardial
+            elif self.boundary_node_fields.dict['boundary-label'][i] == 0:
+                self.boundary_node_fields.dict['boundary-label'][i] = self.geometry.lid  # Basal truncated surface
+
+        # Save input global label
+        input_node_label_global = np.zeros(self.geometry.number_of_nodes).astype(int)
+        input_node_label_global[self.boundary_node_fields.dict['surface-node-id'][
+            self.boundary_node_fields.dict[
+                'boundary-label'] == self.geometry.lv_endocardium]] = self.geometry.lv_endocardium
+        input_node_label_global[self.boundary_node_fields.dict['surface-node-id'][
+            self.boundary_node_fields.dict[
+                'boundary-label'] == self.geometry.epicardium]] = self.geometry.epicardium
+        input_node_label_global[self.boundary_node_fields.dict['surface-node-id'][
+            self.boundary_node_fields.dict[
+                'boundary-label'] == self.geometry.lid]] = self.geometry.lid
+        self.boundary_node_fields.add_field(input_node_label_global, 'input-boundary-label',
+                                            'boundarynodefield')
+        # Set up boundary label for mechanics
+        mechanical_element_boundary_label = np.zeros(self.boundary_element_fields.dict['boundary-label'].shape)
+        mechanical_node_boundary_label = np.zeros(self.boundary_node_fields.dict['boundary-label'].shape)
+        for i in range(self.geometry.triangles.shape[0]):
+            for j in range(self.geometry.triangles.shape[1]):
+                local_index = \
+                    np.nonzero(self.boundary_node_fields.dict['surface-node-id'] == self.geometry.triangles[i, j])[0][0]
+                # Epicardial plug surface
+                mechanical_element_boundary_label[i] = \
+                    self.boundary_element_fields.dict['boundary-label'][i]
+                mechanical_node_boundary_label[local_index] = self.boundary_node_fields.dict['boundary-label'][
+                    local_index]
+        self.boundary_node_fields.add_field(mechanical_node_boundary_label, 'mechanical-node-boundary-label',
+                                            'boundarynodefield')
+        self.boundary_element_fields.add_field(mechanical_element_boundary_label, 'mechanical-element-boundary-label',
+                                               'boundaryelementfield')
+
+        # Get LV and RV endocardium nodes
+        mechanical_lvnodes = self.boundary_node_fields.dict['surface-node-id'][
+            self.boundary_node_fields.dict['mechanical-node-boundary-label'] == self.geometry.lv_endocardium].astype(
+            int)
+        mechanical_epinodes = self.boundary_node_fields.dict['surface-node-id'][
+            self.boundary_node_fields.dict['mechanical-node-boundary-label'] == self.geometry.epicardium].astype(int)
+        mechanical_lidnodes = self.boundary_node_fields.dict['surface-node-id'][
+            self.boundary_node_fields.dict['mechanical-node-boundary-label'] == self.geometry.lid].astype(int)
+        mechanical_node_label_global = np.zeros(self.geometry.number_of_nodes).astype(int)
+        mechanical_node_label_global[mechanical_lvnodes] = self.geometry.lv_endocardium
+        mechanical_node_label_global[mechanical_epinodes] = self.geometry.epicardium
+        mechanical_node_label_global[mechanical_lidnodes] = self.geometry.lid
+        self.boundary_node_fields.add_field(mechanical_node_label_global, 'mechanical-node-label-global',
+                                            'boundarynodefield')
+        self.boundary_node_fields.add_field(mechanical_lvnodes, 'mechanical-lvnodes', 'boundarynodefield')
+        self.boundary_node_fields.add_field(mechanical_epinodes, 'mechanical-epinodes', 'boundarynodefield')
+        self.boundary_node_fields.add_field(mechanical_lidnodes, 'mechanical-lidnodes', 'boundarynodefield')
+        if save:
+            self.save()
+
+
+    def read_geometry_from_vtk_rodero(self, save=False):
         print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '.vtk')
         reader = vtk.vtkUnstructuredGridReader()
         reader.SetFileName(self.input_dir + self.vtk_name + '.vtk')
@@ -117,7 +267,7 @@ class MeshPreprocessing(MeshStructure):
         self.element_fields.add_field(data=rt_tetra_centres, data_name='rt', field_type='elementfield')
         self.element_fields.add_field(data=tm_tetra_centres, data_name='tm', field_type='elementfield')
         self.element_fields.add_field(data=tv_tetra_centres, data_name='tv', field_type='elementfield')
-        self.save()
+
         print('Convert from UVC to Cobiveco')
         self.convert_uvc_to_cobiveco()
         print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_fibres_at_nodes.vtk')
@@ -191,6 +341,8 @@ class MeshPreprocessing(MeshStructure):
             else:
                 materials[element_i] = 1
         self.materials.add_field(data=materials, data_name='tetra', field_type='material')
+        if save:
+            self.save()
 
     def convert_uvc_to_cobiveco(self):
         # Map input geometry Cobiveco coordinates to output-style UVC
@@ -421,7 +573,7 @@ class MeshPreprocessing(MeshStructure):
             self.node_fields.add_field(data=cobiveco[key], data_name='cobiveco-'+key, field_type='nodefield')
 
 
-    def generate_boundary_data_rodero(self):
+    def generate_boundary_data_rodero(self, save=False):
         print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '_surface_connectivity.vtk')
         reader = vtk.vtkPolyDataReader()
         reader.SetFileName(self.input_dir + self.vtk_name + '_surface_connectivity.vtk')
@@ -552,6 +704,8 @@ class MeshPreprocessing(MeshStructure):
         self.boundary_element_fields.save_to_ensight(self.geometric_data_dir + 'ensight/',
                                                      casename=self.name + '_boundary_element_fields',
                                                      geometry=self.geometry)
+        if save:
+            self.save()
 
     def generate_fibre_sheet_normal(self):
         transmural_vector = self.node_fields.dict['transmural-vector']
@@ -654,6 +808,7 @@ def map_ventricular_coordinates(input_ranges, output_ranges, input_coordinate):
     return output_coordinate
 
 def map_indexes(points_to_map_xyz, reference_points_xyz):
+    print('Mapping indices...')
     mapped_indexes = pymp.shared.array((points_to_map_xyz.shape[0]), dtype=int)
     threadsNum = multiprocessing.cpu_count()
     with pymp.Parallel(min(threadsNum, points_to_map_xyz.shape[0])) as p1:

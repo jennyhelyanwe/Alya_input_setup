@@ -10,26 +10,26 @@ import os
 import pandas as pd
 import scipy
 
-protocol = 'UQ'
+protocol = 'SA'
 if protocol == 'SA':
     flag = 'sample'
     names = ['INa', 'INaL', 'Ito', 'IKr', 'IKs', 'IK1', 'INCX', 'INaK', 'ICaL', 'Jrel', 'Jup', 'ca50', 'kuw', 'kws', 'Istim']
     sp = ProblemSpec({'num_vars': len(names),
                    'names': names,
                    'bounds': [[0.5, 2]]*len(names),
-                   'outputs': ['APD40', 'APD50', 'APD90', 'CTD50', 'CTD90', 'CaTmax', 'CaTmin', 'Tamax', 'Tamin', 'TaD50', 'TaD90'] #, 'APD90', 'CTD50', 'CTD90', 'CaTmin', 'CaTmax', 'Tamax', 'Tamin'
+                   'outputs': ['APD40', 'APD50', 'APD90', 'CTD50', 'CTD90', 'CaTmax', 'CaTmin', 'Tamax', 'Tamin', 'TaD50', 'TaD90', 'dTadtmax'] #, 'APD90', 'CTD50', 'CTD90', 'CaTmin', 'CaTmax', 'Tamax', 'Tamin'
                    })
     qoi_names = sp.get('outputs')
     # if flag == 'sample':
     sample_size = 2 ** 7
     sp.sample_sobol(sample_size, calc_second_order=True)
     param_values= sp.samples
-    print ('Number of samples: ', param_values.shape[0])
+    print('Number of samples: ', param_values.shape[0])
     output_dir = 'sa_cell_em_n_' + str(param_values.shape[0]) + '/'
-    np.savetxt('sa_param_values.txt', param_values, delimiter=',')
-    with open('sa_output_dir.txt', 'w') as f:
-        f.write(output_dir)
-    quit()
+    # np.save('sa_param_values.txt', param_values, delimiter=',')
+    # with open('sa_output_dir.txt', 'w') as f:
+    #     f.write(output_dir)
+    #
     ########################################################################################################################
     # Run simulations in MATLAB
     # os.system('matlab -nodisplay -r "evaluateSA"')
@@ -41,7 +41,7 @@ if protocol == 'SA':
         Y = np.loadtxt(output_dir + cell + '_output.txt', float, delimiter=',', skiprows=1)
         Y_ta = Y[:, 7:]
         qoi_names_ta = qoi_names[7:]
-        qoi_names_with_units_ta = ['Ta_max (kPa)', 'Ta_min (kPa)', 'TaD50 (ms)', 'TaD90 (ms)']
+        qoi_names_with_units_ta = ['Ta_max (kPa)', 'Ta_min (kPa)', 'TaD50 (ms)', 'TaD90 (ms)', 'dTadtmax (kPa/ms)']
         X = np.loadtxt('sa_param_values.txt', delimiter=',')
         print(Y.shape)
         print(X.shape)
@@ -84,10 +84,10 @@ if protocol == 'SA':
         analysis = sp._analysis
         QOIs = sp.get('outputs')
         fig = plt.figure(tight_layout=True, figsize=(15,6))
-        gs = GridSpec(1, 4)
+        gs = GridSpec(1, len(qoi_names_with_units_ta))
         data = Si.to_df()
         sns.set_theme(style="whitegrid")
-        for qoi_i in range(4):
+        for qoi_i in range(len(qoi_names_with_units_ta)):
             ax = fig.add_subplot(gs[0, qoi_i])
             st_s1_data = pd.concat([data[qoi_i+7][0], data[qoi_i+7][1]], axis=1)
             sorted_data = st_s1_data.reindex(st_s1_data.abs().sort_values('ST', ascending=False).index)
@@ -104,6 +104,7 @@ if protocol == 'SA':
             if qoi_i == 3:
                 ax.legend(ncol=2, loc="lower right", frameon=True)
         plt.savefig(output_dir + cell+'_ST_S1_tornado.png')
+        plt.show()
         ####################################################################################################################
         # Second order effects heat map
         # sp.set_results(Y)

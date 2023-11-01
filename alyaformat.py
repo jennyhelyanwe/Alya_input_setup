@@ -57,6 +57,19 @@ class AlyaFormat(MeshStructure):
         self.add_utility_scripts()
         self.add_job_scripts()
 
+    def do_ellipsoid(self, simulation_json_file):
+        self.output_dir = self.simulation_dir + simulation_json_file.split('/')[-1].split('.')[
+            0] + '_' + self.name + '/'
+        print('Alya version: ' + self.version + ', simulation name: ', self.name, ' to: ', self.output_dir)
+        if not os.path.exists(self.output_dir):
+            os.mkdir(self.output_dir)
+        copy(simulation_json_file, self.output_dir + self.name + '.json')
+        self.simulation_dict = json.load(open(simulation_json_file, 'r'))
+        self.write_dat()
+        self.write_dom_dat()
+        self.write_sld_dat_ellipsoid()
+
+
     def visual_sanity_check(self, simulation_json_file):
         def scatter_visualise(ax, xyz, field, title):
             assert xyz.shape[0] == field.shape[0]
@@ -207,19 +220,21 @@ class AlyaFormat(MeshStructure):
         self.write_dom_dat()
         if 'EXMEDI' in self.simulation_dict['physics']:
             self.write_exm_dat()
+            self.write_cell_txt()
         if 'SOLIDZ' in self.simulation_dict['physics']:
             self.write_sld_dat()
         self.write_ker_dat()
         self.write_post_dat()
-        self.write_cell_txt()
+
 
     def write_alya_simulation_files_parameters_only(self):
         if 'EXMEDI' in self.simulation_dict['physics']:
             self.write_exm_dat()
+            self.write_cell_txt()
         if 'SOLIDZ' in self.simulation_dict['physics']:
             self.write_sld_dat()
         self.write_ker_dat()
-        self.write_cell_txt()
+
 
     def write_dat(self):
         filename = self.output_dir + self.simulation_dict['name'] + '.dat'
@@ -475,6 +490,43 @@ class AlyaFormat(MeshStructure):
             with open(filename, 'w') as f:
                 f.write(data)
 
+    def write_sld_dat_ellipsoid(self):
+        if self.version == 'alya-compbiomed2':
+            # Solidz properties
+            filename = self.template_dir + self.version + '.subtemplate.solidz_property_template'
+            keys = ["material_idx", "density", "Kct", "a", "b", "af", "bf", "as", "bs", "afs", "bfs", "prestress_field"]
+            num_materials = np.amax(self.materials.dict[self.simulation_dict['materials_name']]).astype(int)
+            insert_data = []
+            for material_i in range(num_materials):
+                insert_data.append([material_i+1, self.simulation_dict['density'][material_i],
+                                    self.simulation_dict['Kct'][material_i], self.simulation_dict['a'][material_i],
+                                    self.simulation_dict['b'][material_i], self.simulation_dict['af'][material_i],
+                                    self.simulation_dict['bf'][material_i], self.simulation_dict['as'][material_i],
+                                    self.simulation_dict['bs'][material_i], self.simulation_dict['afs'][material_i],
+                                    self.simulation_dict['bfs'][material_i],
+                                    self.simulation_dict['field_names'].index('prestress') + 1])
+            mechanical_properties_str = self.template(filename=filename, keys=keys, data=insert_data,
+                                                      num_duplicates=num_materials)
+            # Solidz cardiac cycle
+            filename = self.template_dir + self.version + '.subtemplate.cavity_definition_template'
+            keys = ["cavity_idx", "cavity_boundary_number", "cavity_basal_node_1", "cavity_basal_node_2",
+                    "prestress_field_idx"]
+            num_cavities = len(self.simulation_dict['cavity_bcs'])
+            insert_data = []
+            for cavity_i in range(num_cavities):
+                cavity_boundary_number = 0
+                if self.simulation_dict['cavity_bcs'][cavity_i] == 'LV':
+                    cavity_boundary_number = self.geometry.lv_endocardium
+                    insert_data.append([cavity_i + 1, cavity_boundary_number,
+                                        self.node_fields.dict['lv-cavity-nodes'][0].astype(int) + 1,
+                                        self.node_fields.dict['lv-cavity-nodes'][1].astype(int) + 1, cavity_i + 1])
+                elif self.simulation_dict['cavity_bcs'][cavity_i] == 'RV':
+                    cavity_boundary_number = self.geometry.rv_endocardium
+                    insert_data.append([cavity_i + 1, cavity_boundary_number,
+                                        self.node_fields.dict['rv-cavity-nodes'][0].astype(int) + 1,
+                                        self.node_fields.dict['rv-cavity-nodes'][1].astype(int) + 1, cavity_i + 1])
+            cavities_str = self.template(filename=filename, keys=keys, data=insert_data, num_duplicates=num_cavities)
+
     def write_sld_dat(self):
         if self.version == 'alya-compbiomed2':
             # Solidz properties
@@ -559,7 +611,14 @@ class AlyaFormat(MeshStructure):
             keys = ["epicardial_boundary_number","pericardial_stiffness"]
             insert_data = [[self.geometry.epicardium, self.simulation_dict['pericardial_stiffness']]]
             pericardial_code = self.template(filename=filename, keys=keys, data=insert_data, num_duplicates=1)
-            boundary_conditions_str = cavities_code + '\n' + pericardial_code
+            if 'fixed_basal_plane' in self.simulation_dict.keys():
+                filename = self.template_dir + self.version + '.subtemplate.solidz_bc_fixed_boundaries_template'
+                key = ["fixed_boundary_number"]
+                insert_data = [[self.geometry.lid]]
+                fixed_base_code = self.template(filename=filename, keys=key, data=insert_data, num_duplicates=1)
+                boundary_conditions_str = cavities_code + '\n' + pericardial_code + '\n' + fixed_base_code
+            else:
+                boundary_conditions_str = cavities_code + '\n' + pericardial_code
             # Replace all strings
             filename = self.template_dir + self.version + '.sld.dat'
             keys = ["mechanical_properties_str", "cardiac_cycle_str", "solidz_residual", "solidz_convergence_tolerance",
@@ -593,14 +652,22 @@ class AlyaFormat(MeshStructure):
                 coupling_str = coupling_str + coupling_str_2
                 coupling_str = coupling_str + '\n\tEND_ECCOUPLING'
             # Replace all ker.dat
-            filename = self.template_dir + self.version + '.ker.dat'
-            keys = ["coupling_str", "fibre_field_number", "sheet_field_number", "normal_field_number",
-                    "celltype_field_number"]
-            insert_data = [[coupling_str,
-                           self.simulation_dict['field_names'].index(self.simulation_dict['fibre_field_name'])+1,
-                           self.simulation_dict['field_names'].index(self.simulation_dict['sheet_field_name'])+1,
-                           self.simulation_dict['field_names'].index(self.simulation_dict['normal_field_name'])+1,
-                           self.simulation_dict['field_names'].index(self.simulation_dict['celltype_field_name'])+1]]
+            filename = ''
+            if 'sheet_field_name' in self.simulation_dict.keys():
+                filename = self.template_dir + self.version + '.ker.dat'
+                keys = ["coupling_str", "fibre_field_number", "sheet_field_number", "normal_field_number",
+                        "celltype_field_number"]
+                insert_data = [[coupling_str,
+                               self.simulation_dict['field_names'].index(self.simulation_dict['fibre_field_name'])+1,
+                               self.simulation_dict['field_names'].index(self.simulation_dict['sheet_field_name'])+1,
+                               self.simulation_dict['field_names'].index(self.simulation_dict['normal_field_name'])+1,
+                               self.simulation_dict['field_names'].index(self.simulation_dict['celltype_field_name'])+1]]
+            elif 'celltype_field_name' not in self.simulation_dict.keys():
+                filename = self.template_dir + self.version + '.ker.dat_sld_only'
+                keys = ["coupling_str", "fibre_field_number", "sheet_str", "normal_str"]
+                insert_data = [[coupling_str,
+                                self.simulation_dict['field_names'].index(self.simulation_dict['fibre_field_name']) + 1,
+                                '', '']]
             data = self.template(filename=filename, keys=keys, data=insert_data, num_duplicates=1)
             # Write sld.dat
             filename = self.output_dir + self.simulation_dict['name'] + '.ker.dat'

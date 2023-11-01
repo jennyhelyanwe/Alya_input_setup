@@ -16,6 +16,7 @@ else:
     system = 'heart'
 if system == 'jureca':
     meta_data_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/meta_data/'
+    personalisation_data_dir = meta_data_dir + '/personalisation_data/' + simulation_name + '/twave_sf_IKs_GKs5_GKr0.6_tjca60/translation_to_monodomain/'
 elif system == 'heart':
     meta_data_dir = '/data/Personalisation_projects/meta_data/'
 geometric_data_dir = meta_data_dir + 'geometric_data/'+simulation_name+'/'+simulation_name+'_fine/'
@@ -37,18 +38,17 @@ verbose = False
 electrode_data_filename = meta_data_dir + 'geometric_data/'+simulation_name+'/'+simulation_name+'_electrode_xyz.csv'
 
 
-# fields = FieldGeneration(name=simulation_name+'_fine', geometric_data_dir=geometric_data_dir,
-#                          personalisation_data_dir=personalisation_data_dir, verbose=verbose)
+fields = FieldGeneration(name=simulation_name+'_fine', geometric_data_dir=geometric_data_dir,
+                         personalisation_data_dir=personalisation_data_dir, verbose=verbose)
 
-# fields.generate_celltype(read_celltype_filename=personalisation_data_dir+simulation_name+'_fine_nodefield_personalisation-biomarker_0.csv')
+# fields.generate_celltype(read_celltype_filename=personalisation_data_dir+simulation_name+'_fine_nodefield_personalisation-biomarker.csv')
 # fields.generate_electrode_locations(electrode_data_filename=electrode_data_filename, save=True)
 # fields.generate_stimuli(lat_filename=personalisation_data_dir+'/'+simulation_name+'_fine_nodefield_personalisation-lat.csv')
 # fields.generate_ionic_scaling_factors(
-#     read_biomarker_filename=personalisation_data_dir + '/' + simulation_name + '_fine_nodefield_personalisation-biomarker.csv', save=True)
+    # read_biomarker_filename=personalisation_data_dir + '/' + simulation_name + '_fine_nodefield_personalisation_biomarker_fudged_shift-30.csv', save=True)
 
 ########################################################################################################################
 # Step 5: Simulate best match model.
-personalisation_data_dir = meta_data_dir + 'personalisation_data/' + simulation_name + '/twave_sf_IKs_GKs5_GKr0.6_tjca60/best_discrepancy/'
 simulation_dir = ''
 if system == 'jureca':
     simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/twave_best_match/'
@@ -59,13 +59,28 @@ alya = AlyaFormat(name=simulation_name + '_fine', geometric_data_dir=geometric_d
 baseline_json_file = simulation_name+'_baseline_simulation_ep.json'
 baseline_dir = ''
 if system == 'jureca':
-    baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/'+simulation_name+'_baseline_simulation_ep_'+simulation_name+'_fine/'
+    baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/twave_best_match/'+simulation_name+'_baseline_simulation_ep_'+simulation_name+'_fine/'
+
+fields.generate_ionic_scaling_factors(
+    read_biomarker_filename=personalisation_data_dir + '/' + simulation_name + '_fine_nodefield_personalisation_biomarker_fudged_shift-30.csv', save=True)
+alya.do(simulation_json_file=baseline_json_file, SA_flag=False, drug_flag=False,
+        best_match_biomarker_file=personalisation_data_dir+simulation_name+'_fine_nodefield_personalisation_biomarker_fudged_shift-30.csv',
+        baseline_dir=baseline_dir)
 
 
-# alya.do(simulation_json_file=baseline_json_file, SA_flag=False, drug_flag=False,
-#         best_match_biomarker_file=personalisation_data_dir+simulation_name+'_fine_nodefield_personalisation-biomarker.csv',
-#         baseline_dir=baseline_dir)
-# quit()
+baseline_json_file = simulation_name+'_baseline_simulation_ep_wideAPD.json'
+baseline_dir = ''
+if system == 'jureca':
+    baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/twave_best_match/'+simulation_name+'_baseline_simulation_ep_'+simulation_name+'_fine/'
+
+fields.generate_ionic_scaling_factors(
+    read_biomarker_filename=personalisation_data_dir + '/' + simulation_name + '_fine_nodefield_personalisation_biomarker_fudged_shift-30_wideAPD.csv', save=True)
+alya.do(simulation_json_file=baseline_json_file, SA_flag=False, drug_flag=False,
+        best_match_biomarker_file=personalisation_data_dir+simulation_name+'_fine_nodefield_personalisation_biomarker_fudged_shift-30_wideAPD.csv',
+        baseline_dir=baseline_dir)
+
+
+quit()
 ########################################################################################################################
 # Step 6: Set up population based drug tests
 personalisation_data_dir = meta_data_dir + 'personalisation_data/'+simulation_name+'/twave_sf_IKs_GKs5_GKr0.6_tjca60/drug_testing_population/'
