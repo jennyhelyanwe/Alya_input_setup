@@ -113,7 +113,7 @@ if run_alya_baseline_postprocessing:
 # Step 6: Postprocess
 if evaluate_simulated_biomarkers:
     simulation_json_file = 'rodero_baseline_simulation_em.json'
-    alya_output_dir = simulation_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + simulation_name + '/'
+    alya_output_dir = simulation_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + simulation_name + '_mec_baseline/'
     pp = PostProcessing(alya=alya, simulation_json_file=simulation_json_file,
                         alya_output_dir=alya_output_dir, protocol='postprocess', verbose=verbose)
     beat = 1

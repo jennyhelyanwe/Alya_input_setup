@@ -396,12 +396,28 @@ class AlyaFormat(MeshStructure):
                 varname = field_names[field_i]
                 field = None
                 if field_types[field_i] == 'nodefield':
+                    print('Writing out ', varname, 'as '+ self.output_dir + self.simulation_dict['name'] + '.' + varname)
                     field = self.node_fields.dict[varname]
+                    write_alya_field(filename=self.output_dir + self.simulation_dict['name'] + '.' + varname,
+                                     field_idx=field_idx,
+                                     field_data=field)
                 elif field_types[field_i] == 'elementfield':
+                    print('Writing out ', varname,
+                          'as ' + self.output_dir + self.simulation_dict['name'] + '.' + varname)
                     field = self.element_fields.dict[varname]
+                    write_alya_field(filename=self.output_dir + self.simulation_dict['name'] + '.' + varname,
+                                     field_idx=field_idx,
+                                     field_data=field)
                 elif field_types[field_i] == 'material':
+                    print('Writing out ', varname,
+                          'as ' + self.output_dir + self.simulation_dict['name'] + '.' + varname)
                     field = self.materials.dict[varname]
-                if varname == 'endocardial-activation-times':
+                    write_alya_field(filename=self.output_dir + self.simulation_dict['name'] + '.' + varname,
+                                     field_idx=field_idx,
+                                     field_data=field)
+                elif varname == 'endocardial-activation-times':
+                    print('Writing out ', varname,
+                          'as ' + self.output_dir + self.simulation_dict['name'] + '.' + varname)
                     field_idx = self.boundary_node_fields.dict['endocardial-nodes'].astype(int) + 1
                     meta_idx_sort = np.argsort(field_idx)
                     field_idx = field_idx[meta_idx_sort]
@@ -420,12 +436,16 @@ class AlyaFormat(MeshStructure):
                                     + str(int(self.simulation_dict['number_of_cycles'])) + '\t'
                                     + str(self.simulation_dict['cycle_length']) + '\n')
                 elif varname == 'cell-type':
+                    print('Writing out ', varname,
+                          'as ' + self.output_dir + self.simulation_dict['name'] + '.' + varname)
                     field_idx = np.arange(1, field.shape[0] + 1)
                     field = self.node_fields.dict[varname].astype(int)
                     write_alya_field(filename=self.output_dir + self.simulation_dict['name'] + '.' + varname,
                                      field_idx=field_idx,
                                      field_data=field)
                 else:
+                    print('Writing out ', varname,
+                          'as ' + self.output_dir + self.simulation_dict['name'] + '.' + varname)
                     field_idx = np.arange(1, field.shape[0] + 1)
                     write_alya_field(filename=self.output_dir + self.simulation_dict['name'] + '.' + varname, field_idx=field_idx,
                                      field_data=field)

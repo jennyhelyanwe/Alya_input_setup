@@ -243,7 +243,7 @@ class FieldGeneration(MeshStructure):
         if save:
             self.save()
 
-    def read_doste_fibre_fields_vtk(self, fibre_vtk_filename, sheet_vtk_filename, normal_vtk_filename, save=False):
+    def read_doste_fibre_fields_vtk(self, fibre_vtk_filename, sheet_vtk_filename, normal_vtk_filename, save=False, map=None):
         if self.verbose:
             print('Reading in Doste fibres, ensuring node correspondence using nearest node mapping...')
         reader = vtk.vtkUnstructuredGridReader()
@@ -254,18 +254,23 @@ class FieldGeneration(MeshStructure):
         data = reader.GetOutput()
         doste_xyz = VN.vtk_to_numpy(data.GetPoints().GetData())
         # Nearest node mapping
-        map = map_indexes(points_to_map_xyz=self.geometry.nodes_xyz, reference_points_xyz=doste_xyz)
+        if map is None:
+            map = map_indexes(points_to_map_xyz=self.geometry.nodes_xyz, reference_points_xyz=doste_xyz)
 
         # Read fibres
         if self.verbose:
             print('Reading in fibre field...')
         fibre = VN.vtk_to_numpy(data.GetPointData().GetArray('Fibers'))
+        print('VTK fibre: ', fibre)
         # Check for zero vectors:
         n_zero_vectors = len(np.where(~fibre.any(axis=1))[0])
         n_nan_vectors = len(np.where(np.isnan(fibre).any(axis=1))[0])
         print('Number of zero fibre vectors: ', n_zero_vectors)
         print('Number of NaN fibre vectors: ', n_nan_vectors)
-        self.node_fields.add_field(data=fibre[map], data_name='fibre', field_type='nodefield')
+        if 'fibre' in self.node_fields.dict.keys():
+            self.node_fields.dict['fibre'] = fibre[map,:]
+        else:
+            self.node_fields.add_field(data=fibre[map,:], data_name='fibre', field_type='nodefield')
 
         # Read sheets
         if self.verbose:
@@ -279,7 +284,10 @@ class FieldGeneration(MeshStructure):
         n_nan_vectors = len(np.where(np.isnan(sheet).any(axis=1))[0])
         print('Number of zero sheet vectors: ', n_zero_vectors)
         print('Number of NaN sheet vectors: ', n_nan_vectors)
-        self.node_fields.add_field(data=sheet[map], data_name='sheet', field_type='nodefield')
+        if 'sheet' in self.node_fields.dict.keys():
+            self.node_fields.dict['sheet'] = sheet[map,:]
+        else:
+            self.node_fields.add_field(data=sheet[map,:], data_name='sheet', field_type='nodefield')
 
         # Read normal
         if self.verbose:
@@ -293,9 +301,13 @@ class FieldGeneration(MeshStructure):
         n_nan_vectors = len(np.where(np.isnan(normal).any(axis=1))[0])
         print('Number of zero normal vectors: ', n_zero_vectors)
         print('Number of NaN normal vectors: ', n_nan_vectors)
-        self.node_fields.add_field(data=normal[map], data_name='normal', field_type='nodefield')
+        if 'normal' in self.node_fields.dict.keys():
+            self.node_fields.dict['normal'] = normal[map,:]
+        else:
+            self.node_fields.add_field(data=normal[map,:], data_name='normal', field_type='nodefield')
         if save:
             self.save()
+        return map
 
     def generate_infarct_borderzone(self):
         # Using UVC to define infarct and border zone geometry.

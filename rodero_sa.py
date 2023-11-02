@@ -22,7 +22,7 @@ elif system == 'heart':
 geometric_data_dir = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_fine/'
 clinical_data_dir = meta_data_dir + 'clinical_data/'
 
-verbose = True
+verbose = False
 
 ########################################################################################################################
 # Step 1: Initialise Alya input files writing capabilities.
@@ -105,6 +105,7 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 fields = FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir,
                 personalisation_data_dir=personalisation_data_dir, verbose=verbose)
 fibre_sa_folder_name = 'sensitivity_analyses_transmural_fibres'
+sa_folder_name = fibre_sa_folder_name
 parameter_names = ''
 baseline_parameter_values = []
 baseline_json_file = 'rodero_baseline_simulation_em.json'
@@ -134,6 +135,8 @@ sa = SAUQ(name='fibre_sa', sampling_method='fibre_test', n=0, parameter_names=np
 sa.run_jobs(simulation_dir=simulation_dir, start_id=0)
 quit()
 
+# sa.run_jobs_postprocess(simulation_dir=simulation_dir)
+# quit()
 ######################################################################################################################
 # # Step 2: Use sampling methods to explore sensitivity analysis
 # sa_folder_name = 'sensitivity_analyses_avpd'
@@ -213,7 +216,7 @@ sa.sort_simulations(tag='postprocess') # Collate list of finished simulations by
 # ecg_post = sa.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
 # sa.visualise_sa(beat=1, ecg_post=ecg_post)
 # fibre_work_post = sa.evaluate_qois(qoi_group_name='fibre_work', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
-deformation_post = sa.evaluate_qois(qoi_group_name='deformation', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
+deformation_post = sa.evaluate_qois(qoi_group_name='deformation', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='fibre_sa')
 sa.visualise_sa(beat=1, deformation_post=deformation_post)
 
 # Visualise scatter plots

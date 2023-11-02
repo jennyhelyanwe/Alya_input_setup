@@ -43,15 +43,21 @@ class SAUQ:
     def setup_fibre_sa(self, fields, fibre_filenames, sheet_filenames, normal_filenames, baseline_json_file):
         print('Set up Alya simulations with difference fibre fields')
         baseline_simulation_dict = json.load(open(baseline_json_file, 'r'))
+        map = fields.read_doste_fibre_fields_vtk(
+            fibre_vtk_filename=fibre_filenames[0],
+            sheet_vtk_filename=sheet_filenames[0],
+            normal_vtk_filename=normal_filenames[0], save=False)
         for fibre_i in range(len(fibre_filenames)):
             print('Reading in fibres: ', fibre_filenames[fibre_i])
             fields.read_doste_fibre_fields_vtk(
                 fibre_vtk_filename=fibre_filenames[fibre_i],
                 sheet_vtk_filename=sheet_filenames[fibre_i],
-                normal_vtk_filename=normal_filenames[fibre_i])
+                normal_vtk_filename=normal_filenames[fibre_i], save=False, map=map)
+            print('Node fields fibre: ', fields.node_fields.dict['fibre'])
             with open(self.simulation_dir + self.name + '_' + str(fibre_i) + '.json', 'w') as f:
                 json.dump(baseline_simulation_dict, f)
             self.alya_format.simulation_dir = self.simulation_dir
+            self.alya_format.node_fields = fields.node_fields
             print('Writing out Alya simulation files')
             self.alya_format.do(simulation_json_file=self.simulation_dir + self.name + '_' + str(fibre_i) + '.json',
                                 SA_flag=False, baseline_dir=self.baseline_dir)

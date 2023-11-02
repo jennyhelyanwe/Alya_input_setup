@@ -17,7 +17,7 @@ vtk_dir = geometric_data_dir
 vtk_name = 'ho_LV_mesh'
 #######################################################################################################################
 # Step 1: Save input mesh into CSV format, as prescribed in myformat.py
-meshpreprocessing = False
+meshpreprocessing = True
 if meshpreprocessing:
     mesh = MeshPreprocessing(vtk_name=vtk_name, name=simulation_name, input_dir=vtk_dir, geometric_data_dir=geometric_data_dir,
                    verbose=verbose)
@@ -57,6 +57,6 @@ if alyasetup:
     simulation_json_file = 'cardiax_ellipsoid_mech.json'
     alya.do(simulation_json_file=simulation_json_file)
 
-run = True
+run = False
 if run:
     run_job(alya.output_dir)
