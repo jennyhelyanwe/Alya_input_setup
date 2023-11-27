@@ -17,10 +17,13 @@ import healthy_qoi_ranges
 class PostProcessing(MeshStructure):
     def __init__(self, alya, simulation_json_file, alya_output_dir, protocol, verbose):
         # super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
-        self.geometry = alya.geometry
+        if hasattr(alya, 'geometry'):
+            self.geometry = alya.geometry
         self.name = alya.name
-        self.node_fields = alya.node_fields
-        self.element_fields = alya.element_fields
+        if hasattr(alya, 'node_fields'):
+            self.node_fields = alya.node_fields
+        if hasattr(alya, 'element_fields'):
+            self.element_fields = alya.element_fields
         self.alya_output_dir = alya_output_dir
         self.alyacsv_dir = self.alya_output_dir+'/results_csv/'
         self.results_dir = self.alya_output_dir + '/results_analysis/'
@@ -274,6 +277,63 @@ class PostProcessing(MeshStructure):
         qoi['min_rv_wall_thickness'] = np.amin(rv_wall_thickness)
         self.qoi.update(qoi)
 
+    def evaluate_cube_deformation_ta_biomarkers(self):
+        self.deformation_transients = {}
+        nodes_xyz = np.loadtxt(self.alyacsv_dir + '3D_point_coordinates.csv', delimiter=',')
+        number_of_nodes = nodes_xyz.shape[0]
+        self.read_csv_fields(read_field_name='DISPL', read_field_type='vector', nodes_xyz=nodes_xyz)
+        self.read_csv_fields(read_field_name='ACTST', read_field_type='vector', nodes_xyz=nodes_xyz)
+
+        # Select nodes on x=1 face
+        x1nodes = []
+        tol = 1e-5
+        for node_i in range(number_of_nodes):
+            if abs(nodes_xyz[node_i,0] - 2.0) < tol:
+                x1nodes.append(node_i)
+
+        # Get displacement in the x axis as transient over time.
+        t = self.post_nodefield.dict['time']
+        displ_x = pymp.shared.array((len(x1nodes), len(t)))
+        ta = pymp.shared.array((len(x1nodes), len(t)))
+        displacement_shared = pymp.shared.array(self.post_nodefield.dict['DISPL'].shape, dtype=float)
+        displacement_shared[:, :, :] = self.post_nodefield.dict['DISPL']
+        ta_shared = pymp.shared.array(self.post_nodefield.dict['ACTST'].shape, dtype=float)
+        ta_shared[:, :, :] = self.post_nodefield.dict['ACTST']
+        x1nodes_shared = pymp.shared.array(len(x1nodes), dtype='int')
+        x1nodes_shared[:] = x1nodes
+        threadsNum = multiprocessing.cpu_count()
+        with pymp.Parallel(min(threadsNum, t.shape[0])) as p1:
+            for time_i in p1.range(t.shape[0]):
+                for node_i in range(x1nodes_shared.shape[0]):
+                    displ_x[node_i, time_i] = displacement_shared[x1nodes_shared[node_i],0, time_i]
+                    ta[node_i, time_i] = ta_shared[x1nodes_shared[node_i], 0, time_i]/10000 # convert from Barye to kPa
+        mean_displ_x = np.mean(displ_x, axis=0)
+        mean_ta = np.mean(ta, axis=0)
+        self.deformation_transients['deformation_t'] = t
+        self.deformation_transients['mean_displ_x'] = mean_displ_x
+        self.deformation_transients['mean_ta'] = mean_ta
+
+        # Get gradients of x displacement
+        peak_displ_x = np.amax(abs(mean_displ_x))
+        dxdt = self.get_first_derivative(t, mean_displ_x)
+        rise_dxdt = np.amax(dxdt)
+        decay_dxdt = np.amin(dxdt)
+
+        # Get gradients of Ta transient
+        peak_ta = np.amax(abs(mean_ta))
+        dtadt = self.get_first_derivative(t, mean_ta)
+        rise_dtadt = np.amax(dtadt)
+        decay_dtadt = np.amin(dtadt)
+
+        qoi = {}
+        qoi['rise_dxdt'] = rise_dxdt
+        qoi['decay_dxdt'] = decay_dxdt
+        qoi['peak_displ_x'] = peak_displ_x
+        qoi['peak_ta'] = peak_ta
+        qoi['rise_dtadt'] = rise_dtadt
+        qoi['decay_dtadt'] = decay_dtadt
+        self.qoi.update(qoi)
+
     def evaluate_fibre_work_biomarkers(self, beat):
         self.fibre_work = {}
         self.read_csv_fields(read_field_name='LAMBD', read_field_type='vector')
@@ -489,7 +549,7 @@ class PostProcessing(MeshStructure):
                               [t_end_idx, V[t_end_idx]]])
         return qrs_dur, qt_dur, t_pe, t_peak, qtpeak_dur, t_polarity, landmarks
 
-    def read_csv_fields(self, read_field_name, read_field_type):
+    def read_csv_fields(self, read_field_name, read_field_type, nodes_xyz=None):
         name = self.simulation_dict['name']
         self.post_nodefield.add_field(data=pd.read_csv(self.alyacsv_dir + 'timeset_1.csv', delimiter=',',header=None).values.transpose()[0].astype(float),
                                       data_name='time', field_type='postnodefield')
@@ -504,17 +564,21 @@ class PostProcessing(MeshStructure):
         for filename in filenames:
             field_names_types.append([filename.split('.')[2].split('-')[0], filename.split('.')[1]])
         field_names_types = np.unique(field_names_types, axis=0)
+        if nodes_xyz is None:
+            number_of_nodes = self.geometry.number_of_nodes
+        else:
+            number_of_nodes = nodes_xyz.shape[0]
         if read_field_name:
-            temp = np.zeros((self.geometry.number_of_nodes, time.shape[0]))
+            temp = np.zeros((number_of_nodes, time.shape[0]))
             field_name = read_field_name
             field_type = read_field_type
             print('Reading csv for field: '  + 'from : '+self.alyacsv_dir + name + '.' + field_type + '.' + field_name + '-******.csv')
             if field_type == 'scalar':
-                temp = pymp.shared.array((self.geometry.number_of_nodes, time.shape[0]), dtype=float)
+                temp = pymp.shared.array((number_of_nodes, time.shape[0]), dtype=float)
                 threadsNum = 50 # multiprocessing.cpu_count()
                 with pymp.Parallel(min(threadsNum, time_index_shared.shape[0])) as p1:
                     for time_i in p1.range(time_index_shared.shape[0]):
-                # temp = np.zeros((self.geometry.number_of_nodes, time.shape[0]))
+                # temp = np.zeros((number_of_nodes, time.shape[0]))
                 # print(temp.shape)
                 # if True:
                 #     for time_i in range(time_index.shape[0]):
@@ -523,7 +587,7 @@ class PostProcessing(MeshStructure):
                         temp[:, time_i] = pd.read_csv(filename, delimiter=',', header=None).values.transpose()[0] #.astype(float)
                 self.post_nodefield.dict[field_name] = temp
             elif field_type == 'vector':
-                temp = pymp.shared.array((self.geometry.number_of_nodes, 3, time.shape[0]), dtype=float)
+                temp = pymp.shared.array((number_of_nodes, 3, time.shape[0]), dtype=float)
                 threadsNum = multiprocessing.cpu_count()
                 with pymp.Parallel(min(threadsNum, time_index_shared.shape[0])) as p1:
                     for time_i in p1.range(time_index_shared.shape[0]):
@@ -537,7 +601,7 @@ class PostProcessing(MeshStructure):
             print('Read_CSV_FIELD: Must specify field and type')
         # else:
         #     for field_i in range(field_names_types.shape[0]):
-        #         temp = np.zeros((self.geometry.number_of_nodes, time.shape[0]))
+        #         temp = np.zeros((number_of_nodes, time.shape[0]))
         #         field_name = field_names_types[field_i, 0]
         #         field_type = field_names_types[field_i, 1]
         #         print('Reading csv for field: '+field_name + ', of type: '+field_type)

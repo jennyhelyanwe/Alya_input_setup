@@ -198,6 +198,13 @@ class SAUQ:
                 post.evaluate_fibre_work_biomarkers(beat=beat)
                 post.save_qoi(filename=qoi_save_dir + 'fibrework_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
+            elif qoi_group_name == 'cube_deformation_ta':
+                post = PostProcessing(alya=alya, simulation_json_file=json_file,
+                                      alya_output_dir=alya_output_dir, protocol='postprocess',
+                                      verbose=self.verbose)
+                post.evaluate_cube_deformation_ta_biomarkers()
+                post.save_qoi(filename=qoi_save_dir + 'cube_deformation_ta_qoi_' + str(simulation_i) + '.csv')
+                postp_objects.append(post)
 
 
         # Gather all simulated QoIs to a single CSV file for SAUQ or UQ analysis later.
@@ -226,6 +233,12 @@ class SAUQ:
                 qoi = json.load(open(filename, 'r'))
                 qois = qois.append(pd.DataFrame(qoi, index=[simulation_i]))
             qois.to_csv(qoi_save_dir + 'fibrework_qois.csv')
+        elif qoi_group_name == 'cube_deformation':
+            for simulation_i in range(len(self.finished_simulation_dirs)):
+                filename = qoi_save_dir + 'cube_deformation_qoi_' + str(simulation_i) + '.csv'
+                qoi = json.load(open(filename, 'r'))
+                qois = qois.append(pd.DataFrame(qoi, index=[simulation_i]))
+            qois.to_csv(qoi_save_dir + 'cube_deformation_qois.csv')
         self.qois_db = qois
         return postp_objects
 
@@ -306,13 +319,19 @@ class SAUQ:
             for simulation_i in range(len(all_simulation_dirs)):
                 if os.path.exists(all_simulation_dirs[simulation_i].split()[0]+'/heart-cardiac-cycle.sld.res'):
                     self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
+        elif tag == 'cube_postprocess':
+            for simulation_i in range(len(all_simulation_dirs)):
+                if os.path.exists(all_simulation_dirs[simulation_i].split()[0] + '/results_csv/timeset_1.csv'):
+                    self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
+
             # if os.path.exists(all_simulation_dirs[simulation_i].split()[0] + '/heart.post.alyafil'):
             #     with open(all_simulation_dirs[simulation_i].split()[0] + '/heart.post.alyafil', 'r') as f:
             #         if len(f.readlines()) >= 1000:
             #             self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
 
 
-    def visualise_sa(self, beat, ecg_post=None, pv_post=None, deformation_post=None, fibre_work_post=None, labels=None):
+    def visualise_sa(self, beat, ecg_post=None, pv_post=None, deformation_post=None,
+                     fibre_work_post=None, cube_deformation_ta_post=None, labels=None):
         if pv_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(2, 2)
@@ -428,8 +447,35 @@ class SAUQ:
                 ax_avpd.legend()
                 ax_apex.legend()
             plt.show()
+        if cube_deformation_ta_post:
+            fig = plt.figure(tight_layout=True, figsize=(18, 10))
+            gs = GridSpec(1, 2)
+            ax_displ = fig.add_subplot(gs[0, 0])
+            ax_ta = fig.add_subplot(gs[0, 1])
+            for simulation_i in range(len(cube_deformation_ta_post)):
+                if labels:
+                    ax_displ.plot(cube_deformation_ta_post[simulation_i].deformation_transients['deformation_t'],
+                                 cube_deformation_ta_post[simulation_i].deformation_transients['mean_displ_x'], label=labels[simulation_i])
+                    ax_ta.plot(cube_deformation_ta_post[simulation_i].deformation_transients['deformation_t'],
+                               cube_deformation_ta_post[simulation_i].deformation_transients['mean_ta'],
+                               label=labels[simulation_i])
+                else:
+                    ax_displ.plot(cube_deformation_ta_post[simulation_i].deformation_transients['deformation_t'],
+                                  cube_deformation_ta_post[simulation_i].deformation_transients['mean_displ_x'])
+                    ax_ta.plot(cube_deformation_ta_post[simulation_i].deformation_transients['deformation_t'],
+                                  cube_deformation_ta_post[simulation_i].deformation_transients['mean_ta'])
 
-
+            ax_displ.set_title('X displacement')
+            ax_displ.set_xlabel('Time (s)')
+            ax_displ.set_ylabel('(cm)')
+            ax_ta.set_title('Ta')
+            ax_ta.set_xlabel('Time (s)')
+            ax_ta.set_ylabel('(kPa)')
+            if labels:
+                ax_displ.legend()
+                ax_ta.legend()
+            print('Showing figure...')
+            plt.show()
 
     def visualise_uq(self, beat, parameter_name, ecg_post=None, pv_post=None, deformation_post=None, fibre_work_post=None):
         with open(self.simulation_dir+'/all_simulation_dirs.txt', 'r') as f:
@@ -445,7 +491,7 @@ class SAUQ:
             alya_output_dir = finished_simulation_dirs[0]
             json_file = self.simulation_dir + 'uq_0.json'
             # post = PostProcessing(alya=alya, simulation_json_file=json_file,
-            #                       alya_output_dir=alya_output_dir, verbose=self.verbose)
+            #                       alya_output_dir=aly a_output_dir, verbose=self.verbose)
             # post.read_ecg_pv()
             pvt_lower = pv_post[0].pvs['ts'][beat-1]
             vl_lower = pv_post[0].pvs['vls'][beat-1]
