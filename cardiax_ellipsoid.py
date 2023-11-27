@@ -15,6 +15,7 @@ verbose = False
 
 vtk_dir = geometric_data_dir
 vtk_name = 'ho_LV_mesh'
+xml_name = 'ho_LV_mesh_fenics'
 #######################################################################################################################
 # Step 1: Save input mesh into CSV format, as prescribed in myformat.py
 meshpreprocessing = True
@@ -24,12 +25,12 @@ if meshpreprocessing:
     mesh.geometry.lv_endocardium = 1 # Change from biventricular default
     mesh.geometry.epicardium = 2 # Change from biventricular default
     mesh.geometry.lid = 3 # Change form biventricular default
-    mesh.read_geometry_from_vtk_cardiax_ellipsoid(save=False)
+    mesh.read_geometry_from_xml_vtk_cardiax_ellipsoid(xml_name=xml_name, vtk_name=vtk_name, save=False)
     mesh.generate_boundary_data_cardiax_ellipsoid(save=True)
 
 ########################################################################################################################
 # Step 2: Generate fields for Alya simulation
-fieldgeneration = False
+fieldgeneration = True
 if fieldgeneration:
     fields = FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir,
                              personalisation_data_dir='', verbose=verbose)

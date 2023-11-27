@@ -40,13 +40,10 @@ class SAUQ:
         print('Number of parameters included: ', str(self.parameter_set.shape[1]))
         self.generate_alya_simulation_json(self.baseline_json_file)
 
-    def setup_fibre_sa(self, fields, fibre_filenames, sheet_filenames, normal_filenames, baseline_json_file):
+    def setup_fibre_sa(self, fields, fibre_filenames, sheet_filenames, normal_filenames, map_filename, baseline_json_file):
         print('Set up Alya simulations with difference fibre fields')
         baseline_simulation_dict = json.load(open(baseline_json_file, 'r'))
-        map = fields.read_doste_fibre_fields_vtk(
-            fibre_vtk_filename=fibre_filenames[0],
-            sheet_vtk_filename=sheet_filenames[0],
-            normal_vtk_filename=normal_filenames[0], save=False)
+        map = fields.map_doste_nodes_to_rodero_nodes(fibre_vtk_filename=fibre_filenames[0], map_filename=map_filename)
         for fibre_i in range(len(fibre_filenames)):
             print('Reading in fibres: ', fibre_filenames[fibre_i])
             fields.read_doste_fibre_fields_vtk(
@@ -315,7 +312,7 @@ class SAUQ:
             #             self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
 
 
-    def visualise_sa(self, beat, ecg_post=None, pv_post=None, deformation_post=None, fibre_work_post=None):
+    def visualise_sa(self, beat, ecg_post=None, pv_post=None, deformation_post=None, fibre_work_post=None, labels=None):
         if pv_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(2, 2)
@@ -323,14 +320,28 @@ class SAUQ:
             ax_vt = fig.add_subplot(gs[0, 1])
             ax_pt = fig.add_subplot(gs[1, 1])
             for simulation_i in range(len(pv_post)):
-                ax_pv.plot(pv_post[simulation_i].pvs['vls'][beat-1], pv_post[simulation_i].pvs['pls'][beat-1]/10000, color='C0', label='LV')
+                if labels:
+                    ax_pv.plot(pv_post[simulation_i].pvs['vls'][beat - 1],
+                               pv_post[simulation_i].pvs['pls'][beat - 1] / 10000, color='C0', label=labels[simulation_i])
+                else:
+                    ax_pv.plot(pv_post[simulation_i].pvs['vls'][beat-1], pv_post[simulation_i].pvs['pls'][beat-1]/10000, color='C0', label='LV')
                 ax_pv.plot(pv_post[simulation_i].pvs['vrs'][beat - 1], pv_post[simulation_i].pvs['prs'][beat - 1]/10000,
                            color='C1', label='RV')
-                ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat-1], pv_post[simulation_i].pvs['vls'][beat-1], color='C0', label='LV')
+                if labels:
+                    ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['vls'][beat - 1],
+                               color='C0', label=labels[simulation_i])
+                else:
+                    ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat-1], pv_post[simulation_i].pvs['vls'][beat-1], color='C0', label='LV')
                 ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['vrs'][beat - 1],
                            color='C1', label='RV')
-                ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['pls'][beat - 1]/10000,
-                           color='C0', label='LV')
+
+                if labels:
+                    ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1],
+                               pv_post[simulation_i].pvs['pls'][beat - 1] / 10000,
+                               color='C0', label=labels[simulation_i])
+                else:
+                    ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['pls'][beat - 1]/10000,
+                               color='C0', label='LV')
                 ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['prs'][beat - 1]/10000,
                            color='C1', label='RV')
             ax_pv.set_xlabel('Volume (mL)')
@@ -339,6 +350,10 @@ class SAUQ:
             ax_vt.set_ylabel('Volume (mL)')
             ax_pt.set_xlabel('Time (s)')
             ax_pt.set_ylabel('Pressure (kPa)')
+            if labels:
+                ax_pv.legend()
+                ax_vt.legend()
+                ax_pt.legend()
             plt.show()
         if ecg_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
@@ -350,8 +365,14 @@ class SAUQ:
             ax_V5 = fig.add_subplot(gs[0, 4])
             ax_V6 = fig.add_subplot(gs[0, 5])
             for simulation_i in range(len(ecg_post)):
-                ax_V1.plot(ecg_post[simulation_i].ecgs['ts'][beat-1],
-                           ecg_post[simulation_i].ecgs['V1s'][beat-1]/ecg_post[simulation_i].ecgs['max_all_leads'])
+                if labels:
+                    ax_V1.plot(ecg_post[simulation_i].ecgs['ts'][beat-1],
+                               ecg_post[simulation_i].ecgs['V1s'][beat-1]/ecg_post[simulation_i].ecgs['max_all_leads'],
+                               label=labels[simulation_i])
+                else:
+                    ax_V1.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                               ecg_post[simulation_i].ecgs['V1s'][beat - 1] / ecg_post[simulation_i].ecgs[
+                                   'max_all_leads'])
                 ax_V2.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
                            ecg_post[simulation_i].ecgs['V2s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
                 ax_V3.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
@@ -380,6 +401,8 @@ class SAUQ:
             ax_V6.set_xlabel('Time (s)')
             ax_V6.set_title('V6')
             ax_V6.set_ylim([-1, 1])
+            if labels:
+                ax_V1.legend()
             plt.show()
         if deformation_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
@@ -387,14 +410,23 @@ class SAUQ:
             ax_avpd = fig.add_subplot(gs[0,0])
             ax_apex = fig.add_subplot(gs[0,1])
             for simulation_i in range(len(deformation_post)):
-                ax_avpd.plot(deformation_post[simulation_i].deformation_transients['deformation_t'], deformation_post[simulation_i].deformation_transients['avpd'])
-                ax_apex.plot(deformation_post[simulation_i].deformation_transients['deformation_t'], deformation_post[simulation_i].deformation_transients['apical_displacement'])
+                if labels:
+                    ax_avpd.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
+                                 deformation_post[simulation_i].deformation_transients['avpd'], label=labels[simulation_i])
+                    ax_apex.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
+                                 deformation_post[simulation_i].deformation_transients['apical_displacement'], label=labels[simulation_i])
+                else:
+                    ax_avpd.plot(deformation_post[simulation_i].deformation_transients['deformation_t'], deformation_post[simulation_i].deformation_transients['avpd'])
+                    ax_apex.plot(deformation_post[simulation_i].deformation_transients['deformation_t'], deformation_post[simulation_i].deformation_transients['apical_displacement'])
             ax_avpd.set_title('AVPD')
             ax_avpd.set_xlabel('Time (s)')
             ax_avpd.set_ylabel('AVPD (cm)')
             ax_apex.set_title('Apical displacement')
             ax_apex.set_xlabel('Time (s)')
             ax_apex.set_ylabel('(cm)')
+            if labels:
+                ax_avpd.legend()
+                ax_apex.legend()
             plt.show()
 
 

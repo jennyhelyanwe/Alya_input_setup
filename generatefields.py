@@ -234,16 +234,61 @@ class FieldGeneration(MeshStructure):
         if self.verbose:
             print('Reading in fibre field...')
         fibre = VN.vtk_to_numpy(data.GetPointData().GetArray('f0'))
+        fibre = fibre[map]
+
+        # Randomly generate sheet and normal vectors
+        sheet = np.zeros(fibre.shape)
+        normal = np.zeros(fibre.shape)
+        for i in range(sheet.shape[0]):
+            f = fibre[i, :]
+            random = [0, 1, 0]
+            if (np.dot(f, random) < 0.00001):
+                random = [1, 0, 0]
+            s = np.cross(random, f)
+            s = s/np.linalg.norm(s)
+            n = np.cross(f, s)
+            n = n/np.linalg.norm(n)
+            sheet[i, :] = s
+            normal[i, :] = n
+
         # Check for zero vectors:
         n_zero_vectors = len(np.where(~fibre.any(axis=1))[0])
         n_nan_vectors = len(np.where(np.isnan(fibre).any(axis=1))[0])
         print('Number of zero fibre vectors: ', n_zero_vectors)
         print('Number of NaN fibre vectors: ', n_nan_vectors)
-        self.node_fields.add_field(data=fibre[map], data_name='fibre', field_type='nodefield')
+        n_zero_vectors = len(np.where(~sheet.any(axis=1))[0])
+        n_nan_vectors = len(np.where(np.isnan(sheet).any(axis=1))[0])
+        print('Number of zero fibre vectors: ', n_zero_vectors)
+        print('Number of NaN fibre vectors: ', n_nan_vectors)
+        n_zero_vectors = len(np.where(~normal.any(axis=1))[0])
+        n_nan_vectors = len(np.where(np.isnan(normal).any(axis=1))[0])
+        print('Number of zero normal vectors: ', n_zero_vectors)
+        print('Number of NaN normal vectors: ', n_nan_vectors)
+        self.node_fields.add_field(data=fibre, data_name='fibre', field_type='nodefield')
+        self.node_fields.add_field(data=sheet, data_name='sheet', field_type='nodefield')
+        self.node_fields.add_field(data=normal, data_name='normal', field_type='nodefield')
         if save:
             self.save()
 
-    def read_doste_fibre_fields_vtk(self, fibre_vtk_filename, sheet_vtk_filename, normal_vtk_filename, save=False, map=None):
+    def map_doste_nodes_to_rodero_nodes(self, fibre_vtk_filename, map_filename):
+        if os.path.exists(map_filename):
+            map = np.loadtxt(map_filename).astype(int)
+        else:
+            reader = vtk.vtkUnstructuredGridReader()
+            reader.SetFileName(fibre_vtk_filename)
+            reader.ReadAllVectorsOn()
+            reader.ReadAllScalarsOn()
+            reader.Update()
+            data = reader.GetOutput()
+            doste_xyz = VN.vtk_to_numpy(data.GetPoints().GetData())
+            # Nearest node mapping
+            map = map_indexes(points_to_map_xyz=doste_xyz, reference_points_xyz=self.geometry.nodes_xyz)
+            print(map.shape)
+            print(self.geometry.nodes_xyz.shape)
+            np.savetxt(map_filename, map)
+        return map
+
+    def read_doste_fibre_fields_vtk(self, fibre_vtk_filename, sheet_vtk_filename, normal_vtk_filename, map, save=False):
         if self.verbose:
             print('Reading in Doste fibres, ensuring node correspondence using nearest node mapping...')
         reader = vtk.vtkUnstructuredGridReader()
@@ -253,9 +298,6 @@ class FieldGeneration(MeshStructure):
         reader.Update()
         data = reader.GetOutput()
         doste_xyz = VN.vtk_to_numpy(data.GetPoints().GetData())
-        # Nearest node mapping
-        if map is None:
-            map = map_indexes(points_to_map_xyz=self.geometry.nodes_xyz, reference_points_xyz=doste_xyz)
 
         # Read fibres
         if self.verbose:
@@ -307,7 +349,7 @@ class FieldGeneration(MeshStructure):
             self.node_fields.add_field(data=normal[map,:], data_name='normal', field_type='nodefield')
         if save:
             self.save()
-        return map
+
 
     def generate_infarct_borderzone(self):
         # Using UVC to define infarct and border zone geometry.

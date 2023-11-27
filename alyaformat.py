@@ -9,7 +9,10 @@ from matplotlib import pyplot as plt
 
 class AlyaFormat(MeshStructure):
     def __init__(self, name, geometric_data_dir, personalisation_dir, clinical_data_dir, simulation_dir, verbose):
-        super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
+        if geometric_data_dir:
+            super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
+        else:
+            print('Creating empty Alya object without a geometry.')
         self.version = 'alya-compbiomed2'  # 'Alya_multiple_BZRZ_models'
         self.template_dir = 'alya_input_templates/'
         self.job_template_dir = 'util/job_script_template/'
@@ -28,19 +31,22 @@ class AlyaFormat(MeshStructure):
             os.mkdir(self.output_dir)
         copy(simulation_json_file, self.output_dir + self.name + '.json')
         self.simulation_dict = json.load(open(simulation_json_file, 'r'))
-        copy(self.clinical_data_dir + self.simulation_dict['clinical_ecg_filename'], self.output_dir)
+        if self.clinical_data_dir:
+            copy(self.clinical_data_dir + self.simulation_dict['clinical_ecg_filename'], self.output_dir)
         # self.check_simulation_dict_integrity()
         if SA_flag:
-            os.system('cp '+baseline_dir+'heart.* '+self.output_dir)
+            os.system('cp '+baseline_dir + self.simulation_dict['name'] + '.* '+self.output_dir)
+            if not self.geometric_data_dir: # TODO this is a hack to allow cube contraction SA to work November 2023
+                os.system('cp '+baseline_dir + self.simulation_dict['name'] + '_0.105.* '+self.output_dir)
             os.system('cd '+self.output_dir+'; ~/Alya/Alya_multiple_BZRZ_models/Utils/user/alya-clean; rm -r results_csv results_ensight; cd -')
             self.write_alya_simulation_files_parameters_only()
         elif drug_flag:
-            os.system('cp ' + baseline_dir + 'heart.* ' + self.output_dir)
+            os.system('cp ' + baseline_dir  + self.simulation_dict['name'] + '.* ' + self.output_dir)
             os.system(
                 'cd ' + self.output_dir + '; ~/Alya/Alya_multiple_BZRZ_models/Utils/user/alya-clean; rm -r results_csv results_ensight; cd -')
             self.write_cell_txt()
         elif best_match_biomarker_file:
-            os.system('cp ' + baseline_dir + 'heart.* ' + self.output_dir)
+            os.system('cp ' + baseline_dir + self.simulation_dict['name'] + '.* ' + self.output_dir)
             os.system(
                 'cd ' + self.output_dir + '; ~/Alya/Alya_multiple_BZRZ_models/Utils/user/alya-clean; rm -r results_csv results_ensight; cd -')
             data = pd.read_csv(best_match_biomarker_file)
@@ -48,9 +54,22 @@ class AlyaFormat(MeshStructure):
             for key in keys:
                 if 'sf_' in key:
                     sfdata = data[key].values
-                    with open(self.output_dir + 'heart.' + key, 'w') as f:
+                    with open(self.output_dir  + self.simulation_dict['name'] + '.' + key, 'w') as f:
                         for i in range(len(sfdata)):
                             f.write(str(i+1) + '\t' + str(sfdata[i]) + '\n')
+                if 'celltype' in key:
+                    celldata = data[key].values
+                    print('Writing to ', self.output_dir  + self.simulation_dict['name'] + '.celltype')
+                    with open(self.output_dir  + self.simulation_dict['name'] + '.celltype', 'w') as f:
+                        for i in range(len(celldata)):
+                            if celldata[i] == 'endo':
+                                f.write(str(i+1) + '\t1\n')
+                            elif celldata[i] == 'mid':
+                                f.write(str(i+1) + '\t2\n')
+                            elif celldata[i] == 'epi':
+                                f.write(str(i+1) + '\t3\n')
+                            else:
+                                raise ('Cell type in ', best_match_biomarker_file, 'does not match format of [endo, mid, epi]')
             self.write_cell_txt()
         else:
             self.write_alya_simulation_files()
@@ -193,22 +212,23 @@ class AlyaFormat(MeshStructure):
         return replacement_str
 
     def add_utility_scripts(self):
-        if ('SOLIDZ' in self.simulation_dict['physics']) and ('EXMEDI' in self.simulation_dict['physics']):
-            filename = 'util/monitoring/'+self.version+'.plot_live_em.template'
-            data = self.template(filename=filename, keys=['name', 'clinical_ecg_filename', 'activation_delay'],
-                                 data=[[self.simulation_dict['name'], "'" +
-                                        self.simulation_dict['clinical_ecg_filename'] + "'",
-                                        self.simulation_dict['end_diastole_t'][0]]],
-                                 num_duplicates=1)
-            with open(self.output_dir+'plot_live_em.py', 'w') as f:
-                f.write(data)
-        if 'EXMEDI' in self.simulation_dict['physics']:
-            filename = 'util/monitoring/' + self.version + '.plot_live_ep.template'
-            data = self.template(filename=filename, keys=['name', 'clinical_ecg_filename'],
-                                 data=[[self.simulation_dict['name'], "'" +
-                                        self.simulation_dict['clinical_ecg_filename'] + "'"]], num_duplicates=1)
-            with open(self.output_dir + 'plot_live_ep.py', 'w') as f:
-                f.write(data)
+        if self.geometric_data_dir:
+            if ('SOLIDZ' in self.simulation_dict['physics']) and ('EXMEDI' in self.simulation_dict['physics']):
+                filename = 'util/monitoring/'+self.version+'.plot_live_em.template'
+                data = self.template(filename=filename, keys=['name', 'clinical_ecg_filename', 'activation_delay'],
+                                     data=[[self.simulation_dict['name'], "'" +
+                                            self.simulation_dict['clinical_ecg_filename'] + "'",
+                                            self.simulation_dict['end_diastole_t'][0]]],
+                                     num_duplicates=1)
+                with open(self.output_dir+'plot_live_em.py', 'w') as f:
+                    f.write(data)
+            if 'EXMEDI' in self.simulation_dict['physics']:
+                filename = 'util/monitoring/' + self.version + '.plot_live_ep.template'
+                data = self.template(filename=filename, keys=['name', 'clinical_ecg_filename'],
+                                     data=[[self.simulation_dict['name'], "'" +
+                                            self.simulation_dict['clinical_ecg_filename'] + "'"]], num_duplicates=1)
+                with open(self.output_dir + 'plot_live_ep.py', 'w') as f:
+                    f.write(data)
         filename = 'util/postprocessing/' + self.version + '.alya2csvensight_mpi.template'
         data = self.template(filename=filename, keys=['input_folder', 'task_name', 'output_folder', 'format'],
                              data=[["'./'", "'"+self.simulation_dict['name']+"'", "'results'", "'alyabin'"]], num_duplicates=1)
@@ -229,10 +249,14 @@ class AlyaFormat(MeshStructure):
 
     def write_alya_simulation_files_parameters_only(self):
         if 'EXMEDI' in self.simulation_dict['physics']:
-            self.write_exm_dat()
-            self.write_cell_txt()
+            if self.geometric_data_dir:
+                self.write_exm_dat()
+                self.write_cell_txt()
+            else:
+                self.write_cell_txt()
         if 'SOLIDZ' in self.simulation_dict['physics']:
-            self.write_sld_dat()
+            if self.geometric_data_dir:
+                self.write_sld_dat()
         self.write_ker_dat()
 
 
@@ -398,6 +422,9 @@ class AlyaFormat(MeshStructure):
                 if field_types[field_i] == 'nodefield':
                     print('Writing out ', varname, 'as '+ self.output_dir + self.simulation_dict['name'] + '.' + varname)
                     field = self.node_fields.dict[varname]
+                    print(varname)
+                    print(field)
+                    field_idx = np.arange(1, self.geometry.number_of_nodes + 1)
                     write_alya_field(filename=self.output_dir + self.simulation_dict['name'] + '.' + varname,
                                      field_idx=field_idx,
                                      field_data=field)
@@ -405,6 +432,7 @@ class AlyaFormat(MeshStructure):
                     print('Writing out ', varname,
                           'as ' + self.output_dir + self.simulation_dict['name'] + '.' + varname)
                     field = self.element_fields.dict[varname]
+                    field_idx = np.arange(1, self.geometry.number_of_elements + 1)
                     write_alya_field(filename=self.output_dir + self.simulation_dict['name'] + '.' + varname,
                                      field_idx=field_idx,
                                      field_data=field)
@@ -412,6 +440,7 @@ class AlyaFormat(MeshStructure):
                     print('Writing out ', varname,
                           'as ' + self.output_dir + self.simulation_dict['name'] + '.' + varname)
                     field = self.materials.dict[varname]
+                    field_idx = np.arange(1, self.geometry.number_of_elements + 1)
                     write_alya_field(filename=self.output_dir + self.simulation_dict['name'] + '.' + varname,
                                      field_idx=field_idx,
                                      field_data=field)
@@ -661,7 +690,10 @@ class AlyaFormat(MeshStructure):
                 filename = self.template_dir + self.version + '.subtemplate.coupling_template'
                 subkeys = ["eccoupling_model_name", "cal50", "sfkuw", "sfkws", "tref_sheet_scaling", "tref_normal_scaling", "tref_scaling"]
                 insert_data = []
-                num_materials = np.amax(self.materials.dict[self.simulation_dict['materials_name']]).astype(int)
+                if self.geometric_data_dir:
+                    num_materials = np.amax(self.materials.dict[self.simulation_dict['materials_name']]).astype(int)
+                else:
+                    num_materials = 1
                 for material_i in range(num_materials):
                     temp = [material_i + 1]
                     for key in subkeys:
@@ -703,7 +735,10 @@ class AlyaFormat(MeshStructure):
         subkeys = ["cell_number_of_beats", "cell_steady_state_type",
                 "cell_steady_state_tolerance", "cell_model_modification_toggle"]
         insert_data = []
-        num_materials = np.amax(self.materials.dict[self.simulation_dict['materials_name']]).astype(int)
+        if self.geometric_data_dir:
+            num_materials = np.amax(self.materials.dict[self.simulation_dict['materials_name']]).astype(int)
+        else:
+            num_materials = 1
         for material_i in range(num_materials):
             temp = []
             for key in subkeys:
@@ -718,7 +753,10 @@ class AlyaFormat(MeshStructure):
                 sf_keys.append(data[i].split('<')[2].split('>')[0])
         keys = subkeys
         cell_types = ["ENDO", "MID", "EPI"]
-        cell_type_str = list(np.array(cell_types)[np.unique(self.node_fields.dict['cell-type']).astype(int) - 1])
+        if self.geometric_data_dir:
+            cell_type_str = list(np.array(cell_types)[np.unique(self.node_fields.dict['cell-type']).astype(int) - 1])
+        else:
+            cell_type_str = ["ENDO", "MID", "EPI"]
         cell_type_str = ' '.join(map(str, cell_type_str))
         keys = keys + sf_keys
         for material_i in range(num_materials):

@@ -13,10 +13,10 @@ import scipy
 protocol = 'SA'
 if protocol == 'SA':
     flag = 'sample'
-    names = ['INa', 'INaL', 'Ito', 'IKr', 'IKs', 'IK1', 'INCX', 'INaK', 'ICaL', 'Jrel', 'Jup', 'ca50', 'kuw', 'kws', 'Istim']
-    sp = ProblemSpec({'num_vars': len(names),
-                   'names': names,
-                   'bounds': [[0.5, 2]]*len(names),
+    parameter_names = ['INa', 'INaL', 'Ito', 'IKr', 'IKs', 'IK1', 'INCX', 'INaK', 'ICaL', 'Jrel', 'Jup', 'ca50', 'kuw', 'kws', 'Istim']
+    sp = ProblemSpec({'num_vars': len(parameter_names),
+                   'names': parameter_names,
+                   'bounds': [[0.5, 2]]*len(parameter_names),
                    'outputs': ['APD40', 'APD50', 'APD90', 'CTD50', 'CTD90', 'CaTmax', 'CaTmin', 'Tamax', 'Tamin', 'TaD50', 'TaD90', 'dTadtmax'] #, 'APD90', 'CTD50', 'CTD90', 'CaTmin', 'CaTmax', 'Tamax', 'Tamin'
                    })
     qoi_names = sp.get('outputs')
@@ -36,50 +36,52 @@ if protocol == 'SA':
 
     ########################################################################################################################
     # elif flag == 'analyse':
+    qoi_names_ta = ['APD90', 'Tamax', 'TaD50', 'dTadtmax']  # qoi_names[7:]
+    qoi_names_with_units_ta = ['APD90 (ms)', 'Tamax (kPa)', 'TaD50 (ms)', 'dTadtmax (kPa/ms)']
+    sp['outputs'] = qoi_names_ta
     celltype = ['endo', 'epi', 'mid']
     for cell in celltype:
-        Y = np.loadtxt(output_dir + cell + '_output.txt', float, delimiter=',', skiprows=1)
-        Y_ta = Y[:, 7:]
-        qoi_names_ta = qoi_names[7:]
-        qoi_names_with_units_ta = ['Ta_max (kPa)', 'Ta_min (kPa)', 'TaD50 (ms)', 'TaD90 (ms)', 'dTadtmax (kPa/ms)']
+        # Y = np.loadtxt(output_dir + cell + '_output.txt', float, delimiter=',', skiprows=1, header=1)
+        print('Reading ' + output_dir + cell + '_output.txt')
+        Y = pd.read_csv(output_dir + cell + '_output.txt')
+        Y_qoi = Y[qoi_names_ta].values
         X = np.loadtxt('sa_param_values.txt', delimiter=',')
-        print(Y.shape)
-        print(X.shape)
         ####################################################################################################################
-        # # Scatter plots with correlation coefficients
-        # fig = plt.figure(tight_layout=True, figsize=(18,10))
-        # gs = GridSpec(4, 8)
-        # axes = [[0] * 8] * 4
-        # for qoi_i in range(4):
-        #     for param_j in range(8):
-        #         axes[qoi_i][param_j] = fig.add_subplot(gs[qoi_i, param_j])
-        #         x = X[:,param_j]
-        #         y = Y_ta[:,qoi_i]
-        #         sns.regplot(x=x, y=y, ax=axes[qoi_i][param_j], scatter_kws={'s':1})
-        #         axes[qoi_i][param_j].text(x=np.amin(x), y=np.amax(y), va='top', ha='left',
-        #                                   s='p=%.2f' % (np.corrcoef(x,y)[0,1]))
-        #         if qoi_i == 3:
-        #             axes[3][param_j].set_xlabel(names[param_j])
-        #     axes[qoi_i][0].set_ylabel(qoi_names_with_units_ta[qoi_i])
-        # plt.savefig(output_dir + cell + '_scatter_plot_part1.png')
-        # fig = plt.figure(tight_layout=True, figsize=(18,10))
-        # gs = GridSpec(4, 7)
-        # axes = [[0] * 7] * 4
-        # for qoi_i in range(4):
-        #     for param_j in range(7):
-        #         axes[qoi_i][param_j] = fig.add_subplot(gs[qoi_i, param_j])
-        #         x = X[:,param_j+8]
-        #         y = Y_ta[:,qoi_i]
-        #         sns.regplot(x=x, y=y, ax=axes[qoi_i][param_j], scatter_kws={'s':1})
-        #         axes[qoi_i][param_j].text(x=np.amin(x), y=np.amax(y), va='top', ha='left', s='p=%.2f' % (np.corrcoef(x,y)[0,1]))
-        #         if qoi_i == 3:
-        #             axes[3][param_j].set_xlabel(names[param_j+8])
-        #     axes[qoi_i][0].set_ylabel(qoi_names_with_units_ta[qoi_i])
-        # plt.savefig(output_dir + cell + '_scatter_plot_part2.png')
-        # plt.show()
+        # Scatter plots with correlation coefficients
+        fig = plt.figure(tight_layout=True, figsize=(18,10))
+        gs = GridSpec(len(qoi_names_with_units_ta), 8)
+        axes = [[0] * 8] * len(qoi_names_with_units_ta)
+        for qoi_i in range(len(qoi_names_with_units_ta)):
+            for param_j in range(8):
+                axes[qoi_i][param_j] = fig.add_subplot(gs[qoi_i, param_j])
+                x = X[:,param_j]
+                y = Y_qoi[:,qoi_i]
+                sns.regplot(x=x, y=y, ax=axes[qoi_i][param_j], scatter_kws={'s':1})
+                axes[qoi_i][param_j].text(x=np.amin(x), y=np.amax(y), va='top', ha='left',
+                                          s='p=%.2f' % (np.corrcoef(x,y)[0,1]))
+                if qoi_i == len(qoi_names_with_units_ta)-1:
+                    axes[len(qoi_names_with_units_ta)-1][param_j].set_xlabel(parameter_names[param_j])
+            axes[qoi_i][0].set_ylabel(qoi_names_with_units_ta[qoi_i])
+        plt.savefig(output_dir + cell + '_scatter_plot_part1.png')
+        plt.show()
+        fig = plt.figure(tight_layout=True, figsize=(18,10))
+        gs = GridSpec(len(qoi_names_with_units_ta), 7)
+        axes = [[0] * 7] * len(qoi_names_with_units_ta)
+        for qoi_i in range(len(qoi_names_with_units_ta)):
+            for param_j in range(7):
+                axes[qoi_i][param_j] = fig.add_subplot(gs[qoi_i, param_j])
+                x = X[:,param_j+8]
+                y = Y_qoi[:,qoi_i]
+                sns.regplot(x=x, y=y, ax=axes[qoi_i][param_j], scatter_kws={'s':1})
+                axes[qoi_i][param_j].text(x=np.amin(x), y=np.amax(y), va='top', ha='left', s='p=%.2f' % (np.corrcoef(x,y)[0,1]))
+                if qoi_i == len(qoi_names_with_units_ta)-1:
+                    axes[len(qoi_names_with_units_ta)-1][param_j].set_xlabel(parameter_names[param_j + 8])
+            axes[qoi_i][0].set_ylabel(qoi_names_with_units_ta[qoi_i])
+        plt.savefig(output_dir + cell + '_scatter_plot_part2.png')
+        plt.show()
         ###################################################################################################################
         # Tornado plot of sensitivity indices https://seaborn.pydata.org/examples/part_whole_bars.html
-        sp.set_results(Y)
+        sp.set_results(Y_qoi)
         Si = sp.analyze_sobol(print_to_console=False, calc_second_order=True)
         analysis = sp._analysis
         QOIs = sp.get('outputs')
@@ -89,15 +91,15 @@ if protocol == 'SA':
         sns.set_theme(style="whitegrid")
         for qoi_i in range(len(qoi_names_with_units_ta)):
             ax = fig.add_subplot(gs[0, qoi_i])
-            st_s1_data = pd.concat([data[qoi_i+7][0], data[qoi_i+7][1]], axis=1)
-            sorted_data = st_s1_data.reindex(st_s1_data.abs().sort_values('ST', ascending=False).index)
-            names = []
+            st_s1_data = pd.concat([data[qoi_i][0], data[qoi_i][1]], axis=1)
+            sorted_data = st_s1_data.reindex(st_s1_data.abs().sort_values('S1', ascending=False).index)
+            sorted_parameter_names = []
             for row in sorted_data.index:
-                names.append(row)
+                sorted_parameter_names.append(row)
             sns.set_color_codes("pastel")
-            sns.barplot(data=sorted_data, x='ST', y=names, label='ST', color='b')
+            sns.barplot(data=sorted_data, x='ST', y=sorted_parameter_names, label='ST', color='b')
             sns.set_color_codes("muted")
-            sns.barplot(data=sorted_data, x='S1', y=names, label='S1', color='b')
+            sns.barplot(data=sorted_data, x='S1', y=sorted_parameter_names, label='S1', color='b')
 
             ax.set( ylabel="",
                    xlabel=qoi_names_with_units_ta[qoi_i])
@@ -143,14 +145,14 @@ elif protocol == 'UQ':
     # Uncertainty quantification - using 0.5 and 2 fold as ranges
     print('Propagating prescribed uncertainty of the following parameters and quantifying effect on QoIs')
     uncertain_parameters = ['ca50', 'ICaL', 'kws', 'Jup', 'INaL']
-    names = ['INa', 'INaL', 'Ito', 'IKr', 'IKs', 'IK1', 'INCX', 'INaK', 'ICaL', 'Jrel', 'Jup', 'ca50', 'kuw', 'kws',
+    parameter_names = ['INa', 'INaL', 'Ito', 'IKr', 'IKs', 'IK1', 'INCX', 'INaK', 'ICaL', 'Jrel', 'Jup', 'ca50', 'kuw', 'kws',
              'Istim']
     for uq_param in uncertain_parameters:
         print ('Uncertainty propagation for ', uq_param)
-        param_values = np.ones((3, len(names)))
-        param_values[0, names.index(uq_param)] = 0.5
-        param_values[1, names.index(uq_param)] = 1.0
-        param_values[2, names.index(uq_param)] = 2.0
+        param_values = np.ones((3, len(parameter_names)))
+        param_values[0, parameter_names.index(uq_param)] = 0.5
+        param_values[1, parameter_names.index(uq_param)] = 1.0
+        param_values[2, parameter_names.index(uq_param)] = 2.0
         output_dir = 'uq_cell_em_' + uq_param + '/'
         np.savetxt('uq_param_values.txt', param_values, delimiter=',')
         with open('uq_output_dir.txt', 'w') as f:

@@ -1,7 +1,7 @@
 function output=model_ToRORd_Land(t,X,flag_ode, cellType, ICaL_Multiplier, ...
     INa_Multiplier, Ito_Multiplier, INaL_Multiplier, IKr_Multiplier, IKs_Multiplier, IK1_Multiplier,IKCa_Multiplier, IKb_Multiplier,INaCa_Multiplier,...
     INaK_Multiplier, INab_Multiplier, ICab_Multiplier, IpCa_Multiplier, ICaCl_Multiplier, IClb_Multiplier, Jrel_Multiplier,Jup_Multiplier,...
-    aCaMK_Multiplier,taurelp_Multiplier,kws_Multiplier, kuw_Multiplier, ksu_Multiplier, ca50_Multiplier, nao,cao,ko,ICaL_fractionSS,...
+    aCaMK_Multiplier,taurelp_Multiplier,kws_Multiplier, kuw_Multiplier, ca50_Multiplier, nao,cao,ko,ICaL_fractionSS,...
     INaCa_fractionSS, stimAmp, stimDur, trpnmax, vcParameters, apClamp, extraParams)
 
 celltype=cellType; %endo = 0, epi = 1, mid = 2
@@ -118,7 +118,7 @@ k_uw=k_uw*nu;
 cdw=phi*k_uw*(1-dr)*(1-wfrac)/((1-dr)*wfrac);
 cds=phi*k_ws*(1-dr)*wfrac/dr;
 k_wu=k_uw*(1/wfrac-1)-k_ws;
-k_su=k_ws*(1/dr-1)*wfrac*ksu_Multiplier; 
+k_su=k_ws*(1/dr-1)*wfrac; 
 A=(0.25*TOT_A)/((1-dr)*wfrac+dr)*(dr/0.25);
 
 %XB model

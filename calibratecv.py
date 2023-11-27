@@ -8,18 +8,34 @@ from meshstructure import MeshStructure
 
 
 class CalibrateCV(MeshStructure):
-    def __init__(self, name, geometric_data_dir, calibration_dir, simulation_json_file, personalisation_data_dir, verbose):
+    def __init__(self, name, geometric_data_dir, calibration_dir, alya_executable_path, personalisation_data_dir, verbose):
         super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
-        edges = self.geometry.edges.astype(int)
+        edges = []
+        for element_i in range(self.geometry.number_of_elements):
+            edges.append(
+                [self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 1]])
+            edges.append(
+                [self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 2]])
+            edges.append(
+                [self.geometry.tetrahedrons[element_i, 2], self.geometry.tetrahedrons[element_i, 3]])
+            edges.append(
+                [self.geometry.tetrahedrons[element_i, 3], self.geometry.tetrahedrons[element_i, 0]])
+            edges.append(
+                [self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 3]])
+            edges.append(
+                [self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 2]])
+        edges = np.unique(np.sort(edges, axis=1), axis=0)
         edge_lengths = np.linalg.norm(self.geometry.nodes_xyz[edges[:,0],:] - self.geometry.nodes_xyz[edges[:,1],:],
                                       axis=1)
         mean_edge_length = np.mean(edge_lengths)
         self.lc = mean_edge_length
-        best_parameters = np.loadtxt(personalisation_data_dir+name+'_inferred-best-parameter.csv', delimiter=',')
-        self.target_cvs = best_parameters[0:2]*1000  # convert to cm/s
+        best_parameters = np.loadtxt(personalisation_data_dir+name+'_inferred-best-parameter.csv', delimiter=',', skiprows=1)
+        self.target_cvs = best_parameters[0:3]*1000  # convert to cm/s
+        print('Targe CVs: ', self.target_cvs)
         self.name = name
         self.calibration_dir = calibration_dir + name + '/'
-        self.simulation_dict = json.load(open(simulation_json_file, 'r'))
+        # self.simulation_dict = json.load(open(simulation_json_file, 'r'))
+        self.alya_executable_path = alya_executable_path
 
         width = 0.7
         cube_length = 1.0
@@ -27,6 +43,8 @@ class CalibrateCV(MeshStructure):
         self.local_node_list, self.local_node_list_coords, self.local_weight_list = self.get_element_probes(self.lc, width,cube_length)
         conductivities = minimize(self.objective_function, [0.001, 0.001, 0.001], method='L-BFGS-B',
                                   bounds=[[0.0005, 0.005], [0.0005, 0.005], [0.0005, 0.005]], options={'eps': 0.0005})
+        print('Optimised conductivities: ')
+        print(conductivities)
 
     def create_tissue_block(self, lc, h, w, d):
         gmsh.initialize()
@@ -71,19 +89,19 @@ class CalibrateCV(MeshStructure):
         surface_loop = gmsh.model.geo.add_surface_loop([plane_surface1,plane_surface2,plane_surface3,plane_surface4,
                                                          plane_surface5,plane_surface6])
         volume = gmsh.model.geo.add_volume([surface_loop])
-        gmsh.model.geo.add_physical_group(1, [1], name="Line1")
-        # gmsh.model.geo.add_physical_group([line1], "Line1")
-        # gmsh.model.geo.add_physical_group([line2], "Line2")
-        # gmsh.model.geo.add_physical_group([line3], "Line3")
-        # gmsh.model.geo.add_physical_group([line4], "Line4")
-        # gmsh.model.geo.add_physical_group([line5], "Line5")
-        # gmsh.model.geo.add_physical_group([line6], "Line6")
-        # gmsh.model.geo.add_physical_group([line7], "Line7")
-        # gmsh.model.geo.add_physical_group([line8], "Line8")
-        # gmsh.model.geo.add_physical_group([line9], "Line9")
-        # gmsh.model.geo.add_physical_group([line10], "Line10")
-        # gmsh.model.geo.add_physical_group([line11], "Line11")
-        # gmsh.model.geo.add_physical_group([line12], "Line12")
+        # gmsh.model.geo.add_physical_group(1, [1], name="Line1")
+        gmsh.model.geo.add_physical_group([line1], "Line1")
+        gmsh.model.geo.add_physical_group([line2], "Line2")
+        gmsh.model.geo.add_physical_group([line3], "Line3")
+        gmsh.model.geo.add_physical_group([line4], "Line4")
+        gmsh.model.geo.add_physical_group([line5], "Line5")
+        gmsh.model.geo.add_physical_group([line6], "Line6")
+        gmsh.model.geo.add_physical_group([line7], "Line7")
+        gmsh.model.geo.add_physical_group([line8], "Line8")
+        gmsh.model.geo.add_physical_group([line9], "Line9")
+        gmsh.model.geo.add_physical_group([line10], "Line10")
+        gmsh.model.geo.add_physical_group([line11], "Line11")
+        gmsh.model.geo.add_physical_group([line12], "Line12")
 
         gmsh.model.geo.add_physical_group([plane_surface1], "Surface1")
         gmsh.model.geo.add_physical_group([plane_surface2], "Surface2")
@@ -110,8 +128,8 @@ class CalibrateCV(MeshStructure):
         data[3] = 'NODAL_POINTS    ' + str(nnodes) + '\n'
         data[4] = 'ELEMENTS        ' + str(nelems) + '\n'
         data[5] = 'BOUNDARIES      ' + str(nbound) + '\n'
-        data[30] = '    INCLUDE  3D_' + str(lc) + '.geo.dat\n'
-        data[40] = '    include 3D_' + str(lc) + '.fix.bou\n'
+        data[30] = '    INCLUDE  3D_' + str(self.lc) + '.geo.dat\n'
+        data[40] = '    include 3D_' + str(self.lc) + '.fix.bou\n'
         with open('3D.dom.dat', 'w') as f:
             f.writelines(data)
         with open('3D.cell.dat', 'w') as f:
@@ -149,7 +167,7 @@ class CalibrateCV(MeshStructure):
         print ('Running Alya simulation with conductivities: '+str(conductivities))
         st = time.time()
         os.system('rm alyalog')
-        alya_executable = self.simulation_dict['alya_exec_path']
+        alya_executable = self.alya_executable_path
         os.system('mpirun -n 4 ' + alya_executable +' 3D >> alyalog')
         print ('Time taken: '+str((time.time()-st)/60)+' minutes.')
 

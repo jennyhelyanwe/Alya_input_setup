@@ -30,7 +30,6 @@ aCaMK_Multiplier = 1; if (isfield(parameters,'aCaMK_Multiplier')) aCaMK_Multipli
 taurelp_Multiplier = 1; if (isfield(parameters,'taurelp_Multiplier')) taurelp_Multiplier = parameters.taurelp_Multiplier; end
 kws_Multiplier = 1; if (isfield(parameters,'kws_Multiplier')) kws_Multiplier = parameters.kws_Multiplier; end
 kuw_Multiplier = 1; if (isfield(parameters,'kuw_Multiplier')) kuw_Multiplier = parameters.kuw_Multiplier; end
-ksu_Multiplier = 1; if (isfield(parameters,'ksu_Multiplier')) ksu_Multiplier = parameters.ksu_Multiplier; end
 ca50_Multiplier = 1; if (isfield(parameters,'ca50_Multiplier')) ca50_Multiplier = parameters.ca50_Multiplier; end
 
 extraParams = []; if (isfield(parameters,'extraParams')) extraParams = parameters.extraParams; end
@@ -118,7 +117,7 @@ for iBeat = 1:size(time, 1)
         IsJs=modelNow(time{iBeat}(j),X{iBeat}(j,:),0, cellType, ICaL_Multiplier, ...
             INa_Multiplier, Ito_Multiplier, INaL_Multiplier, IKr_Multiplier, IKs_Multiplier, IK1_Multiplier, IKCa_Multiplier, IKb_Multiplier,INaCa_Multiplier,...
             INaK_Multiplier, INab_Multiplier, ICab_Multiplier, IpCa_Multiplier, ICaCl_Multiplier, IClb_Multiplier, Jrel_Multiplier,Jup_Multiplier,...
-            aCaMK_Multiplier,taurelp_Multiplier,kws_Multiplier, kuw_Multiplier, ksu_Multiplier, ca50_Multiplier, nao,cao,ko,ICaL_fractionSS,...
+            aCaMK_Multiplier,taurelp_Multiplier,kws_Multiplier, kuw_Multiplier, ca50_Multiplier, nao,cao,ko,ICaL_fractionSS,...
             INaCa_fractionSS, stimAmp, stimDur,trpnmax, vcParameters, apClamp, extraParams);
         
         currents.V(i) = X{iBeat}(j,1);

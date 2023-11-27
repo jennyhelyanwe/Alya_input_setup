@@ -1,7 +1,7 @@
 import os, sys
 import numpy
 import matplotlib
-#matplotlib.use('tkagg')  # For use on CSCS daint
+matplotlib.use('tkagg')  # For use on CSCS daint
 from matplotlib import pyplot as plt
 from matplotlib.gridspec import GridSpec
 import matplotlib.animation as animation
@@ -28,8 +28,9 @@ class ECGPV_visualisation:
         if os.path.exists(dir+'pvs.pl'):
             pvs = pickle.load(open(dir+'pvs.pl', 'rb'))
         else:
-            pvs = self._read_PV(meshname)
-            pickle.dump(pvs, open(dir+'pvs.pl', 'wb'))
+            if os.path.exists(meshname + '-cardiac-cycle.sld.res'):
+                pvs = self._read_PV(meshname)
+                pickle.dump(pvs, open(dir+'pvs.pl', 'wb'))
         # Save as .mat file for delineation using Karlsruhe code:
         raw_leads = numpy.vstack([ecgs['I']/ecgs['max_all_leads'],ecgs['II']/ecgs['max_all_leads'],ecgs['III']/ecgs['max_all_leads'],ecgs['aVL']/ecgs['max_all_leads'],ecgs['aVR']/ecgs['max_all_leads'],ecgs['aVF']/ecgs['max_all_leads'],ecgs['V1']/ecgs['max_all_leads'],ecgs['V2']/ecgs['max_all_leads'],ecgs['V3']/ecgs['max_all_leads'],ecgs['V4']/ecgs['max_all_leads'],ecgs['V5']/ecgs['max_all_leads'],ecgs['V6']/ecgs['max_all_leads']]).T
 
@@ -40,7 +41,10 @@ class ECGPV_visualisation:
             raw_leads_resampled[:,i] = resample(raw_leads[:,i], nsample)
         io.savemat('raw_ecg_leads.mat', {'signal':raw_leads_resampled})
         io.savemat('ecgs.mat', {'ecgs': ecgs})
-        io.savemat('pvs.mat', {'pvs': pvs})
+        if os.path.exists(meshname + '-cardiac-cycle.sld.res'):
+            io.savemat('pvs.mat', {'pvs': pvs})
+        else:
+            pvs = []
         return ecgs, pvs
 
     def _read_ECG(self, meshname):
@@ -1232,7 +1236,8 @@ if __name__=='__main__':
     a = ECGPV_visualisation(CL)
     if not (plot_type=='cell'):
         ecgs, pvs = a.read_ecg_pv(name, './')
-    epi, mid, endo = a.read_single_cell('./', material)
+    else:
+        epi, mid, endo = a.read_single_cell('./', material)
     if compare:
         ecgs2, pvs2 = a.read_ecg_pv(name, compare)
         epi2, mid2, endo2 = a.read_single_cell(compare, material)

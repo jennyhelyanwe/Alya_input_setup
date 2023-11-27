@@ -4,6 +4,7 @@ import pymp
 from meshstructure import MeshStructure
 from myformat import *
 import copy
+from xml.dom import minidom
 
 class MeshPreprocessing(MeshStructure):
     def __init__(self, vtk_name, name, input_dir, geometric_data_dir, verbose):
@@ -53,6 +54,82 @@ class MeshPreprocessing(MeshStructure):
         assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_material_tetra.csv')
         print('Everything set for T wave inference')
 
+
+    def read_geometry_from_xml_vtk_cardiax_ellipsoid(self, xml_name, vtk_name, save=False):
+        # Fenics XML element numbering is compatible with Alya. CardiaX number will give negative Jacobians.
+        print('Reading xml file from: ' + self.input_dir + xml_name + '.xml')
+        file = minidom.parse(self.input_dir + xml_name + '.xml')
+        self.geometry.number_of_elements = int(file.getElementsByTagName('cells')[0].getAttribute('size'))
+        tets = file.getElementsByTagName('cells')[0].getElementsByTagName('tetrahedron')
+        self.geometry.tetrahedrons = np.zeros((self.geometry.number_of_elements, 4)).astype(int)
+        for element_i in range(self.geometry.number_of_elements):
+            self.geometry.tetrahedrons[element_i, 0] = int(tets[element_i].getAttribute('v0'))
+            self.geometry.tetrahedrons[element_i, 1] = int(tets[element_i].getAttribute('v1'))
+            self.geometry.tetrahedrons[element_i, 2] = int(tets[element_i].getAttribute('v2'))
+            self.geometry.tetrahedrons[element_i, 3] = int(tets[element_i].getAttribute('v3'))
+        self.geometry.edges = []
+        for element_i in range(self.geometry.number_of_elements):
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 1]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 2]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 2], self.geometry.tetrahedrons[element_i, 3]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 3], self.geometry.tetrahedrons[element_i, 0]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 3]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 2]])
+        self.geometry.edges = np.unique(np.sort(self.geometry.edges, axis=1), axis=0)
+        unfolded_edges = np.concatenate((self.geometry.edges, np.flip(self.geometry.edges, axis=1))).astype(int)
+        aux = [[] for i in range(0, self.geometry.number_of_nodes, 1)]
+        for edge_i in range(0, len(unfolded_edges)):
+            aux[unfolded_edges[edge_i, 0]].append(unfolded_edges[edge_i, 1])
+        neighbours = [np.array(n) for n in aux]  # Node numbers starting 0
+        self.neighbours = neighbours
+        # Read nodes/vertices
+        vertices = file.getElementsByTagName('vertices')[0].getElementsByTagName('vertex')
+        self.geometry.number_of_nodes = int(file.getElementsByTagName('vertices')[0].getAttribute('size'))
+        nodes_xyz = np.zeros((self.geometry.number_of_nodes, 3))
+        for node_i in range(self.geometry.number_of_nodes):
+            nodes_xyz[node_i, 0] = float(vertices[node_i].getAttribute('x'))
+            nodes_xyz[node_i, 1] = float(vertices[node_i].getAttribute('y'))
+            nodes_xyz[node_i, 2] = float(vertices[node_i].getAttribute('z'))
+        self.geometry.nodes_xyz = nodes_xyz
+        self.geometry.tetrahedron_centres = (nodes_xyz[self.geometry.tetrahedrons[:, 0], :] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:, 1], :] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:, 2], :] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:, 3], :]) / 4.
+
+        print('Reading vtk file from: ' + self.input_dir + vtk_name + '_surface_connectivity.vtk')
+        reader = vtk.vtkPolyDataReader()
+        reader.SetFileName(self.input_dir + vtk_name + '_surface_connectivity.vtk')
+        reader.ReadAllVectorsOn()
+        reader.ReadAllScalarsOn()
+        reader.Update()
+        data = reader.GetOutput()
+
+        # Read faces from VTK file.
+        self.geometry.number_of_triangles = data.GetNumberOfCells()
+        self.geometry.triangles = np.zeros([self.geometry.number_of_triangles, 3])
+        self.boundary_node_fields.add_field(data=VN.vtk_to_numpy(data.GetPointData().GetArray('PointIds')).astype(int),
+                                            data_name='surface-node-id', field_type='boundarynodefield')
+        for i in range(0, self.geometry.number_of_triangles):
+            self.geometry.triangles[i, :] = [
+                int(self.boundary_node_fields.dict['surface-node-id'][data.GetCell(i).GetPointId(0)]),
+                int(self.boundary_node_fields.dict['surface-node-id'][data.GetCell(i).GetPointId(1)]),
+                int(self.boundary_node_fields.dict['surface-node-id'][data.GetCell(i).GetPointId(2)])]
+        self.geometry.triangles = self.geometry.triangles.astype(int)
+        materials = np.zeros(self.geometry.number_of_elements).astype(int)
+        materials[:] = 1
+        self.materials.add_field(data=materials, data_name='tetra', field_type='material')
+        if save:
+            self.save()
+
+
+
+
     def read_geometry_from_vtk_cardiax_ellipsoid(self, save=False):
         print('Reading vtk file from: ' + self.input_dir + self.vtk_name + '.vtk')
         reader = vtk.vtkUnstructuredGridReader()
@@ -66,9 +143,9 @@ class MeshPreprocessing(MeshStructure):
         self.geometry.tetrahedrons = np.zeros((self.geometry.number_of_elements, 4)).astype(int)
         self.geometry.nodes_xyz = np.zeros((self.geometry.number_of_nodes, 3))
         for i in range(0, self.geometry.number_of_elements):
-            self.geometry.tetrahedrons[i, 0] = int(data.GetCell(i).GetPointId(0))
-            self.geometry.tetrahedrons[i, 1] = int(data.GetCell(i).GetPointId(1))
-            self.geometry.tetrahedrons[i, 2] = int(data.GetCell(i).GetPointId(2))
+            self.geometry.tetrahedrons[i, 1  ] = int(data.GetCell(i).GetPointId(0))
+            self.geometry.tetrahedrons[i, 2] = int(data.GetCell(i).GetPointId(1))
+            self.geometry.tetrahedrons[i, 0] = int(data.GetCell(i).GetPointId(2))
             self.geometry.tetrahedrons[i, 3] = int(data.GetCell(i).GetPointId(3))
         nodes_xyz = VN.vtk_to_numpy(data.GetPoints().GetData())  # Convert from mm to cm
         self.geometry.nodes_xyz = nodes_xyz
@@ -808,9 +885,9 @@ def map_ventricular_coordinates(input_ranges, output_ranges, input_coordinate):
     return output_coordinate
 
 def map_indexes(points_to_map_xyz, reference_points_xyz):
-    print('Mapping indices...')
     mapped_indexes = pymp.shared.array((points_to_map_xyz.shape[0]), dtype=int)
-    threadsNum = multiprocessing.cpu_count()
+    threadsNum = int(multiprocessing.cpu_count())
+    print('Mapping indices using ', str(threadsNum) , ' threads...')
     with pymp.Parallel(min(threadsNum, points_to_map_xyz.shape[0])) as p1:
         for conf_i in p1.range(points_to_map_xyz.shape[0]):
             mapped_indexes[conf_i] = np.argmin(

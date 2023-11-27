@@ -26,12 +26,16 @@ clinical_data_dir = meta_data_dir + 'clinical_data/'
 verbose = False
 mesh_preprocess = False
 calibrate_cv = False
-generate_fields = False
+generate_fields_original_doste = True
+generate_fields_Green_fibres = False
+generate_fields_12090_fibres = False
+generate_fields_slices_and_local_bases = False
+setup_em_alya_literature_parameters_files = True
 setup_em_alya_files = False
 setup_ep_alya_files = False
-run_alya_baseline_simulation = False
+run_alya_baseline_simulation = True
 run_alya_baseline_postprocessing = False
-evaluate_simulated_biomarkers = True
+evaluate_simulated_biomarkers = False
 setup_validation_alya_simulations = False
 run_alya_validation_simulations = False
 run_alya_validation_postprocessing = False
@@ -71,16 +75,37 @@ if calibrate_cv:
 electrode_data_filename = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_electrode_xyz.csv'
 fields = FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir,
                 personalisation_data_dir=personalisation_data_dir, verbose=verbose)
-if generate_fields:
-    # fields.generate_orthogonal_local_bases(save=True)
-    # fields.generate_short_long_axes_slices(save=True)
-    doste_fibre_directory = geometric_data_dir + 'CR05_orig_files/'
-    # fields.read_doste_fibre_fields_vtk(fibre_vtk_filename=doste_fibre_directory+'Long_Fibers0_0_20_CR05_orig.vtk',
-    #                                    sheet_vtk_filename=doste_fibre_directory+'Sheet_Fibers0_0_20_CR05_orig.vtk',
-    #                                    normal_vtk_filename=doste_fibre_directory+'Normal_Fibers0_0_20_CR05_orig.vtk')
+
+if generate_fields_slices_and_local_bases:
+    fields.generate_orthogonal_local_bases(save=False)
+    fields.generate_short_long_axes_slices(save=True)
+
+doste_fibre_directory = geometric_data_dir + 'CR05_orig_files/'
+if generate_fields_original_doste:
+    map = fields.map_doste_nodes_to_rodero_nodes(fibre_vtk_filename=doste_fibre_directory+'Long_Fibers0_0_20_CR05_orig.vtk',
+                                                 map_filename=doste_fibre_directory+'doste_to_rodero_node_map.txt')
+    fields.read_doste_fibre_fields_vtk(fibre_vtk_filename=doste_fibre_directory+'Long_Fibers0_0_20_CR05_orig.vtk',
+                                       sheet_vtk_filename=doste_fibre_directory+'Sheet_Fibers0_0_20_CR05_orig.vtk',
+                                       normal_vtk_filename=doste_fibre_directory+'Normal_Fibers0_0_20_CR05_orig.vtk',
+                                       save=True, map=map)
+if generate_fields_Green_fibres:
+    map = fields.map_doste_nodes_to_rodero_nodes(
+        fibre_vtk_filename=doste_fibre_directory + 'Long_Green_Fibers0_0_0_CR05_orig.vtk',
+        map_filename=doste_fibre_directory + 'doste_to_rodero_node_map.txt')
     fields.read_doste_fibre_fields_vtk(fibre_vtk_filename=doste_fibre_directory+'Long_Green_Fibers0_0_0_CR05_orig.vtk',
                                        sheet_vtk_filename=doste_fibre_directory+'Sheet_Green_Fibers0_0_0_CR05_orig.vtk',
-                                       normal_vtk_filename=doste_fibre_directory+'Normal_Green_Fibers0_0_0_CR05_orig.vtk')
+                                       normal_vtk_filename=doste_fibre_directory+'Normal_Green_Fibers0_0_0_CR05_orig.vtk',
+                                       save=True, map=map)
+
+if generate_fields_12090_fibres:
+    map = fields.map_doste_nodes_to_rodero_nodes(
+        fibre_vtk_filename=doste_fibre_directory + 'Long_Green_Fibers0_0_0_CR05_orig.vtk',
+        map_filename=doste_fibre_directory + 'doste_to_rodero_node_map.txt')
+    fields.read_doste_fibre_fields_vtk(fibre_vtk_filename=doste_fibre_directory+'Long_12090_Fibers0_0_0_CR05_orig.vtk',
+                                       sheet_vtk_filename=doste_fibre_directory+'Sheet_12090_Fibers0_0_0_CR05_orig.vtk',
+                                       normal_vtk_filename=doste_fibre_directory+'Normal_12090_Fibers0_0_0_CR05_orig.vtk',
+                                       save=True, map=map)
+
 ########################################################################################################################
 # Step 5: Write Alya input files according to simulation protocol saved in .json file.
 simulation_dir = ''
@@ -102,18 +127,23 @@ if setup_ep_alya_files:
     simulation_json_file = 'rodero_baseline_simulation_ep.json'
     alya.do(simulation_json_file=simulation_json_file)
 
+if setup_em_alya_literature_parameters_files:
+    simulation_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
+    alya.do(simulation_json_file=simulation_json_file)
+
 ########################################################################################################################
 # Step 5: Run baseline simulation
 if run_alya_baseline_simulation:
     run_job(alya.output_dir)
 if run_alya_baseline_postprocessing:
-    run_job_postprocess('/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_rodero_05_fine')
+    run_job_postprocess(alya.output_dir)
 
 ########################################################################################################################
 # Step 6: Postprocess
 if evaluate_simulated_biomarkers:
-    simulation_json_file = 'rodero_baseline_simulation_em.json'
-    alya_output_dir = simulation_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + simulation_name + '_mec_baseline/'
+    # simulation_json_file = 'rodero_baseline_simulation_em.json'
+    simulation_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
+    alya_output_dir = simulation_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + simulation_name + '/'
     pp = PostProcessing(alya=alya, simulation_json_file=simulation_json_file,
                         alya_output_dir=alya_output_dir, protocol='postprocess', verbose=verbose)
     beat = 1

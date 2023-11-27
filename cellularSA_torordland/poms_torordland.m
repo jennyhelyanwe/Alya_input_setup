@@ -24,7 +24,7 @@ for ipopulation = 1:nb_models
     params(ipopulation).kuw_Multiplier = param_values(ipopulation,13);
     params(ipopulation).kws_Multiplier = param_values(ipopulation,14);
     params(ipopulation).ksu_Multiplier = param_values(ipopulation,15);
-    params(ipopulation).stim_amp = -53 * param_values(ipopulation,16);
+%     params(ipopulation).stim_amp = -53 * param_values(ipopulation,16);
 end
 options = [];
 beats = 10;
@@ -144,6 +144,9 @@ end
 % CaT_min = CaTmin(calibrated_population_biomarkers_index)';
 % Ta_max = Tamax(calibrated_population_biomarkers_index)';
 % Ta_min = Tamin(calibrated_population_biomarkers_index)';
-T = table(apd40', apd50', apd90', CTD50', CTD90', CaTmax', CaTmin', Tamax', Tamin', TaD50', TaD90', dTadt_max');
-writetable(T,[outputdir celltype '_output.txt'],'WriteRowNames',true)
+T = table(apd40', apd50', apd90', CTD50', CTD90', CaTmax', CaTmin', Tamax', ...
+          Tamin', TaD50', TaD90', dTadt_max', 'VariableNames', ...
+          {'APD40', 'APD50', 'APD90', 'CTD50', 'CTD90', 'CaTmax', 'CaTmin', ...
+          'Tamax', 'Tamin', 'TaD50', 'TaD90', 'dTadtmax'});
+writetable(T,[outputdir celltype '_output.txt'],'WriteRowNames',true, 'WriteVariableNames', true)
 end
