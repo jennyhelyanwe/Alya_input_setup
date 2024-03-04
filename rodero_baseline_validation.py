@@ -26,16 +26,16 @@ clinical_data_dir = meta_data_dir + 'clinical_data/'
 verbose = False
 mesh_preprocess = False
 calibrate_cv = False
-generate_fields_original_doste = True
+generate_fields_original_doste = False
 generate_fields_Green_fibres = False
 generate_fields_12090_fibres = False
 generate_fields_slices_and_local_bases = False
-setup_em_alya_literature_parameters_files = True
+setup_em_alya_literature_parameters_files = False
 setup_em_alya_files = False
 setup_ep_alya_files = False
-run_alya_baseline_simulation = True
+run_alya_baseline_simulation = False
 run_alya_baseline_postprocessing = False
-evaluate_simulated_biomarkers = False
+evaluate_simulated_biomarkers = True
 setup_validation_alya_simulations = False
 run_alya_validation_simulations = False
 run_alya_validation_postprocessing = False
@@ -142,8 +142,9 @@ if run_alya_baseline_postprocessing:
 # Step 6: Postprocess
 if evaluate_simulated_biomarkers:
     # simulation_json_file = 'rodero_baseline_simulation_em.json'
-    simulation_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
+    simulation_json_file = 'rodero_baseline_simulation_em.json'
     alya_output_dir = simulation_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + simulation_name + '/'
+    alya_output_dir = simulation_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + simulation_name + '_mec_baseline/'
     pp = PostProcessing(alya=alya, simulation_json_file=simulation_json_file,
                         alya_output_dir=alya_output_dir, protocol='postprocess', verbose=verbose)
     beat = 1

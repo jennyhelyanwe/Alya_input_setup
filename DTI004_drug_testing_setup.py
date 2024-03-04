@@ -72,11 +72,11 @@ baseline_dir = ''
 if system == 'jureca':
     baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/twave_best_match/'+simulation_name+'_baseline_simulation_ep_'+simulation_name+'_fine/'
 
-fields.generate_ionic_scaling_factors(
-    read_biomarker_filename=personalisation_data_dir + '/' + simulation_name + '_fine_nodefield_personalisation_biomarker_best.csv', save=True)
-alya.do(simulation_json_file=baseline_json_file, SA_flag=False, drug_flag=False,
-        best_match_biomarker_file=personalisation_data_dir+simulation_name+'_fine_nodefield_personalisation_biomarker_best.csv',
-        baseline_dir=baseline_dir)
+#fields.generate_ionic_scaling_factors(
+#    read_biomarker_filename=personalisation_data_dir + '/' + simulation_name + '_fine_nodefield_personalisation_biomarker_best.csv', save=True)
+#alya.do(simulation_json_file=baseline_json_file, SA_flag=False, drug_flag=False,
+#        best_match_biomarker_file=personalisation_data_dir+simulation_name+'_fine_nodefield_personalisation_biomarker_best.csv',
+#        baseline_dir=baseline_dir)
 # alya.do(simulation_json_file=baseline_json_file, SA_flag=False, drug_flag=False, baseline_dir=baseline_dir)
 #
 # baseline_json_file = simulation_name+'_baseline_simulation_ep_wideAPD.json'
@@ -91,7 +91,7 @@ alya.do(simulation_json_file=baseline_json_file, SA_flag=False, drug_flag=False,
 #         baseline_dir=baseline_dir)
 
 
-quit()
+#quit()
 ########################################################################################################################
 # Step 6: Set up population based drug tests
 personalisation_data_dir = meta_data_dir + 'personalisation_data/'+simulation_name+'/twave_sf_IKs_GKs5_GKr0.6_tjca60/drug_testing_population/'
@@ -109,8 +109,8 @@ pdt = PopulationDrugTest(name=simulation_name + '_fine', personalised_population
 drug_doses = [{'sf_gkr':0.6}, {'sf_gkr':0.5}, {'sf_gkr':0.4}, {'sf_gkr':0.34}, {'sf_gkr':0.3}, {'sf_gkr':0.27}, {'sf_gkr':0.25}]
 setup_and_run = False
 postprocess = False
-visualise = True
-evaluate_ecg = False
+visualise = False
+evaluate_ecg = True
 download = False
 if setup_and_run:
     pdt.setup_drug_test(drug_name='dofetilide', drug_doses=drug_doses, simulation_dir=simulation_dir,population_sf_names=['sf_IKs'],

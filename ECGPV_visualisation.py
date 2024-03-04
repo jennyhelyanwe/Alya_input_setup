@@ -1066,6 +1066,38 @@ class ECGPV_visualisation:
         # print('QT dispersion (12 leads): {:.3f}'.format(QT_dispersion_12))
         return analysis
 
+    def analysis_ECG_5leads(self,ecgs,beat,show):
+        ecg_biomarkers = numpy.zeros((5, 6))
+        CL = self.CL
+        ecg_biomarkers[0, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V1s'][beat-1], 'V1', CL)
+        ecg_biomarkers[1, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V2s'][beat-1], 'V2', CL)
+        ecg_biomarkers[2, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V3s'][beat-1], 'V3', CL)
+        ecg_biomarkers[3, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V4s'][beat-1], 'V4', CL)
+        ecg_biomarkers[4, :] = self._plot_with_landmarks(ecgs['ts'][beat-1], ecgs['max_all_leads'], ecgs['V5s'][beat-1], 'V5', CL)
+        if show:
+            plt.show()
+        plt.savefig('ecg_analysis.png')
+        #qrs_dur, t_dur, t_pe, t_op, t_amplitude, qt_dur, landmarks
+        QRS_mean = numpy.average(ecg_biomarkers[:,0])
+        QRS_std = numpy.std(ecg_biomarkers[:,0])
+        T_dur_mean = numpy.average(ecg_biomarkers[:,1])
+        T_dur_std = numpy.std(ecg_biomarkers[:,1])
+        T_pe_mean = numpy.average(ecg_biomarkers[:,2])
+        T_pe_std = numpy.std(ecg_biomarkers[:,2])
+        T_op_mean = numpy.average(ecg_biomarkers[:,3])
+        T_op_std = numpy.std(ecg_biomarkers[:,3])
+        T_amp_mean = numpy.average(ecg_biomarkers[:,4])
+        T_amp_std = numpy.std(ecg_biomarkers[:,4])
+        QT_dur_mean = numpy.average(ecg_biomarkers[:,5])
+        QT_dur_std = numpy.std(ecg_biomarkers[:,5])
+        analysis = {'QRS':[QRS_mean, QRS_std, ecg_biomarkers[:,0]],
+            'T_dur':[T_dur_mean, T_dur_std,ecg_biomarkers[:,1]],
+            'T_pe_dur':[T_pe_mean, T_pe_std, ecg_biomarkers[:,2]],
+            'T_op_dur':[T_op_mean, T_op_std, ecg_biomarkers[:,3]],
+            'T_amp': [T_amp_mean, T_amp_std, ecg_biomarkers[:, 3]],
+            'QT':[QT_dur_mean, QT_dur_std, ecg_biomarkers[:,5]]}
+        return analysis
+
     def _plot_with_landmarks(self, t, max_all_leads, V, name, CL):
     	# ax.clear()
     	qrs_dur, t_dur, t_pe, t_op, t_amplitude, qt_dur, landmarks =self._measurements_with_qrs_dur(V, 0.0, CL, t, 2e-5, 0.01)

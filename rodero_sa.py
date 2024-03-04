@@ -127,8 +127,8 @@ sa = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 3, parameter_names=mecha
           baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
           simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
 # sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
-sa.run_jobs(simulation_dir)
-quit()
+# sa.run_jobs(simulation_dir)
+# quit()
 
 ######################################################################################################################
 # # Step 2: Explore fibre angles
@@ -262,3 +262,4 @@ quit()
 # Step 5: Evaluate Sobol indices and plot results
 sa_figures_directory = simulation_dir
 sa.analyse(sa_figures_directory, qois=['EDVL', 'LVEF', 'PmaxL', 'SVL'])
+

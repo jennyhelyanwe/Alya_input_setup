@@ -153,13 +153,23 @@ class PopulationDrugTest:
                 ecgs['ts'][beat - 1] = ecgs['ts'][beat - 1] * 1000  # Units of milliseconds
                 for lead_i in range(nb_leads):
                     if population_i == 0:
-                        axes[lead_i].plot(ecgs['ts'][beat - 1],
-                                          ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_all_leads'],
-                                          'k', linewidth=linewidth, label='Baseline')
+                        if lead_i <2:
+                            axes[lead_i].plot(ecgs['ts'][beat - 1],
+                                              ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_limb_leads'],
+                                              'k', linewidth=linewidth, label='Baseline')
+                        else:
+                            axes[lead_i].plot(ecgs['ts'][beat - 1],
+                                              ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_all_leads'],
+                                              'k', linewidth=linewidth, label='Baseline')
                     else:
-                        axes[lead_i].plot(ecgs['ts'][beat - 1],
-                                          ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_all_leads'],
-                                          'k', linewidth=linewidth)
+                        if lead_i < 2:
+                            axes[lead_i].plot(ecgs['ts'][beat - 1],
+                                              ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_limb_leads'],
+                                              'k', linewidth=linewidth)
+                        else:
+                            axes[lead_i].plot(ecgs['ts'][beat - 1],
+                                              ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_all_leads'],
+                                              'k', linewidth=linewidth)
         # colours = ['g', 'b', 'r', 'm', 'c', 'y']
         colours = ['#fde725', '#90d743', '#35b779', '#21918c', '#31688e', '#443983', '#440154']
         for dose_i in range(len(drug_doses)):
@@ -179,12 +189,23 @@ class PopulationDrugTest:
                     ecgs['ts'][beat - 1] = ecgs['ts'][beat - 1] * 1000  # Units of milliseconds
                     for lead_i in range(nb_leads):
                         if population_i == 0:
-                            axes[lead_i].plot(ecgs['ts'][beat - 1],
-                                              ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_all_leads'],
-                                              colours[dose_i], linewidth=linewidth, label='Dose :'+str(dose_i+1))
+                            if lead_i < 2:
+                                axes[lead_i].plot(ecgs['ts'][beat - 1],
+                                                  ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_limb_leads'],
+                                                  colours[dose_i], linewidth=linewidth,
+                                                  label='Dose :' + str(dose_i + 1))
+                            else:
+                                axes[lead_i].plot(ecgs['ts'][beat - 1],
+                                                  ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_all_leads'],
+                                                  colours[dose_i], linewidth=linewidth, label='Dose :'+str(dose_i+1))
                         else:
-                            axes[lead_i].plot(ecgs['ts'][beat-1], ecgs[lead_names[lead_i]][beat-1]/ecgs['max_all_leads'],
-                                          colours[dose_i], linewidth=linewidth)
+                            if lead_i < 2:
+                                axes[lead_i].plot(ecgs['ts'][beat - 1],
+                                                  ecgs[lead_names[lead_i]][beat - 1] / ecgs['max_limb_leads'],
+                                                  colours[dose_i], linewidth=linewidth)
+                            else:
+                                axes[lead_i].plot(ecgs['ts'][beat-1], ecgs[lead_names[lead_i]][beat-1]/ecgs['max_all_leads'],
+                                              colours[dose_i], linewidth=linewidth)
                         axes[lead_i].set_title(titles[lead_i], fontsize=20)
                         axes[lead_i].set_ylim([-1.0, 1.0])
                         axes[lead_i].set_xlim([0, 500])
@@ -209,34 +230,40 @@ class PopulationDrugTest:
         mean_tpe_effect = np.zeros((len(drug_doses), self.population_size))
         # std_tpe_effect = np.zeros((len(drug_doses)))
         mean_tpeak_effect = np.zeros((len(drug_doses), self.population_size))
-        if not os.path.exists(simulation_dir + 'ecg_drug_effects.json'):
-            for dose_i in range(len(drug_doses)):
-                # For each dose of the drug run a population of models
-                dose_dir = simulation_dir + 'dose_' + str(dose_i) + '/'
-                print('Evaluating T wave biomarkers for dose ' + str(dose_i))
-                for population_i in range(self.population_size):
-                    self.alya_format.simulation_dir = dose_dir
-                    current_sim_dir = dose_dir + 'populationid_' + str(population_i) + '_' + drug_name + \
-                                      '_dose_' + str(dose_i) + '_' + self.name + '/'
-                    if os.path.exists(current_sim_dir + '/heart.exm.vin'):
-                        ecgs = vis._read_ECG(current_sim_dir + '/heart')
-                        analysis = vis.analysis_ECG_6leads(ecgs=ecgs, beat=beat, show=False)
-                        mean_qt_effect[dose_i, population_i] = analysis['QT'][0] * 1000. # [ms]
-                        mean_tpe_effect[dose_i, population_i] = analysis['T_pe_dur'][0] * 1000. # [ms]
-                        mean_tpeak_effect[dose_i, population_i] = analysis['T_amp'][0]
-                    else:
-                        print('Simulation results missing for: ', current_sim_dir)
-            sim_ecg_drug_effects = {'concentrations':[0.5, 1, 2, 3, 4, 5, 6],
-                         'QT': list(np.mean(mean_qt_effect, axis=1)),
-                         'QT_std': list(np.std(mean_qt_effect, axis=1)),
-                         'Tpe': list(np.mean(mean_tpe_effect, axis=1)),
-                         'Tpe_std': list(np.std(mean_tpe_effect, axis=1)),
-                         'Tpeak': list(np.mean(mean_tpeak_effect, axis=1)),
-                         'Tpeak_std': list(np.std(mean_tpeak_effect, axis=1))}
-            with open(simulation_dir + 'ecg_drug_effects.json', 'w') as f:
-                json.dump(sim_ecg_drug_effects, f)
-        else:
-            sim_ecg_drug_effects = json.load(open(simulation_dir + 'ecg_drug_effects.json', 'r'))
+        concentrations = np.array([0.5, 1, 2, 3, 4, 5, 6])  # nM dofetilide
+        population_concentrations = np.zeros((len(drug_doses), self.population_size))
+        # if not os.path.exists(simulation_dir + 'ecg_drug_effects.json'):
+        for dose_i in range(len(drug_doses)):
+            # For each dose of the drug run a population of models
+            dose_dir = simulation_dir + 'dose_' + str(dose_i) + '/'
+            print('Evaluating T wave biomarkers for dose ' + str(dose_i))
+            for population_i in range(self.population_size):
+                self.alya_format.simulation_dir = dose_dir
+                current_sim_dir = dose_dir + 'populationid_' + str(population_i) + '_' + drug_name + \
+                                  '_dose_' + str(dose_i) + '_' + self.name + '/'
+                if os.path.exists(current_sim_dir + '/heart.exm.vin'):
+                    ecgs = vis._read_ECG(current_sim_dir + '/heart')
+                    analysis = vis.analysis_ECG_5leads(ecgs=ecgs, beat=beat, show=False)
+                    mean_qt_effect[dose_i, population_i] = analysis['QT'][0] * 1000. # [ms]
+                    mean_tpe_effect[dose_i, population_i] = analysis['T_pe_dur'][0] * 1000. # [ms]
+                    mean_tpeak_effect[dose_i, population_i] = analysis['T_amp'][0]
+                    population_concentrations[dose_i, population_i] = concentrations[dose_i]
+                else:
+                    print('Simulation results missing for: ', current_sim_dir)
+        sim_ecg_drug_effects = {'concentrations':[0.5, 1, 2, 3, 4, 5, 6],
+                     'QT': mean_qt_effect,
+                     'QT_mean': list(np.mean(mean_qt_effect, axis=1)),
+                     'QT_std': list(np.std(mean_qt_effect, axis=1)),
+                     'Tpe': mean_tpe_effect,
+                     'Tpe_mean': list(np.mean(mean_tpe_effect, axis=1)),
+                     'Tpe_std': list(np.std(mean_tpe_effect, axis=1)),
+                     'Tpeak': mean_tpeak_effect,
+                     'Tpeak_mean': list(np.mean(mean_tpeak_effect, axis=1)),
+                     'Tpeak_std': list(np.std(mean_tpeak_effect, axis=1))}
+        #     # with open(simulation_dir + 'ecg_drug_effects.json', 'w') as f:
+        #     #     json.dump(sim_ecg_drug_effects, f)
+        # else:
+        #     sim_ecg_drug_effects = json.load(open(simulation_dir + 'ecg_drug_effects.json', 'r'))
 
         # Compare effects against average cohort biomarkers
         concentrations = np.array([0.5, 1, 2, 3, 4, 5, 6]) # nM dofetilide
@@ -248,28 +275,31 @@ class PopulationDrugTest:
         cohort_tpeak_std = np.array([154, 158, 185, 133, 178, 229, 100]) # mV
         colours = ['#fde725', '#90d743', '#35b779', '#21918c', '#31688e', '#443983', '#440154']
         fig = plt.figure()
-        gs = GridSpec(1,2)
+        gs = GridSpec(1,1)
         axis1 = fig.add_subplot(gs[0,0])
-        axis2 = fig.add_subplot(gs[0,1])
-        axis1.set_title('Clinical Dofetilide ECG effects')
+        # axis2 = fig.add_subplot(gs[0,1])
         axis1.plot(concentrations, cohort_qtc, colours[0])
-        axis1.fill_between(concentrations, cohort_qtc - cohort_qtc_std, cohort_qtc + cohort_qtc_std, alpha=0.5, edgecolor=None, facecolor=colours[0])
-        axis1.plot(concentrations, cohort_tpe, colours[-1])
-        axis1.fill_between(concentrations, cohort_tpe - cohort_tpe_std, cohort_tpe + cohort_tpe_std, alpha=0.5,
-                           edgecolor=None, facecolor=colours[-1])
+        axis1.fill_between(concentrations, cohort_qtc - cohort_qtc_std, cohort_qtc + cohort_qtc_std, alpha=0.5,
+                           edgecolor=None, facecolor=colours[0], label='Clinical QT ranges')
+        axis1.plot(np.reshape(population_concentrations, population_concentrations.shape[0]*population_concentrations.shape[1]),
+                   np.reshape(sim_ecg_drug_effects['QT'], sim_ecg_drug_effects['QT'].shape[0]*sim_ecg_drug_effects['QT'].shape[1]),
+                   'b.', label='Simulated QT')
+        # top = np.array(sim_ecg_drug_effects['QT_mean']) - np.array(sim_ecg_drug_effects['QT_std'])
+        # bottom = np.array(sim_ecg_drug_effects['QT_mean']) + np.array(sim_ecg_drug_effects['QT_std'])
+        # axis1.fill_between(concentrations, top, bottom, alpha=0.5,
+        #                    edgecolor=None, facecolor=colours[2], label='Simulated QT')
 
-        axis2.plot(concentrations, sim_ecg_drug_effects['QT'], colours[0], label='QTc')
-        axis2.set_title('Simulated Dofetilide ECG effects')
-        top = np.array(sim_ecg_drug_effects['QT']) - np.array(sim_ecg_drug_effects['QT_std'])
-        bottom = np.array(sim_ecg_drug_effects['QT']) + np.array(sim_ecg_drug_effects['QT_std'])
-        axis2.fill_between(concentrations, top, bottom, alpha=0.5,
-                           edgecolor=None, facecolor=colours[0])
-        axis2.plot(concentrations, sim_ecg_drug_effects['Tpe'], colours[-1], label='Tpe')
-        top = np.array(sim_ecg_drug_effects['Tpe']) - np.array(sim_ecg_drug_effects['Tpe_std'])
-        bottom = np.array(sim_ecg_drug_effects['Tpe']) + np.array(sim_ecg_drug_effects['Tpe_std'])
-        axis2.fill_between(concentrations, top, bottom, alpha=0.5,
-                           edgecolor=None, facecolor=colours[-1])
-        axis2.legend()
+        axis1.plot(concentrations, cohort_tpe, 'cyan')
+        axis1.fill_between(concentrations, cohort_tpe - cohort_tpe_std, cohort_tpe + cohort_tpe_std, alpha=0.5,
+                           edgecolor=None, facecolor='cyan', label='Clinical Tpe ranges')
+        axis1.plot(np.reshape(population_concentrations, population_concentrations.shape[0]*population_concentrations.shape[1]),
+                   np.reshape(sim_ecg_drug_effects['Tpe'], sim_ecg_drug_effects['Tpe'].shape[0]*sim_ecg_drug_effects['Tpe'].shape[1]),
+                   'k.', label='Simulated Tpe')
+        # top = np.array(sim_ecg_drug_effects['Tpe']) - np.array(sim_ecg_drug_effects['Tpe_std'])
+        # bottom = np.array(sim_ecg_drug_effects['Tpe']) + np.array(sim_ecg_drug_effects['Tpe_std'])
+        # axis1.fill_between(concentrations, top, bottom, alpha=0.5,
+        #                    edgecolor=None, facecolor=colours[5], label='Simulated Tpe')
+        axis1.legend()
         plt.show()
 
     def extract_vms_for_download(self, simulation_dir, dir_for_download, drug_name, drug_doses):
