@@ -1,6 +1,6 @@
 from meshpreprocessing import MeshPreprocessing
 from generatefields import FieldGeneration
-from calibratecv import CalibrateCV
+# from calibratecv import CalibrateCV
 from alyaformat import AlyaFormat, run_job, run_job_postprocess
 from postprocessing import PostProcessing
 import numpy as np
@@ -15,10 +15,14 @@ simulation_name = 'rodero_' + mesh_number + '_fine'
 workdir = os.getcwd()
 if 'icei' in workdir:
     system = 'jureca'
+elif 'cosma' in workdir:
+    system = 'cosma'
 else:
     system = 'heart'
 if system == 'jureca':
     meta_data_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/meta_data/'
+elif system == 'cosma':
+    meta_data_dir = '/cosma8/data/dp287/dc-wang14/Alya_pipeline/meta_data/'
 elif system == 'heart':
     meta_data_dir = '/data/Personalisation_projects/meta_data/'
 geometric_data_dir = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_fine/'
@@ -63,12 +67,12 @@ if mesh_preprocess:
 ########################################################################################################################
 # Step 3: Calibrate conductivities to personalisation conduction velocity
 personalisation_data_dir = meta_data_dir + 'results/personalisation_data/rodero_'+mesh_number+'/'
-if calibrate_cv:
-    calibration_dir = meta_data_dir + 'calibration_dir/'
-    simulation_json_file = 'rodero_baseline_simulation_ep.json'
-    calibrate = CalibrateCV(name=simulation_name, geometric_data_dir=geometric_data_dir,
-                            calibration_dir=calibration_dir, simulation_json_file=simulation_json_file,
-                            personalisation_data_dir=personalisation_data_dir, verbose=verbose)
+# if calibrate_cv:
+#     calibration_dir = meta_data_dir + 'calibration_dir/'
+#     simulation_json_file = 'rodero_baseline_simulation_ep.json'
+#     calibrate = CalibrateCV(name=simulation_name, geometric_data_dir=geometric_data_dir,
+#                             calibration_dir=calibration_dir, simulation_json_file=simulation_json_file,
+#                             personalisation_data_dir=personalisation_data_dir, verbose=verbose)
 
 ########################################################################################################################
 # Step 4: Generate fields for Alya simulation
@@ -110,15 +114,17 @@ if generate_fields_12090_fibres:
 # Step 5: Write Alya input files according to simulation protocol saved in .json file.
 simulation_dir = ''
 if system == 'jureca':
-    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/'
+    simulation_root_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/'
+elif system == 'cosma':
+    simulation_root_dir = '/cosma8/data/dp287/dc-wang14/Alya_pipeline/alya_simulations/'
 elif system == 'heart':
-    simulation_dir = './'
+    simulation_root_dir = './'
 alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
-                  simulation_dir = simulation_dir, verbose=verbose)
+                  simulation_dir = simulation_root_dir, verbose=verbose)
 
 # Sanity check:
-if not system == 'jureca':
+if not system == 'jureca' and not system == 'cosma':
     alya.visual_sanity_check(simulation_json_file=simulation_json_file)
 if setup_em_alya_files:
     simulation_json_file = 'rodero_baseline_simulation_em.json'
@@ -141,18 +147,16 @@ if run_alya_baseline_postprocessing:
 ########################################################################################################################
 # Step 6: Postprocess
 if evaluate_simulated_biomarkers:
-    # simulation_json_file = 'rodero_baseline_simulation_em.json'
     simulation_json_file = 'rodero_baseline_simulation_em.json'
-    alya_output_dir = simulation_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + simulation_name + '/'
-    alya_output_dir = simulation_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + simulation_name + '_mec_baseline/'
+    alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + simulation_name + '_mec_baseline/'
     pp = PostProcessing(alya=alya, simulation_json_file=simulation_json_file,
                         alya_output_dir=alya_output_dir, protocol='postprocess', verbose=verbose)
     beat = 1
-    # pp.evaluate_strain_biomarkers(beat=beat)
+    pp.evaluate_strain_biomarkers(beat=beat)
     pp.evaluate_pv_biomarkers(beat=beat)
     pp.evaluate_ecg_biomarkers(beat=beat)
     pp.evaluate_deformation_biomarkers(beat=beat)
-    # pp.evaluate_fibre_work_biomarkers(beat=beat)
+    pp.evaluate_fibre_work_biomarkers(beat=beat)
     pp.visualise_calibration_comparisons_global(beat=beat)
     # pp.visualise_calibration_comparisons_strain()
     # pp.compare_ecg_with_clinical_ranges(beat=beat)
@@ -172,6 +176,9 @@ baseline_dir = ''
 if system == 'jureca':
     baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_rodero_05_fine/'
     simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + validation_folder_name + '/'
+elif system == 'cosma':
+    baseline_dir = simulation_root_dir + 'rodero_baseline_simulation_em_rodero_05_fine_mec_baseline/'
+    simulation_dir = simulation_root_dir + validation_folder_name + '/'
 elif system == 'heart':
     baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
     simulation_dir = validation_folder_name + '/'

@@ -16,7 +16,7 @@ class AlyaFormat(MeshStructure):
         self.version = 'alya-compbiomed2'  # 'Alya_multiple_BZRZ_models'
         self.template_dir = 'alya_input_templates/'
         self.job_template_dir = 'util/job_script_template/'
-        self.job_version = 'jureca'
+        self.job_version = 'cosma'
         self.geometric_data_dir = geometric_data_dir
         self.personalisation_dir = personalisation_dir
         self.clinical_data_dir = clinical_data_dir
@@ -796,6 +796,9 @@ class AlyaFormat(MeshStructure):
         if self.job_version == 'jureca':
             tasks_per_node = 128
             job_type = 'dc-cpu'
+        elif self.job_version == 'cosma':
+            tasks_per_node = 128
+            job_type = 'cosma8'
         insert_data = [[self.simulation_dict['name'], str(int(np.ceil(self.simulation_dict['time_end']*2.))),
                        np.ceil(self.simulation_dict['computational_cores']/tasks_per_node).astype(int), tasks_per_node,
                        self.simulation_dict['computational_cores'], job_type, 'main.py']]
@@ -809,6 +812,9 @@ class AlyaFormat(MeshStructure):
         if self.job_version == 'jureca':
             tasks_per_node = 128
             job_type = 'dc-cpu-devel'
+        elif self.job_version == 'cosma':
+            tasks_per_node = 128
+            job_type = 'cosma8'
         insert_data = [[self.simulation_dict['name'], str(int(np.ceil(self.simulation_dict['time_end'] * 2.))),
                         np.ceil(128 / tasks_per_node).astype(int),
                         tasks_per_node, 128, job_type, 'main.py']]
@@ -824,6 +830,9 @@ class AlyaFormat(MeshStructure):
         if self.job_version == 'jureca':
             tasks_per_node = 128
             job_type = 'dc-cpu'
+        elif self.job_version == 'cosma':
+            tasks_per_node = 128
+            job_type = 'cosma8'
         insert_data = [[self.simulation_dict['name'], str(1),
                         np.ceil(128 / tasks_per_node).astype(int),
                         tasks_per_node, 128, job_type]]

@@ -1,7 +1,7 @@
 {
   "name": "heart",
   "alya_version": "alya-compbiomed2",
-  "alya_exec_path" : "/p/project/icei-prace-2022-0003/wang1/alya-compbiomed2_ionic_sf_fields/Executables/unix/Alya.x",
+  "alya_exec_path" : "/cosma8/data/dp287/dc-wang14/Alya/alya-compbiomed2_ionic_sf_fields/Executables/unix/Alya.x",
   "clinical_ecg_filename" : "DTI004_clinical_full_ecg.txt",
   "spatial_dimensions": 3,
   "run_type": "PRELIMINARY",
@@ -47,7 +47,8 @@
   "sf_gnab" : [[1.0, 1.0, 1.0], [0,0,0]],
   "sf_gclca" : [[1.0, 1.0, 1.0], [0,0,0]],
   "sf_gcab" : [[1.0, 1.0, 1.0], [0,0,0]],
-  "sf_gkr" : [[0.8, 0.8, 0.8], [0,0,0]],
+  "sf_gkr" : [[1.0, 1.0, 1.0], [0,0,0]],
+  "sf_gks" : [[1.0, 1.0, 1.0], [0,0,0]],
   "sf_jrel" : [[1.0, 1.0, 1.0], [0,0,0]],
   "sf_jup" : [[1.0, 1.0, 1.0], [0,0,0]],
   "exmedi_output": ["INTRA", "CALCI"],

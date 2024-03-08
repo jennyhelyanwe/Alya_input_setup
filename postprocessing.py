@@ -1055,34 +1055,87 @@ class PostProcessing(MeshStructure):
 
 
     def visualise_calibration_comparisons_global(self, beat):
-        fig = plt.figure(tight_layout=True, figsize=(18, 10))
-        gs = GridSpec(3, 6)
-        ax_lv_pv = fig.add_subplot(gs[0:2, 0:2])
-        ax_lv_pv.set_title('Left PV')
+        fig = plt.figure(tight_layout=True, figsize=(8, 12))
+        gs = GridSpec(5, 6)
+        ax_lv_pv = fig.add_subplot(gs[1:3, 0:3])
+        ax_lv_pv.set_title('PV loops')
         # ax_rv_pv = fig.add_subplot(gs[0:2, 2:4])
         # ax_rv_pv.set_title('Right PV')
         # ax_rv_pv.set_ylim([0, 5])
-        ax_vt = fig.add_subplot(gs[0, 2:4])
-        ax_vt.set_title('V(t)')
-        ax_pt = fig.add_subplot(gs[1, 2:4])
-        ax_avpd = fig.add_subplot(gs[0, 4:6])
-        ax_avpd.set_title('AVPD & apex')
+        ax_vt = fig.add_subplot(gs[1, 3:6])
+        ax_vt.set_title('Volume transients')
+        ax_pt = fig.add_subplot(gs[2, 3:6])
+        ax_pt.set_title('Pressure transients')
+        ax_thickness = fig.add_subplot(gs[3, 0:2])
+        ax_thickness.set_title('Midventricular Wall thickness')
+        ax_torsion = fig.add_subplot(gs[3, 2:4])
+        ax_torsion.set_title('Torsion')
+        ax_avpd = fig.add_subplot(gs[3, 4:6])
+        ax_avpd.set_title('AVPD')
         ax_avpd.set_xlim(0, 1)
-        ax_apex = fig.add_subplot(gs[1, 4:6])
-        ax_apex.set_title('Apical displacement')
+        ax_lambda = fig.add_subplot(gs[4, 0:2])
+        ax_lambda.set_title('Fibre stretch ratio')
+        ax_ell = fig.add_subplot(gs[4, 2:4])
+        ax_ell.set_title('Longitudinal strain')
+        ax_err = fig.add_subplot(gs[4, 4:6])
+        ax_err.set_title('Radial strain')
 
-        ax_V1 = fig.add_subplot(gs[2, 0])
+        ax_V1 = fig.add_subplot(gs[0, 0])
         ax_V1.set_title('V1')
-        ax_V2 = fig.add_subplot(gs[2, 1])
-        ax_V1.set_title('V2')
-        ax_V3 = fig.add_subplot(gs[2, 2])
-        ax_V1.set_title('V3')
-        ax_V4 = fig.add_subplot(gs[2, 3])
-        ax_V1.set_title('V4')
-        ax_V5 = fig.add_subplot(gs[2, 4])
-        ax_V1.set_title('V5')
-        ax_V6 = fig.add_subplot(gs[2, 5])
-        ax_V1.set_title('V6')
+        ax_V2 = fig.add_subplot(gs[0, 1])
+        ax_V2.set_title('V2')
+        ax_V3 = fig.add_subplot(gs[0, 2])
+        ax_V3.set_title('V3')
+        ax_V4 = fig.add_subplot(gs[0, 3])
+        ax_V4.set_title('V4')
+        ax_V5 = fig.add_subplot(gs[0, 4])
+        ax_V5.set_title('V5')
+        ax_V6 = fig.add_subplot(gs[0, 5])
+        ax_V6.set_title('V6')
+
+        # ECGs
+        ax_V1.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
+                   self.ecgs['V1s'][beat - 1] / self.ecgs['max_all_leads'])
+        ax_V1.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
+        ax_V1.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
+                      color='green')
+        ax_V2.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
+                   self.ecgs['V2s'][beat - 1] / self.ecgs['max_all_leads'])
+        ax_V3.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
+                   self.ecgs['V3s'][beat - 1] / self.ecgs['max_all_leads'])
+        ax_V4.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
+                   self.ecgs['V4s'][beat - 1] / self.ecgs['max_all_leads'])
+        ax_V5.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
+                   self.ecgs['V5s'][beat - 1] / self.ecgs['max_all_leads'])
+        ax_V6.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
+                   self.ecgs['V6s'][beat - 1] / self.ecgs['max_all_leads'])
+        ax_V2.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
+        ax_V2.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
+                      color='green')
+        ax_V3.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
+        ax_V3.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
+                      color='green')
+        ax_V4.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
+        ax_V4.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
+                      color='green')
+        ax_V5.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
+        ax_V5.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
+                      color='green')
+        ax_V6.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
+        ax_V6.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
+                      color='green')
+        ax_V1.set_xlim([0, 500])
+        ax_V2.set_xlim([0, 500])
+        ax_V3.set_xlim([0, 500])
+        ax_V4.set_xlim([0, 500])
+        ax_V5.set_xlim([0, 500])
+        ax_V6.set_xlim([0, 500])
+        ax_V1.set_ylim([-1, 1])
+        ax_V2.set_ylim([-1, 1])
+        ax_V3.set_ylim([-1, 1])
+        ax_V4.set_ylim([-1, 1])
+        ax_V5.set_ylim([-1, 1])
+        ax_V6.set_ylim([-1, 1])
 
         # Pressure volume loops
         ax_lv_pv.plot(self.pvs['vls'][beat - 1], self.pvs['pls'][beat - 1] / 10000)
@@ -1090,8 +1143,7 @@ class PostProcessing(MeshStructure):
         ax_lv_pv.axvspan(self.healthy_ranges['LVESV'][0], self.healthy_ranges['LVESV'][1], alpha=0.3, color='C0')
         ax_lv_pv.axhspan(self.healthy_ranges['LVESP'][0], self.healthy_ranges['LVESP'][1], alpha=0.3, color='C0')
         ax_lv_pv.axhspan(self.healthy_ranges['LVEDP'][0], self.healthy_ranges['LVEDP'][1], alpha=0.3, color='C0')
-        ax_lv_pv.set_title('LVEF: ' + str((np.amax(self.pvs['vls'][beat - 1]) - np.amin(self.pvs['vls'][beat - 1])) /
-                                          np.amax(self.pvs['vls'][beat - 1]) * 100) + ' %')
+
 
         ax_lv_pv.plot(self.pvs['vrs'][beat - 1], self.pvs['prs'][beat - 1] / 10000)
         ax_lv_pv.axvspan(self.healthy_ranges['RVEDV'][0], self.healthy_ranges['RVEDV'][1], alpha=0.3, color='C1')
@@ -1099,6 +1151,13 @@ class PostProcessing(MeshStructure):
         ax_lv_pv.axhspan(self.healthy_ranges['RVESP'][0], self.healthy_ranges['RVESP'][1], alpha=0.3, color='C1')
         # ax_lv_pv.set_title('RVEF: ' + str((np.amax(self.pvs['vrs'][beat - 1]) - np.amin(self.pvs['vrs'][beat - 1])) /
         #                                   np.amax(self.pvs['vrs'][beat - 1]) * 100) + '%')
+        ax_lv_pv.set_title('LVEF: {lvef:d} %, RVEF: {rvef:d}'.format(
+            lvef=int((np.amax(self.pvs['vls'][beat - 1]) - np.amin(self.pvs['vls'][beat - 1])) /
+                 np.amax(self.pvs['vls'][beat - 1]) * 100),
+                           rvef=int((np.amax(self.pvs['vrs'][beat - 1]) - np.amin(self.pvs['vrs'][beat - 1])) /
+                                np.amax(self.pvs['vrs'][beat - 1]) * 100)))
+        ax_lv_pv.set_xlabel('Volume (mL)')
+        ax_lv_pv.set_ylabel('Pressure (kPa)')
 
         # Pressure transients
         ax_pt.plot(self.pvs['ts'][beat-1], self.pvs['pls'][beat-1]/10000, color='C0', label='LV')
@@ -1115,6 +1174,8 @@ class PostProcessing(MeshStructure):
         ax_pt.fill_between(t, self.healthy_ranges['dpdt_max'][0] * t + intercept_0,
                            self.healthy_ranges['dpdt_max'][1] * t + intercept_1, alpha=0.3, facecolor='green')
         ax_pt.set_ylim(0, 17)
+
+        # Volume transients
         # Diastolic fill
         end_systole_idx = np.argmin(self.pvs['vls'][beat-1])
         ldvdt = self.get_first_derivative(t=self.pvs['ts'][beat-1], y=self.pvs['vls'][beat-1])
@@ -1161,54 +1222,73 @@ class PostProcessing(MeshStructure):
                                          self.deformation_transients['apical_displacement'])
         ax_avpd.plot(self.deformation_transients['deformation_t'], avpd, label='AVPD',
                      color='C0')
-        ax_apex.plot(self.deformation_transients['deformation_t'], apical_displacement, label='Apex displacement', color='C0')
+        # ax_avpd.plot(self.deformation_transients['deformation_t'], apical_displacement, label='Apex displacement', color='C0')
         ax_avpd.axhspan(np.amax(avpd)-self.healthy_ranges['AVPD'][0],np.amax(avpd)-self.healthy_ranges['AVPD'][1], alpha=0.3, color='C0')
-        ax_apex.axhspan(self.healthy_ranges['apical_displacement'][0],
-                        self.healthy_ranges['apical_displacement'][1], alpha=0.3,
-                        color='C0')
+        # ax_avpd.axhspan(self.healthy_ranges['apical_displacement'][0],
+        #                 self.healthy_ranges['apical_displacement'][1], alpha=0.3,
+        #                 color='C0')
 
-        # ECGs
-        ax_V1.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
-                   self.ecgs['V1s'][beat - 1] / self.ecgs['max_all_leads'])
-        ax_V1.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
-        ax_V1.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3, color='green')
-        ax_V2.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
-                   self.ecgs['V2s'][beat - 1] / self.ecgs['max_all_leads'])
-        ax_V3.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
-                   self.ecgs['V3s'][beat - 1] / self.ecgs['max_all_leads'])
-        ax_V4.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
-                   self.ecgs['V4s'][beat - 1] / self.ecgs['max_all_leads'])
-        ax_V5.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
-                   self.ecgs['V5s'][beat - 1] / self.ecgs['max_all_leads'])
-        ax_V6.plot((self.ecgs['ts'][beat - 1] - self.simulation_dict['end_diastole_t'][0]) * 1000,
-                   self.ecgs['V6s'][beat - 1] / self.ecgs['max_all_leads'])
-        ax_V2.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
-        ax_V2.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
-                      color='green')
-        ax_V3.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
-        ax_V3.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
-                      color='green')
-        ax_V4.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
-        ax_V4.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
-                      color='green')
-        ax_V5.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
-        ax_V5.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
-                      color='green')
-        ax_V6.axvspan(self.healthy_ranges['QT'][0], self.healthy_ranges['QT'][1], alpha=0.3, color='green')
-        ax_V6.axvspan(self.healthy_ranges['QRS_duration'][0], self.healthy_ranges['QRS_duration'][1], alpha=0.3,
-                      color='green')
-        ax_V1.set_xlim([0, 500])
-        ax_V2.set_xlim([0, 500])
-        ax_V3.set_xlim([0, 500])
-        ax_V4.set_xlim([0, 500])
-        ax_V5.set_xlim([0, 500])
-        ax_V6.set_xlim([0, 500])
-        ax_V1.set_ylim([-1, 1])
-        ax_V2.set_ylim([-1, 1])
-        ax_V3.set_ylim([-1, 1])
-        ax_V4.set_ylim([-1, 1])
-        ax_V5.set_ylim([-1, 1])
-        ax_V6.set_ylim([-1, 1])
+        thickness = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['lv_wall_thickness'])
+        ax_thickness.plot(self.deformation_transients['deformation_t'], thickness, label='AVPD',
+                     color='C0')
+        ax_thickness.axhspan(self.healthy_ranges['ED_wall_thickness'][0], self.healthy_ranges['ED_wall_thickness'][1],
+                             alpha=0.3, color='green')
+        ax_thickness.axhspan(self.healthy_ranges['ES_wall_thickness'][0], self.healthy_ranges['ES_wall_thickness'][1],
+                             alpha=0.3, color='green')
+
+
+        # Strains
+        ell_median = self.shift_to_start_at_ED(self.strains['strain_t'], self.strains['four_chamber_E_ll_median'])
+        ell_uq = self.shift_to_start_at_ED(self.strains['strain_t'], self.strains['four_chamber_E_ll_uq'])
+        ell_lq = self.shift_to_start_at_ED(self.strains['strain_t'], self.strains['four_chamber_E_ll_lq'])
+        ax_ell.plot(self.strains['strain_t'], ell_median, label='Median', color='C0', linestyle='-')
+        ax_ell.plot(self.strains['strain_t'], ell_uq, label='IQR', color='C0', linestyle='--')
+        ax_ell.plot(self.strains['strain_t'], ell_lq, color='C0', linestyle='--')
+        ax_ell.axhspan(self.healthy_ranges['peak_E_ll'][0], self.healthy_ranges['peak_E_ll'][1], alpha=0.3, color='green')
+        ax_ell.legend()
+
+        err_median = self.shift_to_start_at_ED(self.strains['strain_t'], self.strains['mid_E_rr_median'])
+        err_uq = self.shift_to_start_at_ED(self.strains['strain_t'], self.strains['mid_E_rr_uq'])
+        err_lq = self.shift_to_start_at_ED(self.strains['strain_t'], self.strains['mid_E_rr_lq'])
+        ax_err.plot(self.strains['strain_t'], err_median, color='C0', linestyle='-')
+        ax_err.plot(self.strains['strain_t'], err_uq, color='C0', linestyle='--')
+        ax_err.plot(self.strains['strain_t'], err_lq, color='C0', linestyle='--')
+        ax_err.axhspan(self.healthy_ranges['peak_E_rr'][0], self.healthy_ranges['peak_E_rr'][1], alpha=0.3, color='green')
+
+        lambda_endo = self.shift_to_start_at_ED(self.fibre_work['fibrework_t'], self.fibre_work['endo_midshort_lambda_median'])
+        lambda_endo_uq = self.shift_to_start_at_ED(self.fibre_work['fibrework_t'], self.fibre_work['endo_midshort_lambda_uq'])
+        lambda_endo_lq = self.shift_to_start_at_ED(self.fibre_work['fibrework_t'],
+                                                   self.fibre_work['endo_midshort_lambda_lq'])
+        lambda_epi = self.shift_to_start_at_ED(self.fibre_work['fibrework_t'], self.fibre_work['epi_midshort_lambda_median'])
+        lambda_epi_uq = self.shift_to_start_at_ED(self.fibre_work['fibrework_t'],
+                                                   self.fibre_work['epi_midshort_lambda_uq'])
+        lambda_epi_lq = self.shift_to_start_at_ED(self.fibre_work['fibrework_t'],
+                                                   self.fibre_work['epi_midshort_lambda_lq'])
+
+        lambda_mid = self.shift_to_start_at_ED(self.fibre_work['fibrework_t'], self.fibre_work['mid_midshort_lambda_median'])
+        lambda_mid_uq = self.shift_to_start_at_ED(self.fibre_work['fibrework_t'],
+                                                  self.fibre_work['mid_midshort_lambda_uq'])
+        lambda_mid_lq = self.shift_to_start_at_ED(self.fibre_work['fibrework_t'],
+                                                  self.fibre_work['mid_midshort_lambda_lq'])
+
+        ax_lambda.plot(self.fibre_work['fibrework_t'], lambda_endo, label='Endo', color='C2')
+        ax_lambda.plot(self.fibre_work['fibrework_t'], lambda_endo_uq, color='C2', linestyle='--')
+        ax_lambda.plot(self.fibre_work['fibrework_t'], lambda_endo_lq, color='C2', linestyle='--')
+
+        ax_lambda.plot(self.fibre_work['fibrework_t'], lambda_epi, label='Epi', color='C3')
+        ax_lambda.plot(self.fibre_work['fibrework_t'], lambda_epi_uq, color='C2', linestyle='--')
+        ax_lambda.plot(self.fibre_work['fibrework_t'], lambda_epi_lq, color='C2', linestyle='--')
+
+        ax_lambda.plot(self.fibre_work['fibrework_t'], lambda_mid, label='Mid', color='C4')
+        ax_lambda.plot(self.fibre_work['fibrework_t'], lambda_mid_uq, color='C2', linestyle='--')
+        ax_lambda.plot(self.fibre_work['fibrework_t'], lambda_mid_lq, color='C2', linestyle='--')
+
+        ax_lambda.axhspan(self.healthy_ranges['lambda_endo'][0], self.healthy_ranges['lambda_endo'][1], alpha=0.3, color='C2')
+        ax_lambda.axhspan(self.healthy_ranges['lambda_epi'][0], self.healthy_ranges['lambda_endo'][1], alpha=0.3,
+                          color='C3')
+        ax_lambda.axhspan(self.healthy_ranges['lambda_mid'][0], self.healthy_ranges['lambda_endo'][1], alpha=0.3,
+                          color='C4')
+        ax_lambda.legend()
         plt.show()
 
 
