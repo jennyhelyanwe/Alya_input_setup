@@ -69,8 +69,8 @@ sa = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 4, parameter_names=cellu
           simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
 # sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
 # quit()
-sa.run_jobs(simulation_dir)
-quit()
+# sa.run_jobs(simulation_dir)
+# quit()
 ########################################################################################################################
 # Step 3: Run Alya post-processing
 if system == 'jureca':
@@ -79,28 +79,29 @@ elif system == 'cosma':
     simulation_dir = simulation_root_dir + sa_folder_name + '/'
 elif system == 'heart':
     simulation_dir = '/users/jenang/Alya_setup_SA/alya_csv/rodero_' + mesh_number + '/'
-sa.run_jobs_postprocess(simulation_dir)
+# sa.run_jobs_postprocess(simulation_dir)
+
 ########################################################################################################################
 # Step 4: Evaluate QoIs and write out to results file
 beat = 1
-sa.sort_simulations(tag='postprocess') # Collate list of finished simulations by checking the existence of particular files.
+sa.sort_simulations(tag='raw') # Collate list of finished simulations by checking the existence of particular files.
 # The lines below only need to be run once, it will write out the QoIs to the save directories as txt files.
 pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
 sa.visualise_sa(beat=1, pv_post=pv_post, labels=[])
 ecg_post = sa.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
 sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=[])
-fibre_work_post = sa.evaluate_qois(qoi_group_name='fibre_work', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
-sa.visualise_sa(beat=1, fibre_work_post=fibre_work_post)
-deformation_post = sa.evaluate_qois(qoi_group_name='deformation', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
-sa.visualise_sa(beat=1, deformation_post=deformation_post, labels=[])
-
+# fibre_work_post = sa.evaluate_qois(qoi_group_name='fibre_work', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
+# sa.visualise_sa(beat=1, fibre_work_post=fibre_work_post)
+# deformation_post = sa.evaluate_qois(qoi_group_name='deformation', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
+# sa.visualise_sa(beat=1, deformation_post=deformation_post, labels=[])
+# quit()
 # Visualise scatter plots
 sa.analyse(filename=simulation_dir+'pv_qois.csv', qois = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max'])
 sa.analyse(filename=simulation_dir+'ecg_qois.csv', qois=['qt_dur_mean', 't_pe_mean', 't_peak_mean'])
-sa.analyse(filename=simulation_dir+'deformation_qois.csv', qois=['es_ed_avpd', 'es_ed_apical_displacement'])
-sa.analyse_qoi_vs_qoi(filename_1=simulation_dir+'pv_qois.csv', filename_2=simulation_dir+'ecg_qois.csv',
-                      qois_1=['EDVL', 'ESVL', 'PmaxL', 'LVEF'], qois_2=['qt_dur_mean', 't_pe_mean'])
-
+# sa.analyse(filename=simulation_dir+'deformation_qois.csv', qois=['es_ed_avpd', 'es_ed_apical_displacement'])
+# sa.analyse_qoi_vs_qoi(filename_1=simulation_dir+'pv_qois.csv', filename_2=simulation_dir+'ecg_qois.csv',
+#                       qois_1=['EDVL', 'ESVL', 'PmaxL', 'LVEF'], qois_2=['qt_dur_mean', 't_pe_mean'])
+quit()
 ########################################################################################################################
 # Step 5: Evaluate Sobol indices and plot results
 sa_figures_directory = simulation_dir

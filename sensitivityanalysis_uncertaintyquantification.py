@@ -213,31 +213,31 @@ class SAUQ:
             for simulation_i in range(len(self.finished_simulation_dirs)):
                 filename = qoi_save_dir + 'ecg_qoi_' + str(simulation_i) + '.csv'
                 qoi = json.load(open(filename, 'r'))
-                qois = qois.append(pd.DataFrame(qoi, index=[simulation_i]))
+                qois = pd.concat([qois, pd.DataFrame(qoi)], index=simulation_i)
             qois.to_csv(qoi_save_dir + 'ecg_qois.csv')
         elif qoi_group_name == 'pv':
             for simulation_i in range(len(self.finished_simulation_dirs)):
                 filename = qoi_save_dir + 'pv_qoi_' + str(simulation_i) + '.csv'
                 qoi = json.load(open(filename, 'r'))
-                qois = qois.append(pd.DataFrame(qoi, index=[simulation_i]))
+                qois = pd.concat([qois, pd.DataFrame(qoi)], index=simulation_i)
             qois.to_csv(qoi_save_dir + 'pv_qois.csv')
         elif qoi_group_name == 'deformation':
             for simulation_i in range(len(self.finished_simulation_dirs)):
                 filename = qoi_save_dir + 'deformation_qoi_' + str(simulation_i) + '.csv'
                 qoi = json.load(open(filename, 'r'))
-                qois = qois.append(pd.DataFrame(qoi, index=[simulation_i]))
+                qois = pd.concat([qois, pd.DataFrame(qoi)], index=simulation_i)
             qois.to_csv(qoi_save_dir + 'deformation_qois.csv')
         elif qoi_group_name == 'fibrework':
             for simulation_i in range(len(self.finished_simulation_dirs)):
                 filename = qoi_save_dir + 'fibrework_qoi_' + str(simulation_i) + '.csv'
                 qoi = json.load(open(filename, 'r'))
-                qois = qois.append(pd.DataFrame(qoi, index=[simulation_i]))
+                qois = pd.concat([qois, pd.DataFrame(qoi)], index=simulation_i)
             qois.to_csv(qoi_save_dir + 'fibrework_qois.csv')
         elif qoi_group_name == 'cube_deformation':
             for simulation_i in range(len(self.finished_simulation_dirs)):
                 filename = qoi_save_dir + 'cube_deformation_qoi_' + str(simulation_i) + '.csv'
                 qoi = json.load(open(filename, 'r'))
-                qois = qois.append(pd.DataFrame(qoi, index=[simulation_i]))
+                qois = pd.concat([qois, pd.DataFrame(qoi)], index=simulation_i)
             qois.to_csv(qoi_save_dir + 'cube_deformation_qois.csv')
         self.qois_db = qois
         return postp_objects

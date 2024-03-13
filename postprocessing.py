@@ -168,14 +168,21 @@ class PostProcessing(MeshStructure):
         y = self.pvs['vls'][beat-1]
         end_systole_idx = np.argmin(y)
         dvdt = self.get_first_derivative(t=t, y=y)
-        dvdt_ejection = abs(np.amin(dvdt[10:end_systole_idx]))
-        dvdt_filling = abs(np.amax(dvdt[end_systole_idx:]))
+        if end_systole_idx > 10:
+            dvdt_ejection = abs(np.amin(dvdt[10:end_systole_idx]))
+            dvdt_filling = abs(np.amax(dvdt[end_systole_idx:]))
+        else:
+            dvdt_ejection = np.nan
+            dvdt_filling = np.nan
 
         t = self.pvs['ts'][beat - 1]
         y = self.pvs['pls'][beat - 1]
         end_systole_idx = np.argmax(y)
         dpdt = self.get_first_derivative(t=t, y=y)
-        dpdt_max = abs(np.amax(dvdt[10:end_systole_idx]))
+        if end_systole_idx > 10:
+            dpdt_max = abs(np.amax(dvdt[10:end_systole_idx]))
+        else:
+            dpdt_max = np.nan
 
         qoi = {}
         qoi['EDVL'] = pv_analysis['EDVL']
