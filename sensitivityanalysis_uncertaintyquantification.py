@@ -213,31 +213,31 @@ class SAUQ:
             for simulation_i in range(len(self.finished_simulation_dirs)):
                 filename = qoi_save_dir + 'ecg_qoi_' + str(simulation_i) + '.csv'
                 qoi = json.load(open(filename, 'r'))
-                qois = pd.concat([qois, pd.DataFrame(qoi)], index=simulation_i)
+                qois = pd.concat([qois, pd.DataFrame([qoi])])
             qois.to_csv(qoi_save_dir + 'ecg_qois.csv')
         elif qoi_group_name == 'pv':
             for simulation_i in range(len(self.finished_simulation_dirs)):
                 filename = qoi_save_dir + 'pv_qoi_' + str(simulation_i) + '.csv'
                 qoi = json.load(open(filename, 'r'))
-                qois = pd.concat([qois, pd.DataFrame(qoi)], index=simulation_i)
+                qois = pd.concat([qois, pd.DataFrame([qoi])])
             qois.to_csv(qoi_save_dir + 'pv_qois.csv')
         elif qoi_group_name == 'deformation':
             for simulation_i in range(len(self.finished_simulation_dirs)):
                 filename = qoi_save_dir + 'deformation_qoi_' + str(simulation_i) + '.csv'
                 qoi = json.load(open(filename, 'r'))
-                qois = pd.concat([qois, pd.DataFrame(qoi)], index=simulation_i)
+                qois = pd.concat([qois, pd.DataFrame([qoi])])
             qois.to_csv(qoi_save_dir + 'deformation_qois.csv')
         elif qoi_group_name == 'fibrework':
             for simulation_i in range(len(self.finished_simulation_dirs)):
                 filename = qoi_save_dir + 'fibrework_qoi_' + str(simulation_i) + '.csv'
                 qoi = json.load(open(filename, 'r'))
-                qois = pd.concat([qois, pd.DataFrame(qoi)], index=simulation_i)
+                qois = pd.concat([qois, pd.DataFrame([qoi])])
             qois.to_csv(qoi_save_dir + 'fibrework_qois.csv')
         elif qoi_group_name == 'cube_deformation':
             for simulation_i in range(len(self.finished_simulation_dirs)):
                 filename = qoi_save_dir + 'cube_deformation_qoi_' + str(simulation_i) + '.csv'
                 qoi = json.load(open(filename, 'r'))
-                qois = pd.concat([qois, pd.DataFrame(qoi)], index=simulation_i)
+                qois = pd.concat([qois, pd.DataFrame([qoi])])
             qois.to_csv(qoi_save_dir + 'cube_deformation_qois.csv')
         self.qois_db = qois
         return postp_objects
@@ -679,7 +679,6 @@ class SAUQ:
         names = self.parameter_names
         # selected_qois = self.qois_db.columns.values.tolist() # All QoIs
         selected_qois = qois
-        # selected_qois = ['t_pe_mean', 't_peak_mean', 'qt_dur_mean', 't_polarity_mean', 'EDVL', 'LVEF', 'PmaxL', 'SVL']
         sp = ProblemSpec({'num_vars': len(names),
                           'names': names,
                           'bounds': [[0.5, 2]] * len(names),
@@ -724,8 +723,10 @@ class SAUQ:
                     y = Y
                 else:
                     y = Y[:,qoi_i]
+                x[~np.isfinite(x)] = 0
+                y[~np.isfinite(y)] = 0
                 sns.regplot(x=x, y=y, ax=ax, scatter_kws={'s':1})
-                ax.text(x=np.amin(x), y=np.amax(y), va='top', ha='left',
+                ax.text(x=np.nanmin(x), y=np.nanmax(y), va='top', ha='left',
                                           s='p=%.2f' % (np.corrcoef(x,y)[0,1]))
                 if qoi_i == num_qois-1:
                     ax.set_xlabel(names[param_j])

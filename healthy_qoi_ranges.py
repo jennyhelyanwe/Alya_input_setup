@@ -47,13 +47,13 @@ class HealthyBiomarkerRanges:
                                 # range https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.28724
                                 'peak_E_ll': [-0.16, -0.16],
                                 'peak_E_rr': [0.22, 0.29],
-                                'QT': [378, 419],
+                                'QTc': [0.378, 0.419],
                                 # [ms] UKB Imaging + EST combined interquartile range https://www.ahajournals.org/doi/full/10.1161/CIRCGEN.120.003231 (Table 1)
-                                'Tpe': [50, 72],
+                                'Tpe': [0.050, 0.072],
                                 # [ms] LTVA interquartile range UKB https://www.ahajournals.org/action/downloadSupplement?doi=10.1161%2FJAHA.121.025897&file=jah37786-sup-0001-data-tabs-figs.pdf
-                                'T_duration': [100, 114],
+                                'T_duration': [0.100, 0.114],
                                 # [ms] UKB normal LV mass interquartile range https://academic.oup.com/ehjdh/article/4/4/316/7188159?login=true
-                                'QRS_duration': [77, 91],
+                                'QRS_duration': [0.077, 0.091],
                                 # [ms] UKB Imaging + EST combined interquartile range https://academic.oup.com/ehjdh/article/4/4/316/7188159?login=true
                                 'diastoic_duration': [0.45],
                                 'dvdt_ejection': [308, 512], # ml/s, +- std left ventricular dV/dt ejection rate from MRI https://www.sciencedirect.com/science/article/pii/S0894731702744702#fig2
