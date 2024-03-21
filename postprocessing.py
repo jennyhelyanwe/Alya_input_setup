@@ -264,6 +264,7 @@ class PostProcessing(MeshStructure):
                 rv_update_endo_coords = nodes_xyz[rv_endo_nodes, :] + displacement_shared[rv_endo_nodes, :, time_i]
                 rv_transmural_vector = rv_update_epi_coords - rv_update_endo_coords
                 rv_wall_thickness[time_i] = np.mean(np.linalg.norm(rv_transmural_vector, axis=1))
+
         # Save transients
         self.deformation_transients['deformation_t'] = deformation_t
         self.deformation_transients['avpd'] = avpd
@@ -282,6 +283,8 @@ class PostProcessing(MeshStructure):
         qoi['min_lv_wall_thickness'] = np.amin(lv_wall_thickness)
         qoi['peak_rv_wall_thickness'] = np.amax(rv_wall_thickness)
         qoi['min_rv_wall_thickness'] = np.amin(rv_wall_thickness)
+        qoi['diff_lv_wall_thickness'] = np.amax(lv_wall_thickness) - np.amin(lv_wall_thickness)
+        qoi['diff_rv_wall_thickness'] = np.amax(rv_wall_thickness) - np.amin(rv_wall_thickness)
         self.qoi.update(qoi)
 
     def evaluate_cube_deformation_ta_biomarkers(self):
@@ -344,7 +347,7 @@ class PostProcessing(MeshStructure):
     def evaluate_fibre_work_biomarkers(self, beat):
         self.fibre_work = {}
         self.read_csv_fields(read_field_name='LAMBD', read_field_type='vector')
-        self.read_csv_fields(read_field_name='ACTST', read_field_type='vector')
+        # self.read_csv_fields(read_field_name='ACTST', read_field_type='vector')
         # Select time segment according to specified beat # TODO assuming CL is always 1.0 s
         CL = 1.0
         time_idx = []
@@ -385,12 +388,12 @@ class PostProcessing(MeshStructure):
         midw_lambda = pymp.shared.array(time_idx.shape[0], dtype=float)
         epi_lambda = pymp.shared.array(time_idx.shape[0], dtype=float)
 
-        apical_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
-        midv_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
-        basal_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
-        endo_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
-        midw_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
-        epi_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
+        # apical_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
+        # midv_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
+        # basal_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
+        # endo_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
+        # midw_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
+        # epi_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
 
         endo_cross_lambda = pymp.shared.array(time_idx.shape[0], dtype=float)
         midw_cross_lambda = pymp.shared.array(time_idx.shape[0], dtype=float)
@@ -400,9 +403,9 @@ class PostProcessing(MeshStructure):
         epi_midshort_lambda = pymp.shared.array((epi_midshort_nodes.shape[0], time_idx.shape[0]))
         mid_midshort_lambda = pymp.shared.array((mid_midshort_nodes.shape[0], time_idx.shape[0]))
 
-        ta_shared = pymp.shared.array(self.post_nodefield.dict['ACTST'].shape, dtype=float)
+        # ta_shared = pymp.shared.array(self.post_nodefield.dict['ACTST'].shape, dtype=float)
         lambda_shared = pymp.shared.array(self.post_nodefield.dict['LAMBD'].shape, dtype=float)
-        ta_shared[:,:] = self.post_nodefield.dict['ACTST']
+        # ta_shared[:,:] = self.post_nodefield.dict['ACTST']
         lambda_shared[:,:] = self.post_nodefield.dict['LAMBD']
         threadsNum = multiprocessing.cpu_count()
         print('Regionally dividing lambda and Ta')
@@ -418,12 +421,12 @@ class PostProcessing(MeshStructure):
                 # midw_cross_lambda[time_i] = np.mean(lambda_shared[midw_mesh_nodes, 1, time_i])
                 # epi_cross_lambda[time_i] = np.mean(lambda_shared[epi_mesh_nodes, 1, time_i])
                 #
-                apical_Ta[time_i] = np.mean(ta_shared[apical_mesh_nodes, 0, time_i])
-                midv_Ta[time_i] = np.mean(ta_shared[midv_mesh_nodes, 0, time_i])
-                basal_Ta[time_i] = np.mean(ta_shared[basal_mesh_nodes, 0, time_i])
-                endo_Ta[time_i] = np.mean(ta_shared[endo_mesh_nodes, 0, time_i])
-                midw_Ta[time_i] = np.mean(ta_shared[midw_mesh_nodes, 0, time_i])
-                epi_Ta[time_i] = np.mean(ta_shared[epi_mesh_nodes, 0, time_i])
+                # apical_Ta[time_i] = np.mean(ta_shared[apical_mesh_nodes, 0, time_i])
+                # midv_Ta[time_i] = np.mean(ta_shared[midv_mesh_nodes, 0, time_i])
+                # basal_Ta[time_i] = np.mean(ta_shared[basal_mesh_nodes, 0, time_i])
+                # endo_Ta[time_i] = np.mean(ta_shared[endo_mesh_nodes, 0, time_i])
+                # midw_Ta[time_i] = np.mean(ta_shared[midw_mesh_nodes, 0, time_i])
+                # epi_Ta[time_i] = np.mean(ta_shared[epi_mesh_nodes, 0, time_i])
 
                 endo_midshort_lambda[:, time_i] = lambda_shared[endo_midshort_nodes, 0, time_i]
                 epi_midshort_lambda[:, time_i] = lambda_shared[epi_midshort_nodes, 0, time_i]
@@ -480,16 +483,16 @@ class PostProcessing(MeshStructure):
         self.fibre_work['mid_midshort_lambda_uq'] = mid_midshort_lambda_uq
         self.fibre_work['mid_midshort_lambda_lq'] = mid_midshort_lambda_lq
 
-        self.fibre_work['apical_Ta'] = apical_Ta
-        self.fibre_work['midv_Ta'] = midv_Ta
-        self.fibre_work['basal_Ta'] = basal_Ta
-        self.fibre_work['endo_Ta'] = endo_Ta
-        self.fibre_work['midw_Ta'] = midw_Ta
-        self.fibre_work['epi_Ta'] = epi_Ta
+        # self.fibre_work['apical_Ta'] = apical_Ta
+        # self.fibre_work['midv_Ta'] = midv_Ta
+        # self.fibre_work['basal_Ta'] = basal_Ta
+        # self.fibre_work['endo_Ta'] = endo_Ta
+        # self.fibre_work['midw_Ta'] = midw_Ta
+        # self.fibre_work['epi_Ta'] = epi_Ta
         # Save QoIs
         qoi = {}
-        qoi['peak_Ta'] = np.amax(np.mean(ta_shared[:,0, :], axis=0))
-        qoi['min_Ta'] = np.amin(np.mean(ta_shared[:,0, :], axis=0))
+        # qoi['peak_Ta'] = np.amax(np.mean(ta_shared[:,0, :], axis=0))
+        # qoi['min_Ta'] = np.amin(np.mean(ta_shared[:,0, :], axis=0))
         qoi['peak_lambda'] = np.amax(np.mean(lambda_shared[:,0, :], axis=0))
         qoi['min_lambda'] = np.amin(np.mean(lambda_shared[:, 0, :], axis=0))
         self.qoi.update(qoi)
@@ -903,7 +906,7 @@ class PostProcessing(MeshStructure):
             self.post_nodefield.add_field(data=E_cc, data_name='E_cc', field_type='postnodefield')
             self.post_nodefield.add_field(data=E_rr, data_name='E_rr', field_type='postnodefield')
             self.post_nodefield.add_field(data=E_ll, data_name='E_ll', field_type='postnodefield')
-            self.save_postprocessing_fields()
+            # self.save_postprocessing_fields()
         else:
             print('E_ll, E_cc, E_rr have already been calculated')
 

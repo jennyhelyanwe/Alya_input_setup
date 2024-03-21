@@ -46,17 +46,24 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 
 
 # Step 2: Use sampling methods to explore sensitivity analysis
-sa_folder_name = 'sensitivity_analyses_mechanical_parameters'
+sa_folder_name = 'sensitivity_analyses_haemodynamic_parameters'
 baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
 simulation_json_file = baseline_json_file
 simulation_dict = json.load(open(simulation_json_file, 'r'))
-mechanical_parameter_names = np.array(['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'as_myocardium', 'afs_myocardium'])
-baseline_parameter_values = np.array([simulation_dict['pericardial_stiffness'],
-                                      simulation_dict['Kct'][0],
-                                      simulation_dict['a'][0],
-                                      simulation_dict['af'][0],
-                                      simulation_dict['as'][0],
-                                      simulation_dict['afs'][0]])
+haemodynamic_parameter_names = np.array(['arterial_compliance_lv',
+                                         'arterial_resistance_lv',
+                                         'gain_derror_relaxation_lv',
+                                         'gain_error_relaxation_lv',
+                                         'gain_error_contraction_lv',
+                                         'gain_derror_contraction_lv',
+                                         'ejection_pressure_threshold_lv'])
+baseline_parameter_values = np.array([simulation_dict['arterial_compliance'][0],
+                                      simulation_dict['arterial_resistance'][0],
+                                      simulation_dict['gain_derror_relaxation'][0],
+                                      simulation_dict['gain_error_relaxation'][0],
+                                      simulation_dict['gain_error_contraction'][0],
+                                      simulation_dict['gain_derror_contraction'][0],
+                                      simulation_dict['ejection_pressure_threshold'][0]])
 upper_bounds = baseline_parameter_values * 2.0
 lower_bounds = baseline_parameter_values * 0.5
 baseline_json_file = 'rodero_baseline_simulation_em.json'
@@ -71,13 +78,13 @@ elif system == 'polaris':
 elif system == 'heart':
     baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
     simulation_dir = sa_folder_name + '/'
-sa = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 3, parameter_names=mechanical_parameter_names,
+sa = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 3, parameter_names=haemodynamic_parameter_names,
           baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
           simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
 # sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
 # quit()
-# sa.run_jobs(simulation_dir)
-# quit()
+sa.run_jobs(simulation_dir)
+quit()
 ########################################################################################################################
 # Step 3: Run Alya post-processing
 if system == 'jureca':

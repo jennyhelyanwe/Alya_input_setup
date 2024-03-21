@@ -1,7 +1,7 @@
 {
   "name": "heart",
   "alya_version": "alya-compbiomed2",
-  "alya_exec_path" : "/cosma8/data/dp287/dc-wang14/Alya/alya-compbiomed2_ionic_sf_fields/Executables/unix/Alya.x",
+  "alya_exec_path" : "/home/jenang/Alya/alya-compbiomed2_ionic_sf_fields/Executables/unix/Alya.x",
   "clinical_ecg_filename" : "DTI004_clinical_full_ecg.txt",
   "spatial_dimensions": 3,
   "run_type": "PRELIMINARY",

@@ -38,17 +38,17 @@ class AlyaFormat(MeshStructure):
             os.system('cp '+baseline_dir + self.simulation_dict['name'] + '.* '+self.output_dir)
             if not self.geometric_data_dir: # TODO this is a hack to allow cube contraction SA to work November 2023
                 os.system('cp '+baseline_dir + self.simulation_dict['name'] + '_0.105.* '+self.output_dir)
-            os.system('cd '+self.output_dir+'; ~/Alya/Alya_multiple_BZRZ_models/Utils/user/alya-clean; rm -r results_csv results_ensight; cd -')
+            os.system('cd '+self.output_dir+'; alya-clean; rm -r results_csv results_ensight; cd -')
             self.write_alya_simulation_files_parameters_only()
         elif drug_flag:
             os.system('cp ' + baseline_dir  + self.simulation_dict['name'] + '.* ' + self.output_dir)
             os.system(
-                'cd ' + self.output_dir + '; ~/Alya/Alya_multiple_BZRZ_models/Utils/user/alya-clean; rm -r results_csv results_ensight; cd -')
+                'cd ' + self.output_dir + '; alya-clean; rm -r results_csv results_ensight; cd -')
             self.write_cell_txt()
         elif best_match_biomarker_file:
             os.system('cp ' + baseline_dir + self.simulation_dict['name'] + '.* ' + self.output_dir)
             os.system(
-                'cd ' + self.output_dir + '; ~/Alya/Alya_multiple_BZRZ_models/Utils/user/alya-clean; rm -r results_csv results_ensight; cd -')
+                'cd ' + self.output_dir + '; alya-clean; rm -r results_csv results_ensight; cd -')
             data = pd.read_csv(best_match_biomarker_file)
             keys = list(data.keys())
             for key in keys:

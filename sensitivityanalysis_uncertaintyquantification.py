@@ -191,6 +191,13 @@ class SAUQ:
                 post.evaluate_deformation_biomarkers(beat=beat)
                 post.save_qoi(filename=qoi_save_dir + 'deformation_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
+            elif qoi_group_name == 'strain':
+                post = PostProcessing(alya=alya, simulation_json_file=json_file,
+                                      alya_output_dir=alya_output_dir, protocol='postprocess',
+                                      verbose=self.verbose)
+                post.evaluate_strain_biomarkers(beat=beat)
+                post.save_qoi(filename=qoi_save_dir + 'strain_qoi_' + str(simulation_i) + '.csv')
+                postp_objects.append(post)
             elif qoi_group_name == 'fibre_work':
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
                                       alya_output_dir=alya_output_dir, protocol='postprocess',
@@ -227,6 +234,12 @@ class SAUQ:
                 qoi = json.load(open(filename, 'r'))
                 qois = pd.concat([qois, pd.DataFrame([qoi])])
             qois.to_csv(qoi_save_dir + 'deformation_qois.csv')
+        elif qoi_group_name == 'strain':
+            for simulation_i in range(len(self.finished_simulation_dirs)):
+                filename = qoi_save_dir + 'strain_qoi_' + str(simulation_i) + '.csv'
+                qoi = json.load(open(filename, 'r'))
+                qois = pd.concat([qois, pd.DataFrame([qoi])])
+            qois.to_csv(qoi_save_dir + 'strain_qois.csv')
         elif qoi_group_name == 'fibrework':
             for simulation_i in range(len(self.finished_simulation_dirs)):
                 filename = qoi_save_dir + 'fibrework_qoi_' + str(simulation_i) + '.csv'

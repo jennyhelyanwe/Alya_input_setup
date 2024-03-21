@@ -84,9 +84,9 @@ elif system == 'heart':
 ########################################################################################################################
 # Step 4: Evaluate QoIs and write out to results file
 beat = 1
-sa.sort_simulations(tag='raw') # Collate list of finished simulations by checking the existence of particular files.
+sa.sort_simulations(tag='postprocess') # Collate list of finished simulations by checking the existence of particular files.
 # The lines below only need to be run once, it will write out the QoIs to the save directories as txt files.
-pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
+# pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
 # sa.visualise_sa(beat=1, pv_post=pv_post, labels=[])
 # ecg_post = sa.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
 # sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=[])
@@ -94,13 +94,18 @@ pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_d
 # sa.visualise_sa(beat=1, fibre_work_post=fibre_work_post)
 # deformation_post = sa.evaluate_qois(qoi_group_name='deformation', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
 # sa.visualise_sa(beat=1, deformation_post=deformation_post, labels=[])
+strain_post = sa.evaluate_qois(qoi_group_name='strain', alya=alya, beat=beat, qoi_save_dir=simulation_dir, analysis_type='sa')
+# sa.visualise_sa(beat=1, deformation_post=deformation_post, labels=[])
 # quit()
 # Visualise scatter plots
-sa.analyse(filename=simulation_dir+'pv_qois.csv', qois = ['EDVL', 'ESVL', 'EDVR', 'ESVR', 'PmaxL', 'PmaxR', 'LVEF',
-                                                          'SVL', 'SVR', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max'])
-sa.analyse(filename=simulation_dir+'ecg_qois.csv', qois=['qt_dur_mean', 't_pe_mean', 't_peak_mean'])
-# sa.analyse(filename=simulation_dir+'deformation_qois.csv', qois=['es_ed_avpd', 'es_ed_apical_displacement'])
-# sa.analyse_qoi_vs_qoi(filename_1=simulation_dir+'pv_qois.csv', filename_2=simulation_dir+'ecg_qois.csv',
+# sa.analyse(filename=simulation_dir+'pv_qois.csv', qois = ['EDVL', 'ESVL', 'PmaxL', 'LVEF',
+#                                                           'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max'])
+# sa.analyse(filename=simulation_dir+'pv_qois.csv', qois=['EDVR', 'ESVR', 'PmaxR', 'SVR'])
+# sa.analyse(filename=simulation_dir+'ecg_qois.csv', qois=['qt_dur_mean', 't_pe_mean', 't_peak_mean'])
+# sa.analyse(filename=simulation_dir+'fibrework_qois.csv', qois=['peak_lambda', 'min_lambda'])
+sa.analyse(filename=simulation_dir+'deformation_qois.csv', qois=['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness'])
+sa.analyse(filename=simulation_dir+'strain_qois.csv', qois=['max_median_mid_Ecc', 'max_median_mid_Err', 'max_median_four_chamber_Ell'])
+# sa.analyse_qoi_v                                                                                                                                                                                                                                                                                           s_qoi(filename_1=simulation_dir+'pv_qois.csv', filename_2=simulation_dir+'ecg_qois.csv',
 #                       qois_1=['EDVL', 'ESVL', 'PmaxL', 'LVEF'], qois_2=['qt_dur_mean', 't_pe_mean'])
 quit()
 ########################################################################################################################
