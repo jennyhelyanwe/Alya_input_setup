@@ -78,6 +78,8 @@ class SAUQ:
                 'bounds' : ranges
             }
             self.parameter_set = saltelli.sample(problem, self.n, calc_second_order=True)
+        elif self.sampling_method == 'uniform':
+            self.parameter_set = np.linspace(lower_bounds, upper_bounds, self.n)
         elif self.sampling_method == 'gridsampling':
             self.parameter_set = np.zeros((self.n**self.number_of_parameters, self.number_of_parameters))
             a = np.linspace(lower_bounds[0], upper_bounds[0], self.n)
@@ -344,7 +346,7 @@ class SAUQ:
 
 
     def visualise_sa(self, beat, ecg_post=None, pv_post=None, deformation_post=None,
-                     fibre_work_post=None, cube_deformation_ta_post=None, labels=None):
+                     fibre_work_post=None, strain_post=None, cube_deformation_ta_post=None, labels=None, save_filename=None):
         if pv_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(2, 2)
@@ -358,14 +360,14 @@ class SAUQ:
                 else:
                     ax_pv.plot(pv_post[simulation_i].pvs['vls'][beat-1], pv_post[simulation_i].pvs['pls'][beat-1]/10000, color='C0', label='LV')
                 ax_pv.plot(pv_post[simulation_i].pvs['vrs'][beat - 1], pv_post[simulation_i].pvs['prs'][beat - 1]/10000,
-                           color='C1', label='RV')
+                           color='C1')
                 if labels:
                     ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['vls'][beat - 1],
                                color='C0', label=labels[simulation_i])
                 else:
                     ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat-1], pv_post[simulation_i].pvs['vls'][beat-1], color='C0', label='LV')
                 ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['vrs'][beat - 1],
-                           color='C1', label='RV')
+                           color='C1')
 
                 if labels:
                     ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1],
@@ -375,7 +377,7 @@ class SAUQ:
                     ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['pls'][beat - 1]/10000,
                                color='C0', label='LV')
                 ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['prs'][beat - 1]/10000,
-                           color='C1', label='RV')
+                           color='C1')
             ax_pv.set_xlabel('Volume (mL)')
             ax_pv.set_ylabel('Pressure (kPa)')
             ax_vt.set_xlabel('Time (s)')
@@ -460,6 +462,34 @@ class SAUQ:
                 ax_avpd.legend()
                 ax_apex.legend()
             plt.show()
+        if strain_post:
+            fig = plt.figure(tight_layout=True, figsize=(18, 10))
+            gs = GridSpec(1, 3)
+            ax_Err = fig.add_subplot(gs[0, 0])
+            ax_Ecc = fig.add_subplot(gs[0, 1])
+            ax_Ell = fig.add_subplot(gs[0, 1])
+            for simulation_i in range(len(strain_post)):
+                if labels:
+                    ax_Ecc.plot(strain_post[simulation_i].strain_transients['strain_t'],
+                                strain_post[simulation_i].strain_transients['mid_E_cc_median'], label=labels[simulation_i])
+                    ax_Err.plot(strain_post[simulation_i].strain_transients['strain_t'],
+                                strain_post[simulation_i].strain_transients['mid_E_rr_median'], label=labels[simulation_i])
+                    ax_Ell.plot(strain_post[simulation_i].strain_transients['strain_t'],
+                                strain_post[simulation_i].strain_transients['four_chamber_E_ll_median'], label=labels[simulation_i])
+                else:
+                    ax_Ecc.plot(strain_post[simulation_i].strain_transients['strain_t'], strain_post[simulation_i].strain_transients['mid_E_cc_median'])
+                    ax_Err.plot(strain_post[simulation_i].strain_transients['strain_t'], strain_post[simulation_i].strain_transients['mid_E_rr_median'])
+                    ax_Ell.plot(strain_post[simulation_i].strain_transients['strain_t'], strain_post[simulation_i].strain_transients['four_chamber_E_ll_median'])
+            ax_Err.set_title('Mid-vent Err')
+            ax_Err.set_xlabel('Time (s)')
+            ax_Ecc.set_title('Mid-vent Ecc')
+            ax_Ecc.set_xlabel('Time (s)')
+            ax_Ell.set_title('Four chamber Ell')
+            ax_Ell.set_xlabel('Time (s)')
+            if labels:
+                ax_Ecc.legend()
+                ax_Err.legend()
+                ax_Ell.legend()
         if cube_deformation_ta_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(1, 2)
@@ -489,6 +519,8 @@ class SAUQ:
                 ax_ta.legend()
             print('Showing figure...')
             plt.show()
+        if save_filename:
+            plt.savefig(save_filename)
 
     def visualise_uq(self, beat, parameter_name, ecg_post=None, pv_post=None, deformation_post=None, fibre_work_post=None):
         with open(self.simulation_dir+'/all_simulation_dirs.txt', 'r') as f:
@@ -685,9 +717,7 @@ class SAUQ:
             plt.savefig(self.simulation_dir + '/uq_plots_'+parameter_name+'.png')
             plt.show()
 
-
-
-    def analyse(self, filename, qois):
+    def analyse(self, filename, qois, show_healthy_ranges=True):
         self.qois_db = pd.read_csv(filename, index_col=False)
         names = self.parameter_names
         # selected_qois = self.qois_db.columns.values.tolist() # All QoIs
@@ -725,9 +755,14 @@ class SAUQ:
             num_qois = Y.shape[1]
 
         ################################################################################################################
-        fig = plt.figure(tight_layout=True, figsize=(18, 10))
+        if X.shape[1] < 2:
+            fig = plt.figure(tight_layout=True, figsize=(6,10))
+        else:
+            fig = plt.figure(tight_layout=True, figsize=(18, 10))
         fig.suptitle('N=' + str(Y.shape[0]))
         gs = GridSpec(num_qois, X.shape[1])
+        corrs = np.zeros((num_qois, X.shape[1]))
+        ranges = np.zeros((num_qois, X.shape[1]))
         for qoi_i in range(num_qois):
             for param_j in range(X.shape[1]):
                 ax = fig.add_subplot(gs[qoi_i, param_j])
@@ -740,56 +775,58 @@ class SAUQ:
                 y[~np.isfinite(y)] = 0
                 sns.regplot(x=x, y=y, ax=ax, scatter_kws={'s':1})
                 ax.text(x=np.nanmin(x), y=np.nanmax(y), va='top', ha='left',
-                                          s='p=%.2f' % (np.corrcoef(x,y)[0,1]))
+                                          s='p=%.2f' % (np.corrcoef(x,y)[0,1]) + 'range=%.1f' % (np.amax(y) - np.amin(y)))
+                corrs[qoi_i, param_j] = np.corrcoef(x, y)[0, 1]
+                ranges[qoi_i, param_j] = np.amax(y) - np.amin(y)
                 if qoi_i == num_qois-1:
                     ax.set_xlabel(names[param_j])
                 if param_j == 0:
                     ax.set_ylabel(qoi_names[qoi_i])
-
-                if qoi_names[qoi_i] == 'LVEF':
-                    ax.axhspan(self.healthy_ranges['LVEF'][0], self.healthy_ranges['LVEF'][1], alpha=0.3, facecolor='green')
-                elif qoi_names[qoi_i] == 'EDVL':
-                    ax.axhspan(self.healthy_ranges['LVEDV'][0], self.healthy_ranges['LVEDV'][1], alpha=0.3, facecolor='green')
-                elif qoi_names[qoi_i] == 'ESVL':
-                    ax.axhspan(self.healthy_ranges['LVESV'][0], self.healthy_ranges['LVESV'][1], alpha=0.3, facecolor='green')
-                elif qoi_names[qoi_i] == 'PmaxL':
-                    ax.axhspan(self.healthy_ranges['LVESP'][0], self.healthy_ranges['LVESP'][1], alpha=0.3,
-                               facecolor='green')
-                elif qoi_names[qoi_i] == 'es_ed_avpd':
-                    ax.axhspan(self.healthy_ranges['AVPD'][0], self.healthy_ranges['AVPD'][1], alpha=0.3,
-                               facecolor='green')
-                elif qoi_names[qoi_i] == 'es_ed_apical_displacement':
-                    ax.axhspan(self.healthy_ranges['apical_displacement'][0],
-                               self.healthy_ranges['apical_displacement'][1], alpha=0.3,
-                               facecolor='green')
-                elif qoi_names[qoi_i] == 'qt_dur_mean':
-                    ax.axhspan(self.healthy_ranges['QTc'][0],
-                               self.healthy_ranges['QTc'][1], alpha=0.3,
-                               facecolor='green')
-                elif qoi_names[qoi_i] == 'qrs_dur_mean':
-                    ax.axhspan(self.healthy_ranges['QRS_duration'][0],
-                               self.healthy_ranges['QRS_duration'][1], alpha=0.3,
-                               facecolor='green')
-                elif qoi_names[qoi_i] == 't_pe_mean':
-                    ax.axhspan(self.healthy_ranges['Tpe'][0],
-                               self.healthy_ranges['Tpe'][1], alpha=0.3,
-                               facecolor='green')
-                elif qoi_names[qoi_i] == 'dvdt_ejection':
-                    ax.axhspan(self.healthy_ranges['dvdt_ejection'][0],
-                               self.healthy_ranges['dvdt_ejection'][1], alpha=0.3,
-                               facecolor='green')
-                elif qoi_names[qoi_i] == 'dvdt_filling':
-                    ax.axhspan(self.healthy_ranges['dvdt_filling'][0],
-                               self.healthy_ranges['dvdt_filling'][1], alpha=0.3,
-                               facecolor='green')
-                elif qoi_names[qoi_i] == 'dpdt_max':
-                    ax.axhspan(self.healthy_ranges['dpdt_max'][0],
-                               self.healthy_ranges['dpdt_max'][1], alpha=0.3,
-                               facecolor='green')
+                if show_healthy_ranges:
+                    if qoi_names[qoi_i] == 'LVEF':
+                        ax.axhspan(self.healthy_ranges['LVEF'][0], self.healthy_ranges['LVEF'][1], alpha=0.3, facecolor='green')
+                    elif qoi_names[qoi_i] == 'EDVL':
+                        ax.axhspan(self.healthy_ranges['LVEDV'][0], self.healthy_ranges['LVEDV'][1], alpha=0.3, facecolor='green')
+                    elif qoi_names[qoi_i] == 'ESVL':
+                        ax.axhspan(self.healthy_ranges['LVESV'][0], self.healthy_ranges['LVESV'][1], alpha=0.3, facecolor='green')
+                    elif qoi_names[qoi_i] == 'PmaxL':
+                        ax.axhspan(self.healthy_ranges['LVESP'][0], self.healthy_ranges['LVESP'][1], alpha=0.3,
+                                   facecolor='green')
+                    elif qoi_names[qoi_i] == 'es_ed_avpd':
+                        ax.axhspan(self.healthy_ranges['AVPD'][0], self.healthy_ranges['AVPD'][1], alpha=0.3,
+                                   facecolor='green')
+                    elif qoi_names[qoi_i] == 'es_ed_apical_displacement':
+                        ax.axhspan(self.healthy_ranges['apical_displacement'][0],
+                                   self.healthy_ranges['apical_displacement'][1], alpha=0.3,
+                                   facecolor='green')
+                    elif qoi_names[qoi_i] == 'qt_dur_mean':
+                        ax.axhspan(self.healthy_ranges['QTc'][0],
+                                   self.healthy_ranges['QTc'][1], alpha=0.3,
+                                   facecolor='green')
+                    elif qoi_names[qoi_i] == 'qrs_dur_mean':
+                        ax.axhspan(self.healthy_ranges['QRS_duration'][0],
+                                   self.healthy_ranges['QRS_duration'][1], alpha=0.3,
+                                   facecolor='green')
+                    elif qoi_names[qoi_i] == 't_pe_mean':
+                        ax.axhspan(self.healthy_ranges['Tpe'][0],
+                                   self.healthy_ranges['Tpe'][1], alpha=0.3,
+                                   facecolor='green')
+                    elif qoi_names[qoi_i] == 'dvdt_ejection':
+                        ax.axhspan(self.healthy_ranges['dvdt_ejection'][0],
+                                   self.healthy_ranges['dvdt_ejection'][1], alpha=0.3,
+                                   facecolor='green')
+                    elif qoi_names[qoi_i] == 'dvdt_filling':
+                        ax.axhspan(self.healthy_ranges['dvdt_filling'][0],
+                                   self.healthy_ranges['dvdt_filling'][1], alpha=0.3,
+                                   facecolor='green')
+                    elif qoi_names[qoi_i] == 'dpdt_max':
+                        ax.axhspan(self.healthy_ranges['dpdt_max'][0],
+                                   self.healthy_ranges['dpdt_max'][1], alpha=0.3,
+                                   facecolor='green')
 
         plt.savefig('scatter_qois_vs_parameters.png')
         plt.show()
-
+        return corrs, ranges
         # ###############################################################################################################
         # fig = plt.figure(tight_layout=True, figsize=(18, 10))
         # fig.suptitle('N=' + str(Y.shape[0]))

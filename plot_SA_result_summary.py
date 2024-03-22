@@ -4,10 +4,16 @@ matplotlib.use('tkagg')
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.gridspec import GridSpec
+from healthy_qoi_ranges import HealthyBiomarkerRanges
 
 ########################################################################################################################
-data = pd.read_csv('SA_summary.csv').values
-qoi_names = pd.read_csv('SA_summary.csv').columns.values[1:]
+data = pd.read_csv('SA_summary_OAT_corrs.csv').values
+correlation_matrix = data[:, 1:]
+data = pd.read_csv('SA_summary_OAT_ranges.csv').values
+ranges_matrix = data[:, 1:]
+ranges_matrix_normalised = ranges_matrix / np.nanmax(ranges_matrix, axis=0)
+qoi_names = pd.read_csv('SA_summary_OAT_corrs.csv').columns.values[1:]
 qoi = {}
 qoi_ticks = []
 for i in range(len(qoi_names)):
@@ -21,7 +27,7 @@ for i in range(len(param_names)):
     param[param_names[i]] = len(param_names) - i
     param_ticks.append(len(param_names)-i)
 
-correlation_matrix = data[:, 1:]
+
 # All together plot
 ax = plt.figure(figsize=[8,10]).gca()
 for param_i in range(len(param_names)):
@@ -32,8 +38,13 @@ for param_i in range(len(param_names)):
             c = 'b'
         else:
             continue
+        if ranges_matrix_normalised[param_i, qoi_i] > 0.2:
+            w = ranges_matrix_normalised[param_i, qoi_i]*1.5
+        else:
+            w = 0
         if abs(correlation_matrix[param_i, qoi_i]) > 0.2:
-            plt.plot([0, 1], [param[param_names[param_i]], qoi[qoi_names[qoi_i]]], alpha=abs(correlation_matrix[param_i, qoi_i]), color=c)
+            plt.plot([0, 1], [param[param_names[param_i]], qoi[qoi_names[qoi_i]]],
+                     alpha=abs(correlation_matrix[param_i, qoi_i]), color=c, linewidth=w)
 
 ax.set_xticklabels([])
 ax.xaxis.set_major_locator(MaxNLocator(integer=True))

@@ -88,8 +88,8 @@ elif system == 'polaris':
     simulation_dir = simulation_root_dir + sa_folder_name + '/'
 elif system == 'heart':
     simulation_dir = '/users/jenang/Alya_setup_SA/alya_csv/rodero_' + mesh_number + '/'
-sa.run_jobs_postprocess(simulation_dir)
-quit()
+# sa.run_jobs_postprocess(simulation_dir)
+# quit()
 ########################################################################################################################
 # Step 4: Evaluate QoIs and write out to results file
 beat = 1
@@ -111,7 +111,7 @@ sa.analyse(filename=simulation_dir+'pv_qois.csv', qois = ['EDVL', 'ESVL', 'PmaxL
                                                           'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max'])
 sa.analyse(filename=simulation_dir+'pv_qois.csv', qois=['EDVR', 'ESVR', 'PmaxR', 'SVR'])
 sa.analyse(filename=simulation_dir+'ecg_qois.csv', qois=['qt_dur_mean', 't_pe_mean', 't_peak_mean'])
-sa.analyse(filename=simulation_dir+'deformation_qois.csv', qois=['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness'])
+# sa.analyse(filename=simulation_dir+'deformation_qois.csv', qois=['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness'])
 # sa.analyse(filename=simulation_dir+'fibrework_qois.csv', qois=['peak_lambda', 'min_lambda'])
 # sa.analyse(filename=simulation_dir+'strain_qois.csv', qois=['max_median_mid_Ecc', 'max_median_mid_Err', 'max_median_four_chamber_Ell'])
 quit()

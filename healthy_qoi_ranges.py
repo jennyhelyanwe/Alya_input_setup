@@ -1,38 +1,40 @@
 class HealthyBiomarkerRanges:
     def __init__(self):
-        self.healthy_ranges = {'LVEDV': [88, 161],
+        self.healthy_ranges = {'EDVL': [88, 161],
                                 # [mL] female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3 95% confidence interval
-                                'LVESV': [31, 68],
+                                'ESVL': [31, 68],
                                 # [mL] female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
-                                'LVSV': [49, 100],
+                                'SVL': [49, 100],
                                 # [mL] female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
                                 'LVEF': [51, 70],
                                 # % female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
-                                'LVEDP': [0.5, 1.5],
+                                'EDPL': [0.5, 1.5],
                                 # # [kPa] +- standard error of the mean https://link.springer.com/article/10.1007/s12265-018-9816-y/tables/1
-                                'LVESP': [14.3, 15.3],
+                                'PmaxL': [14.3, 15.3],
                                 # [kPa] +- standard error of the mean https://link.springer.com/article/10.1007/s12265-018-9816-y/tables/1
-                                'RVEDV': [85, 166],
+                                'EDVR': [85, 166],
                                 # [mL] female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
-                                'RVESV': [27, 77],
+                                'ESVR': [27, 77],
                                 # [mL] female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
-                                'RVSV': [48, 99],
+                                'SVR': [48, 99],
                                 # [mL] female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
                                 'RVEF': [47, 68],
                                 # % female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
-                                'RVESP': [2.8, 3.6],
+                                'PmaxR': [2.8, 3.6],
                                 # [kPa] +- standard deviation https://www.sciencedirect.com/science/article/pii/016752739190221A
-                                'AVPD': [1.0, 2.0],
+                                'es_ed_avpd': [1.0, 2.0],
                                 # [cm] ES - ED for controls https://journals.physiology.org/doi/full/10.1152/ajpheart.01148.2006 range, lower range comes from
                                # https://heart.bmj.com/content/heartjnl/78/3/230.full.pdf for zero mortality cut off
-                                'apical_displacement': [-0.001, 0.51],
+                                'es_ed_apical_displacement': [-0.001, 0.51],
                                 # [cm] ES - ED for controls https://journals.physiology.org/doi/full/10.1152/ajpheart.01148.2006 range
                                 'ED_wall_thickness': [0.571, 1.381],
                                 # [cm] min and max mean value from 17 AHA regions https://www.sciencedirect.com/science/article/pii/S1361841519300489
                                 'ES_wall_thickness': [1.07, 1.749],
                                 # [cm] min and max mean value from 17 AHA regions https://www.sciencedirect.com/science/article/pii/S1361841519300489
-                                'wall_thickening': [0.084, 0.429],
+                                'diff_lv_wall_thickness': [0.084, 0.429],
                                 # [cm] min and max mean values from 17 AHA regions https://www.sciencedirect.com/science/article/pii/S1361841519300489
+                                'peak_lambda': [1.1, 1.3], # REF NEEDED
+                                'min_lambda': [0.85, 0.88], # same as lambda_mid
                                 'lambda_endo': [0.85, 0.88],
                                 # range https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.28724
                                 'lambda_mid': [0.85, 0.88],
@@ -45,12 +47,14 @@ class HealthyBiomarkerRanges:
                                 # range https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.28724
                                 'cross_lambda_epi': [0.88, 0.9],
                                 # range https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.28724
-                                'peak_E_ll': [-0.16, -0.16],
-                                'peak_E_rr': [0.22, 0.29],
-                                'QTc': [0.378, 0.419],
+                                'max_median_four_chamber_Ell': [-0.16, -0.16],
+                                'max_median_mid_Err': [0.22, 0.29],
+                                'max_median_mid_Ecc': [0, 0], # REF NEEDED
+                                'qt_dur_mean': [0.378, 0.419],
                                 # [ms] UKB Imaging + EST combined interquartile range https://www.ahajournals.org/doi/full/10.1161/CIRCGEN.120.003231 (Table 1)
-                                'Tpe': [0.050, 0.072],
+                                't_pe_mean': [0.050, 0.072],
                                 # [ms] LTVA interquartile range UKB https://www.ahajournals.org/action/downloadSupplement?doi=10.1161%2FJAHA.121.025897&file=jah37786-sup-0001-data-tabs-figs.pdf
+                                't_peak_mean': [0, 0],
                                 'T_duration': [0.100, 0.114],
                                 # [ms] UKB normal LV mass interquartile range https://academic.oup.com/ehjdh/article/4/4/316/7188159?login=true
                                 'QRS_duration': [0.077, 0.091],
