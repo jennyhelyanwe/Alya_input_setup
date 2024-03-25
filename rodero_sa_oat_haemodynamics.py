@@ -94,9 +94,9 @@ for param in haemodynamics_parameter_names:
     sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names,
               baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
               simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-    sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
-    sa.run_jobs(simulation_dir)
-quit()
+    # sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
+    # sa.run_jobs(simulation_dir)
+# quit()
 ## ########################################################################################################################
 # Evaluate QoIs and correlations
 for param in haemodynamics_parameter_names:
@@ -237,7 +237,7 @@ for param in haemodynamics_parameter_names:
     json.dump(deformation_corrs, open(simulation_dir + '/deformation_corrs.csv', 'w'))
     json.dump(deformation_ranges, open(simulation_dir + '/deformation_ranges.csv', 'w'))
 
-    qoi_names = ['peak_lambda', 'min_lambda']
+    qoi_names = ['peak_lambda', 'min_lambda', 'peak_ta']
     corrs, ranges = sa.analyse(filename=simulation_dir + 'fibrework_qois.csv', qois=qoi_names)
     fibre_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))
     fibre_ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))

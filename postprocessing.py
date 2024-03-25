@@ -347,7 +347,7 @@ class PostProcessing(MeshStructure):
     def evaluate_fibre_work_biomarkers(self, beat):
         self.fibre_work = {}
         self.read_csv_fields(read_field_name='LAMBD', read_field_type='vector')
-        # self.read_csv_fields(read_field_name='ACTST', read_field_type='vector')
+        self.read_csv_fields(read_field_name='ACTST', read_field_type='vector')
         # Select time segment according to specified beat # TODO assuming CL is always 1.0 s
         CL = 1.0
         time_idx = []
@@ -388,12 +388,12 @@ class PostProcessing(MeshStructure):
         midw_lambda = pymp.shared.array(time_idx.shape[0], dtype=float)
         epi_lambda = pymp.shared.array(time_idx.shape[0], dtype=float)
 
-        # apical_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
-        # midv_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
-        # basal_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
-        # endo_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
-        # midw_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
-        # epi_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
+        apical_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
+        midv_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
+        basal_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
+        endo_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
+        midw_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
+        epi_Ta = pymp.shared.array(time_idx.shape[0], dtype=float)
 
         endo_cross_lambda = pymp.shared.array(time_idx.shape[0], dtype=float)
         midw_cross_lambda = pymp.shared.array(time_idx.shape[0], dtype=float)
@@ -403,9 +403,9 @@ class PostProcessing(MeshStructure):
         epi_midshort_lambda = pymp.shared.array((epi_midshort_nodes.shape[0], time_idx.shape[0]))
         mid_midshort_lambda = pymp.shared.array((mid_midshort_nodes.shape[0], time_idx.shape[0]))
 
-        # ta_shared = pymp.shared.array(self.post_nodefield.dict['ACTST'].shape, dtype=float)
+        ta_shared = pymp.shared.array(self.post_nodefield.dict['ACTST'].shape, dtype=float)
         lambda_shared = pymp.shared.array(self.post_nodefield.dict['LAMBD'].shape, dtype=float)
-        # ta_shared[:,:] = self.post_nodefield.dict['ACTST']
+        ta_shared[:,:] = self.post_nodefield.dict['ACTST']
         lambda_shared[:,:] = self.post_nodefield.dict['LAMBD']
         threadsNum = multiprocessing.cpu_count()
         print('Regionally dividing lambda and Ta')
@@ -420,13 +420,13 @@ class PostProcessing(MeshStructure):
                 # endo_cross_lambda[time_i] = np.mean(lambda_shared[endo_mesh_nodes, 1, time_i])
                 # midw_cross_lambda[time_i] = np.mean(lambda_shared[midw_mesh_nodes, 1, time_i])
                 # epi_cross_lambda[time_i] = np.mean(lambda_shared[epi_mesh_nodes, 1, time_i])
-                #
-                # apical_Ta[time_i] = np.mean(ta_shared[apical_mesh_nodes, 0, time_i])
-                # midv_Ta[time_i] = np.mean(ta_shared[midv_mesh_nodes, 0, time_i])
-                # basal_Ta[time_i] = np.mean(ta_shared[basal_mesh_nodes, 0, time_i])
-                # endo_Ta[time_i] = np.mean(ta_shared[endo_mesh_nodes, 0, time_i])
-                # midw_Ta[time_i] = np.mean(ta_shared[midw_mesh_nodes, 0, time_i])
-                # epi_Ta[time_i] = np.mean(ta_shared[epi_mesh_nodes, 0, time_i])
+
+                apical_Ta[time_i] = np.mean(ta_shared[apical_mesh_nodes, 0, time_i])
+                midv_Ta[time_i] = np.mean(ta_shared[midv_mesh_nodes, 0, time_i])
+                basal_Ta[time_i] = np.mean(ta_shared[basal_mesh_nodes, 0, time_i])
+                endo_Ta[time_i] = np.mean(ta_shared[endo_mesh_nodes, 0, time_i])
+                midw_Ta[time_i] = np.mean(ta_shared[midw_mesh_nodes, 0, time_i])
+                epi_Ta[time_i] = np.mean(ta_shared[epi_mesh_nodes, 0, time_i])
 
                 endo_midshort_lambda[:, time_i] = lambda_shared[endo_midshort_nodes, 0, time_i]
                 epi_midshort_lambda[:, time_i] = lambda_shared[epi_midshort_nodes, 0, time_i]
@@ -455,6 +455,10 @@ class PostProcessing(MeshStructure):
         mid_midshort_lambda_lq = mid_midshort_lambda[np.where(abs(systole - np.percentile(systole, 25)) < tol)[0][0],
                                   :]
 
+        systole_ta = np.min(midv_Ta, axis=1)
+        midv_ta_median = midv_Ta[np.where(abs(systole_ta - np.percentile(systole_ta, 50)) < tol)[0][0], :]
+        midv_ta_uq = midv_Ta[np.where(abs(systole_ta - np.percentile(systole_ta, 75)) < tol)[0][0], :]
+        midv_ta_lq = midv_Ta[np.where(abs(systole_ta - np.percentile(systole_ta, 25)) < tol)[0][0], :]
 
         self.fibre_work = {}
         self.fibre_work['fibrework_t'] = fibrework_t
@@ -467,6 +471,11 @@ class PostProcessing(MeshStructure):
         # self.fibre_work['endo_cross_lambda'] = endo_cross_lambda
         # self.fibre_work['midw_cross_lambda'] = midw_cross_lambda
         # self.fibre_work['epi_cross_lambda'] = epi_cross_lambda
+
+        self.fibre_work['midv_Ta'] = midv_Ta
+        self.fibre_work['midv_Ta_media'] = midv_ta_median
+        self.fibre_work['midv_Ta_uq'] = midv_ta_uq
+        self.fibre_work['midv_Ta_lq'] = midv_ta_lq
 
         self.fibre_work['endo_midshort_lambda']= endo_midshort_lambda
         self.fibre_work['endo_midshort_lambda_median'] = endo_midshort_lambda_median
@@ -483,18 +492,19 @@ class PostProcessing(MeshStructure):
         self.fibre_work['mid_midshort_lambda_uq'] = mid_midshort_lambda_uq
         self.fibre_work['mid_midshort_lambda_lq'] = mid_midshort_lambda_lq
 
-        # self.fibre_work['apical_Ta'] = apical_Ta
-        # self.fibre_work['midv_Ta'] = midv_Ta
-        # self.fibre_work['basal_Ta'] = basal_Ta
-        # self.fibre_work['endo_Ta'] = endo_Ta
-        # self.fibre_work['midw_Ta'] = midw_Ta
-        # self.fibre_work['epi_Ta'] = epi_Ta
+        self.fibre_work['apical_Ta'] = apical_Ta
+        self.fibre_work['midv_Ta'] = midv_Ta
+        self.fibre_work['basal_Ta'] = basal_Ta
+        self.fibre_work['endo_Ta'] = endo_Ta
+        self.fibre_work['midw_Ta'] = midw_Ta
+        self.fibre_work['epi_Ta'] = epi_Ta
         # Save QoIs
         qoi = {}
         # qoi['peak_Ta'] = np.amax(np.mean(ta_shared[:,0, :], axis=0))
         # qoi['min_Ta'] = np.amin(np.mean(ta_shared[:,0, :], axis=0))
         qoi['peak_lambda'] = np.amax(np.mean(lambda_shared[:,0, :], axis=0))
         qoi['min_lambda'] = np.amin(np.mean(lambda_shared[:, 0, :], axis=0))
+        qoi['peak_ta'] = np.amax(np.mean(ta_shared[:, 0, :], axis=0))
         self.qoi.update(qoi)
 
     def calculate_ecg_biomarkers(self, time, V, LAT=None, qrs_end_t=None):

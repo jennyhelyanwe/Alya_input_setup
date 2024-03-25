@@ -90,7 +90,68 @@ simulation_dict = json.load(open(simulation_json_file, 'r'))
 #     sa.run_jobs(simulation_dir)
 # quit()
 # ########################################################################################################################
-# Evaluate QoIs and correlations
+# # Evaluate QoIs and correlations
+# for param in mechanical_parameter_names:
+# # for param in ['afs_myocardium']:
+#     simulation_dir = ''
+#     if system == 'jureca':
+#         simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
+#     elif system == 'cosma':
+#         simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
+#     elif system == 'polaris':
+#         simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
+#     elif system == 'heart':
+#         simulation_dir = sa_folder_root_name + '_' + param + '/'
+#     if 'sf_' in param:
+#         baseline_parameter_values = np.array([simulation_dict[param][0][0]])
+#     elif '_lv' in param:
+#         baseline_parameter_values = np.array([simulation_dict[param.split('_lv')[0]][0]])
+#     elif '_rv' in param:
+#         baseline_parameter_values = np.array([simulation_dict[param.split('_rv')[0]][1]])
+#     elif '_myocardium' in param:
+#         baseline_parameter_values = np.array([simulation_dict[param.split('_myocardium')[0]][0]])
+#     elif '_valveplug' in param:
+#         baseline_parameter_values = np.array([simulation_dict[param.split('_valveplug')[0]][1]])
+#     else:
+#         baseline_parameter_values = np.array([simulation_dict[param]])
+#     upper_bounds = baseline_parameter_values * 2.0
+#     lower_bounds = baseline_parameter_values * 0.1
+#     parameter_names = np.array([param])  # Dummy
+#     baseline_dir = ''  # Dummy
+#     sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names,
+#               baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+#               simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+#     labels = [param +'=' + s for s in ["%.1f" % x for x in np.linspace(lower_bounds, upper_bounds, 8)]]
+#     beat = 1
+#     ####################################################################################################################
+#     # Can be done as the simulations are running, using raw outputs.
+#     sa.sort_simulations(
+#         tag='raw')  # Collate list of finished simulations by checking the existence of particular files.
+#     # The lines below only need to be run once, it will write out the QoIs to the save directories as txt files.
+#     pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
+#                                analysis_type='sa')
+#     sa.visualise_sa(beat=1, pv_post=pv_post, labels=labels, save_filename=simulation_dir+'/pv_post.png')
+#     ecg_post = sa.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
+#                                 analysis_type='sa')
+#     sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post.png')
+#     # Analyse correlations
+#     qoi_names = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max', 'EDVR', 'ESVR',
+#                  'PmaxR', 'SVR']
+#     corrs, ranges = sa.analyse(filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=False)
+#     pv_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))
+#     pv_ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
+#     json.dump(pv_corrs, open(simulation_dir + '/pv_corrs.csv', 'w'))
+#     json.dump(pv_ranges, open(simulation_dir + '/pv_ranges.csv', 'w'))
+#
+#     qoi_names = ['qt_dur_mean', 't_pe_mean', 't_peak_mean']
+#     corrs, ranges = sa.analyse(filename=simulation_dir + 'ecg_qois.csv', qois=qoi_names, show_healthy_ranges=False)
+#     ecg_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))
+#     ecg_ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
+#     json.dump(ecg_corrs, open(simulation_dir + '/ecg_corrs.csv', 'w'))
+#     json.dump(ecg_ranges, open(simulation_dir + '/ecg_ranges.csv', 'w'))
+# quit()
+#######################################################################################################################
+# Postprocessing
 for param in mechanical_parameter_names:
     simulation_dir = ''
     if system == 'jureca':
@@ -101,75 +162,15 @@ for param in mechanical_parameter_names:
         simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
     elif system == 'heart':
         simulation_dir = sa_folder_root_name + '_' + param + '/'
-    if 'sf_' in param:
-        baseline_parameter_values = np.array([simulation_dict[param][0][0]])
-    elif '_lv' in param:
-        baseline_parameter_values = np.array([simulation_dict[param.split('_lv')[0]][0]])
-    elif '_rv' in param:
-        baseline_parameter_values = np.array([simulation_dict[param.split('_rv')[0]][1]])
-    elif '_myocardium' in param:
-        baseline_parameter_values = np.array([simulation_dict[param.split('_myocardium')[0]][0]])
-    elif '_valveplug' in param:
-        baseline_parameter_values = np.array([simulation_dict[param.split('_valveplug')[0]][1]])
-    else:
-        baseline_parameter_values = np.array([simulation_dict[param]])
-    upper_bounds = baseline_parameter_values * 2.0
-    lower_bounds = baseline_parameter_values * 0.1
-    parameter_names = np.array([param])  # Dummy
-    baseline_dir = ''  # Dummy
+    parameter_names = np.array([param]) # Dummy
+    baseline_parameter_values = 0 # Dummy
+    baseline_dir = '' # Dummy
     sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names,
               baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
               simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-    labels = [param +'=' + s for s in ["%.1f" % x for x in np.linspace(lower_bounds, upper_bounds, 8)]]
-    beat = 1
-    ####################################################################################################################
-    # Can be done as the simulations are running, using raw outputs.
-    sa.sort_simulations(
-        tag='raw')  # Collate list of finished simulations by checking the existence of particular files.
-    # The lines below only need to be run once, it will write out the QoIs to the save directories as txt files.
-    pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
-                               analysis_type='sa')
-    sa.visualise_sa(beat=1, pv_post=pv_post, labels=labels, save_filename=simulation_dir+'/pv_post.png')
-    ecg_post = sa.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
-                                analysis_type='sa')
-    sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post.png')
-    # Analyse correlations
-    qoi_names = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max', 'EDVR', 'ESVR',
-                 'PmaxR', 'SVR']
-    corrs, ranges = sa.analyse(filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=False)
-    pv_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))
-    pv_ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-    json.dump(pv_corrs, open(simulation_dir + '/pv_corrs.csv', 'w'))
-    json.dump(pv_ranges, open(simulation_dir + '/pv_ranges.csv', 'w'))
-
-    qoi_names = ['qt_dur_mean', 't_pe_mean', 't_peak_mean']
-    corrs, ranges = sa.analyse(filename=simulation_dir + 'ecg_qois.csv', qois=qoi_names, show_healthy_ranges=False)
-    ecg_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))
-    ecg_ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-    json.dump(ecg_corrs, open(simulation_dir + '/ecg_corrs.csv', 'w'))
-    json.dump(ecg_ranges, open(simulation_dir + '/ecg_ranges.csv', 'w'))
+    sa.run_jobs_postprocess(simulation_dir)
+#######################################################################################################################
 quit()
-########################################################################################################################
-# Postprocessing
-# for param in mechanical_parameter_names:
-#     simulation_dir = ''
-#     if system == 'jureca':
-#         simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
-#     elif system == 'cosma':
-#         simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
-#     elif system == 'polaris':
-#         simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
-#     elif system == 'heart':
-#         simulation_dir = sa_folder_root_name + '_' + param + '/'
-#     parameter_names = np.array([param]) # Dummy
-#     baseline_parameter_values = 0 # Dummy
-#     baseline_dir = '' # Dummy
-#     sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names,
-#               baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
-#               simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-#     sa.run_jobs_postprocess(simulation_dir)
-########################################################################################################################
-
 
 ####################################################################################################################
 # Needing proprocessing first
@@ -208,14 +209,14 @@ for param in mechanical_parameter_names:
     sa.sort_simulations(
         tag='postprocess')  # Collate list of finished simulations by checking the existence of particular files.
     # The lines below only need to be run once, it will write out the QoIs to the save directories as txt files.
-    fibre_work_post = sa.evaluate_qois(qoi_group_name='fibre_work', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
-                                       analysis_type='sa')
-    sa.visualise_sa(beat=1, fibre_work_post=fibre_work_post, labels=labels,
-                    save_filename=simulation_dir + '/fibre_work_post.png')
     deformation_post = sa.evaluate_qois(qoi_group_name='deformation', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                         analysis_type='sa')
     sa.visualise_sa(beat=1, deformation_post=deformation_post, labels=labels,
                     save_filename=simulation_dir + '/deformation_post.png')
+    fibre_work_post = sa.evaluate_qois(qoi_group_name='fibre_work', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
+                                       analysis_type='sa')
+    sa.visualise_sa(beat=1, fibre_work_post=fibre_work_post, labels=labels,
+                    save_filename=simulation_dir + '/fibre_work_post.png')
     strain_post = sa.evaluate_qois(qoi_group_name='strain', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                    analysis_type='sa')
     sa.visualise_sa(beat=1, deformation_post=deformation_post, labels=labels,
@@ -229,7 +230,7 @@ for param in mechanical_parameter_names:
     json.dump(deformation_corrs, open(simulation_dir + '/deformation_corrs.csv', 'w'))
     json.dump(deformation_ranges, open(simulation_dir + '/deformation_ranges.csv', 'w'))
 
-    qoi_names = ['peak_lambda', 'min_lambda']
+    qoi_names = ['peak_lambda', 'min_lambda', 'peak_ta']
     corrs, ranges = sa.analyse(filename=simulation_dir + 'fibrework_qois.csv', qois=qoi_names)
     fibre_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))
     fibre_ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))

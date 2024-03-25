@@ -38,10 +38,10 @@ for param_i in range(len(param_names)):
             c = 'b'
         else:
             continue
-        if ranges_matrix_normalised[param_i, qoi_i] > 0.2:
-            w = ranges_matrix_normalised[param_i, qoi_i]*1.5
-        else:
-            w = 0
+        # if ranges_matrix_normalised[param_i, qoi_i] > 0.1:
+        w = ranges_matrix_normalised[param_i, qoi_i]*1.5
+        # else:
+        #     w = 0
         if abs(correlation_matrix[param_i, qoi_i]) > 0.2:
             plt.plot([0, 1], [param[param_names[param_i]], qoi[qoi_names[qoi_i]]],
                      alpha=abs(correlation_matrix[param_i, qoi_i]), color=c, linewidth=w)

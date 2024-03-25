@@ -90,9 +90,9 @@ for param in conduction_parameter_names:
     sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names,
               baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
               simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-    sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
-    sa.run_jobs(simulation_dir)
-quit()
+    # sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
+    # sa.run_jobs(simulation_dir)
+# quit()
 ## ########################################################################################################################
 # Evaluate QoIs and correlations
 for param in conduction_parameter_names:
@@ -115,6 +115,10 @@ for param in conduction_parameter_names:
         baseline_parameter_values = np.array([simulation_dict[param.split('_myocardium')[0]][0]])
     elif '_valveplug' in param:
         baseline_parameter_values = np.array([simulation_dict[param.split('_valveplug')[0]][1]])
+    elif '_fibre' in param:
+        baseline_parameter_values = np.array([simulation_dict[param.split('_fibre')[0]][0][0]])
+    elif '_sheet' in param:
+        baseline_parameter_values = np.array([simulation_dict[param.split('_sheet')[0]][0][1]])
     else:
         baseline_parameter_values = np.array([simulation_dict[param]])
     upper_bounds = baseline_parameter_values * 2.0
