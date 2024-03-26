@@ -12,7 +12,9 @@ data = pd.read_csv('SA_summary_OAT_corrs.csv').values
 correlation_matrix = data[:, 1:]
 data = pd.read_csv('SA_summary_OAT_ranges.csv').values
 ranges_matrix = data[:, 1:]
-ranges_matrix_normalised = ranges_matrix / np.nanmax(ranges_matrix, axis=0)
+ranges_matrix_normalised = ranges_matrix
+maxima = np.nanmax(ranges_matrix, axis=0)
+ranges_matrix_normalised[:, np.nonzero(maxima)] = ranges_matrix[:, np.nonzero(maxima)] / maxima[np.nonzero(maxima)]
 qoi_names = pd.read_csv('SA_summary_OAT_corrs.csv').columns.values[1:]
 qoi = {}
 qoi_ticks = []

@@ -338,7 +338,6 @@ class SAUQ:
             for simulation_i in range(len(all_simulation_dirs)):
                 if os.path.exists(all_simulation_dirs[simulation_i].split()[0] + '/results_csv/timeset_1.csv'):
                     self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
-
             # if os.path.exists(all_simulation_dirs[simulation_i].split()[0] + '/heart.post.alyafil'):
             #     with open(all_simulation_dirs[simulation_i].split()[0] + '/heart.post.alyafil', 'r') as f:
             #         if len(f.readlines()) >= 1000:
@@ -388,7 +387,6 @@ class SAUQ:
                 ax_pv.legend()
                 ax_vt.legend()
                 ax_pt.legend()
-            plt.show()
         if ecg_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(1, 6)
@@ -437,31 +435,43 @@ class SAUQ:
             ax_V6.set_ylim([-1, 1])
             if labels:
                 ax_V1.legend()
-            plt.show()
         if deformation_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
-            gs = GridSpec(1, 2)
+            gs = GridSpec(1, 3)
             ax_avpd = fig.add_subplot(gs[0,0])
             ax_apex = fig.add_subplot(gs[0,1])
+            ax_wall = fig.add_subplot(gs[0,2])
             for simulation_i in range(len(deformation_post)):
                 if labels:
                     ax_avpd.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
-                                 deformation_post[simulation_i].deformation_transients['avpd'], label=labels[simulation_i])
+                                 deformation_post[simulation_i].deformation_transients['avpd'],
+                                 label=labels[simulation_i])
                     ax_apex.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
-                                 deformation_post[simulation_i].deformation_transients['apical_displacement'], label=labels[simulation_i])
+                                 deformation_post[simulation_i].deformation_transients['apical_displacement'],
+                                 label=labels[simulation_i])
+                    ax_wall.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
+                                 deformation_post[simulation_i].deformation_transients['lv_wall_thickness'],
+                                 label=labels[simulation_i])
                 else:
-                    ax_avpd.plot(deformation_post[simulation_i].deformation_transients['deformation_t'], deformation_post[simulation_i].deformation_transients['avpd'])
-                    ax_apex.plot(deformation_post[simulation_i].deformation_transients['deformation_t'], deformation_post[simulation_i].deformation_transients['apical_displacement'])
+                    ax_avpd.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
+                                 deformation_post[simulation_i].deformation_transients['avpd'])
+                    ax_apex.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
+                                 deformation_post[simulation_i].deformation_transients['apical_displacement'])
+                    ax_apex.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
+                                 deformation_post[simulation_i].deformation_transients['lv_wall_thickness'])
             ax_avpd.set_title('AVPD')
             ax_avpd.set_xlabel('Time (s)')
             ax_avpd.set_ylabel('AVPD (cm)')
             ax_apex.set_title('Apical displacement')
             ax_apex.set_xlabel('Time (s)')
             ax_apex.set_ylabel('(cm)')
+            ax_wall.set_title('Wall thickness')
+            ax_wall.set_xlabel('Time (s)')
+            ax_wall.set_ylabel('Wall thickness (cm)')
             if labels:
                 ax_avpd.legend()
                 ax_apex.legend()
-            plt.show()
+                ax_wall.legend()
         if strain_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(1, 3)
@@ -517,10 +527,11 @@ class SAUQ:
             if labels:
                 ax_displ.legend()
                 ax_ta.legend()
-            print('Showing figure...')
-            plt.show()
+        print('Showing figure...')
         if save_filename:
             plt.savefig(save_filename)
+        plt.show()
+
 
     def visualise_uq(self, beat, parameter_name, ecg_post=None, pv_post=None, deformation_post=None, fibre_work_post=None):
         with open(self.simulation_dir+'/all_simulation_dirs.txt', 'r') as f:
@@ -717,7 +728,7 @@ class SAUQ:
             plt.savefig(self.simulation_dir + '/uq_plots_'+parameter_name+'.png')
             plt.show()
 
-    def analyse(self, filename, qois, show_healthy_ranges=True):
+    def analyse(self, filename, qois, show_healthy_ranges=True, save_filename=None):
         self.qois_db = pd.read_csv(filename, index_col=False)
         names = self.parameter_names
         # selected_qois = self.qois_db.columns.values.tolist() # All QoIs
@@ -775,7 +786,7 @@ class SAUQ:
                 y[~np.isfinite(y)] = 0
                 sns.regplot(x=x, y=y, ax=ax, scatter_kws={'s':1})
                 ax.text(x=np.nanmin(x), y=np.nanmax(y), va='top', ha='left',
-                                          s='p=%.2f' % (np.corrcoef(x,y)[0,1]) + 'range=%.1f' % (np.amax(y) - np.amin(y)))
+                                          s='p=%.2f' % (np.corrcoef(x,y)[0,1]) + 'range=%.1f' % (np.amax(y[np.nonzero(y)]) - np.amin(y[np.nonzero(y)])))
                 corrs[qoi_i, param_j] = np.corrcoef(x, y)[0, 1]
                 ranges[qoi_i, param_j] = np.amax(y) - np.amin(y)
                 if qoi_i == num_qois-1:
@@ -823,8 +834,8 @@ class SAUQ:
                         ax.axhspan(self.healthy_ranges['dpdt_max'][0],
                                    self.healthy_ranges['dpdt_max'][1], alpha=0.3,
                                    facecolor='green')
-
-        plt.savefig('scatter_qois_vs_parameters.png')
+        if save_filename:
+            plt.savefig(save_filename)
         plt.show()
         return corrs, ranges
         # ###############################################################################################################

@@ -95,7 +95,7 @@ class Fields:
             save_txt(filename=output_dir + self.name + '_' + self.field_type + '_' + varname + '.csv',
                      var=self.dict[varname])
 
-    def save_to_ensight(self, output_dir, casename, geometry):
+    def save_to_ensight(self, output_dir, casename, geometry, fieldname=None, fieldtype=None):
         if output_dir[-1] != '/':
             output_dir = output_dir + '/'
         if not os.path.exists(output_dir + geometry.name + '.ensi.geo'):
@@ -104,10 +104,10 @@ class Fields:
         list_fields = list(self.dict.keys())
         field_dimensions = []
         list_fields_output = []
-        for field_i in range(self.number_of_fields):
-            varname = list_fields[field_i]
-            if self.field_type == 'nodefield' or self.field_type == 'boundarynodefield' or \
-                    self.field_type == 'postnodefield':
+        if fieldname and fieldtype:
+            varname = fieldname
+            if fieldtype == 'nodefield' or fieldtype == 'boundarynodefield' or \
+                    fieldtype == 'postnodefield':
                 if self.dict[varname].shape[0] == geometry.number_of_nodes:
                     save_ensight_node(directory=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
                     list_fields_output.append(varname)
@@ -115,8 +115,8 @@ class Fields:
                         field_dimensions.append(1)
                     elif self.dict[varname].shape[1] < 10:
                         field_dimensions.append(self.dict[varname].shape[1])
-            elif self.field_type == 'elementfield' or self.field_type == 'material' or \
-                    self.field_type == 'boundaryelementfield' or self.field_type == 'postelementfield':
+            elif fieldtype == 'elementfield' or fieldtype == 'material' or \
+                    fieldtype == 'boundaryelementfield' or fieldtype == 'postelementfield':
                 if self.dict[varname].shape[0] == geometry.number_of_elements:
                     save_ensight_element(directory=output_dir, name=self.name, field_name=varname,
                                          var=self.dict[varname])
@@ -125,9 +125,34 @@ class Fields:
                         field_dimensions.append(1)
                     elif self.dict[varname].shape[1] < 10:
                         field_dimensions.append(self.dict[varname].shape[1])
-        save_ensight_case(directory=output_dir, name=casename, geometry_name=geometry.name,
-                          field_names=list_fields_output,
-                          field_dimensions=field_dimensions, field_type=self.field_type)
+            save_ensight_case(directory=output_dir, name=casename, geometry_name=geometry.name,
+                              field_names=[fieldname],
+                              field_dimensions=field_dimensions, field_type=fieldtype)
+        else:
+            for field_i in range(self.number_of_fields):
+                varname = list_fields[field_i]
+                if self.field_type == 'nodefield' or self.field_type == 'boundarynodefield' or \
+                        self.field_type == 'postnodefield':
+                    if self.dict[varname].shape[0] == geometry.number_of_nodes:
+                        save_ensight_node(directory=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
+                        list_fields_output.append(varname)
+                        if len(self.dict[varname].shape) == 1:
+                            field_dimensions.append(1)
+                        elif self.dict[varname].shape[1] < 10:
+                            field_dimensions.append(self.dict[varname].shape[1])
+                elif self.field_type == 'elementfield' or self.field_type == 'material' or \
+                        self.field_type == 'boundaryelementfield' or self.field_type == 'postelementfield':
+                    if self.dict[varname].shape[0] == geometry.number_of_elements:
+                        save_ensight_element(directory=output_dir, name=self.name, field_name=varname,
+                                             var=self.dict[varname])
+                        list_fields_output.append(varname)
+                        if len(self.dict[varname].shape) == 1:
+                            field_dimensions.append(1)
+                        elif self.dict[varname].shape[1] < 10:
+                            field_dimensions.append(self.dict[varname].shape[1])
+            save_ensight_case(directory=output_dir, name=casename, geometry_name=geometry.name,
+                              field_names=list_fields_output,
+                              field_dimensions=field_dimensions, field_type=self.field_type)
 
     def read_csv_to_attributes(self, input_dir, field_type):
         if input_dir[-1] != '/':

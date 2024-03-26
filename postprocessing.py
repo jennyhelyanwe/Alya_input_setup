@@ -202,7 +202,8 @@ class PostProcessing(MeshStructure):
 
     def evaluate_deformation_biomarkers(self, beat):
         self.deformation_transients = {}
-        self.read_csv_fields(read_field_name='DISPL', read_field_type='vector')
+        # self.read_csv_fields(read_field_name='DISPL', read_field_type='vector')
+        self.read_binary_outputs(read_field_name='DISPL', read_field_type='vector')
         # Select time segment according to specified beat # TODO assuming CL is always 1.0 s
         CL = 1.0
         time_idx = []
@@ -216,8 +217,8 @@ class PostProcessing(MeshStructure):
         time_idx = np.array(time_idx, dtype=int)
 
         # AVPD atrioventricular plane displacement
-        print('Evaluating AVPD')
-        base_cutoff = 0.7
+        print('Evaluating AVPD and apical displacement')
+        base_cutoff = 0.8
         truncated_mesh_nodes = np.nonzero((self.node_fields.dict['ab'] < base_cutoff) & (self.node_fields.dict['tv'] == self.geometry.lv))[0]
         basal_mesh_nodes = np.nonzero((self.node_fields.dict['ab'] >= base_cutoff)& (self.node_fields.dict['tv'] == self.geometry.lv))[0]
         mean_ab_vector = np.mean(self.node_fields.dict['longitudinal-vector'][truncated_mesh_nodes, :], axis=0)
@@ -227,7 +228,15 @@ class PostProcessing(MeshStructure):
         apical_displacement = pymp.shared.array(time_idx.shape[0], dtype=float)
         displacement_shared = pymp.shared.array(self.post_nodefield.dict['DISPL'].shape, dtype=float)
         displacement_shared[:,:,:] = self.post_nodefield.dict['DISPL']
-        threadsNum = multiprocessing.cpu_count()
+
+        # # Debug
+        # ab_delineation = np.zeros(self.node_fields.dict['ab'].shape[0])
+        # ab_delineation[basal_mesh_nodes] = 1
+        # ab_delineation[apical_mesh_nodes] = 2
+        # self.post_nodefield.add_field(data=ab_delineation, data_name='ABDLN', field_type='postnodefield')
+        # self.post_nodefield.save_to_ensight(output_dir=self.alya_output_dir, casename=self.name, geometry=self.geometry, fieldname='ABDLN', fieldtype='postnodefield')
+        #
+        threadsNum = int(multiprocessing.cpu_count() * 0.7)
         with pymp.Parallel(min(threadsNum, time_idx.shape[0])) as p1:
             for time_i in p1.range(time_idx.shape[0]):
                 avpd[time_i] = np.mean(np.dot(displacement_shared[
@@ -291,8 +300,10 @@ class PostProcessing(MeshStructure):
         self.deformation_transients = {}
         nodes_xyz = np.loadtxt(self.alyacsv_dir + '3D_point_coordinates.csv', delimiter=',')
         number_of_nodes = nodes_xyz.shape[0]
-        self.read_csv_fields(read_field_name='DISPL', read_field_type='vector', nodes_xyz=nodes_xyz)
-        self.read_csv_fields(read_field_name='ACTST', read_field_type='vector', nodes_xyz=nodes_xyz)
+        # self.read_csv_fields(read_field_name='DISPL', read_field_type='vector', nodes_xyz=nodes_xyz)
+        # self.read_csv_fields(read_field_name='ACTST', read_field_type='vector', nodes_xyz=nodes_xyz)
+        self.read_binary_outputs(read_field_name='DISPL', read_field_type='vector', nodes_xyz=nodes_xyz)
+        self.read_binary_outputs(read_field_name='ACTST', read_field_type='vector', nodes_xyz=nodes_xyz)
 
         # Select nodes on x=1 face
         x1nodes = []
@@ -311,7 +322,7 @@ class PostProcessing(MeshStructure):
         ta_shared[:, :, :] = self.post_nodefield.dict['ACTST']
         x1nodes_shared = pymp.shared.array(len(x1nodes), dtype='int')
         x1nodes_shared[:] = x1nodes
-        threadsNum = multiprocessing.cpu_count()
+        threadsNum = int(multiprocessing.cpu_count()*0.7)
         with pymp.Parallel(min(threadsNum, t.shape[0])) as p1:
             for time_i in p1.range(t.shape[0]):
                 for node_i in range(x1nodes_shared.shape[0]):
@@ -346,8 +357,10 @@ class PostProcessing(MeshStructure):
 
     def evaluate_fibre_work_biomarkers(self, beat):
         self.fibre_work = {}
-        self.read_csv_fields(read_field_name='LAMBD', read_field_type='vector')
-        self.read_csv_fields(read_field_name='ACTST', read_field_type='vector')
+        # self.read_csv_fields(read_field_name='LAMBD', read_field_type='vector')
+        # self.read_csv_fields(read_field_name='ACTST', read_field_type='vector')
+        self.read_binary_outputs(read_field_name='LAMBD', read_field_type='vector')
+        self.read_binary_outputs(read_field_name='ACTST', read_field_type='vector')
         # Select time segment according to specified beat # TODO assuming CL is always 1.0 s
         CL = 1.0
         time_idx = []
@@ -407,7 +420,7 @@ class PostProcessing(MeshStructure):
         lambda_shared = pymp.shared.array(self.post_nodefield.dict['LAMBD'].shape, dtype=float)
         ta_shared[:,:] = self.post_nodefield.dict['ACTST']
         lambda_shared[:,:] = self.post_nodefield.dict['LAMBD']
-        threadsNum = multiprocessing.cpu_count()
+        threadsNum = int(multiprocessing.cpu_count()*0.7)
         print('Regionally dividing lambda and Ta')
         with pymp.Parallel(min(threadsNum, time_idx.shape[0])) as p1:
             for time_i in p1.range(time_idx.shape[0]):
@@ -569,6 +582,104 @@ class PostProcessing(MeshStructure):
                               [t_end_idx, V[t_end_idx]]])
         return qrs_dur, qt_dur, t_pe, t_peak, qtpeak_dur, t_polarity, landmarks
 
+    def read_binary_outputs(self, read_field_name, read_field_type, nodes_xyz=None):
+        inputfolder = self.alya_output_dir
+        print('Reading alyabins from : ' + self.alya_output_dir)
+        project_name = 'heart'
+        alya_id_type = identify_alya_id_type(inputfolder, project_name)
+        file_suffix = '.post.alyabin'
+        # read the partitioning info
+        partition_filename = os.path.join(inputfolder, project_name + '.post.alyapar')
+        with open(partition_filename) as f:
+            partitions = np.fromstring(f.read(), dtype=alya_id_type, sep=' ')
+
+        # describes the mesh partitions
+        # partition_id,  NumberOfElementsInPartition,  NumberOfPointsInPartition, NumberOfBoundariesInPartition
+        partitions = np.reshape(partitions[1:], (partitions[0], 4))
+        number_of_blocks = partitions.shape[0]
+
+        LNINV = read_alyabin_array(os.path.join(inputfolder, project_name + '-LNINV' + file_suffix),
+                                   number_of_blocks=number_of_blocks, alya_id_type=alya_id_type)
+        inverse_pt_correspondence = (LNINV['tuples'] - 1).ravel()  # convert ids to python
+        # verify the point correspondence
+        max_id = inverse_pt_correspondence.max()
+        pt_ids = np.zeros(max_id + 1)
+        pt_ids[inverse_pt_correspondence] = 1
+        assert not (LNINV['tuples'] < 0).any(), "Negative elements in LNINV, wrong mesh"
+        assert (pt_ids > 0).all(), "Some points in the mesh do not have a correspondence in the parittions"
+        pt_ids = None  # free memory
+
+        with open(os.path.join(inputfolder, project_name + '.post.alyafil'), 'r') as f:
+            field_filelist = f.read().splitlines()
+
+        # remove spaces and empty lines
+        field_filelist = [x.strip() for x in field_filelist if x.strip() != '']
+        new_field_filelist = []
+        fields = []
+        iteration_numbers = []
+        for filename in field_filelist:
+            s1 = filename[len(project_name):].split('-')
+            fields = fields + [s1[1]]
+            iteration_numbers = iteration_numbers + [int(s1[2].split('.')[0])]  # this will be long in python 3
+            new_field_filelist = new_field_filelist + [filename]
+
+        variable_info = pd.DataFrame(
+            {'field': fields, 'iteration': iteration_numbers, 'filename': new_field_filelist})
+        variable_info['time_int'] = 0
+        variable_info['time_real'] = 0
+        variable_info['variabletype'] = ''
+        variable_info['association'] = ''
+
+        alya_id_type = identify_alya_id_type(inputfolder, project_name)
+        if nodes_xyz:
+            num_nodes = nodes_xyz.shape[0]
+        else:
+            num_nodes = self.geometry.number_of_nodes
+        if read_field_name:
+            if read_field_type == 'scalar':
+                # temp = np.zeros((num_nodes, 1, variable_info[variable_info.field == read_field_name].shape[0]))
+                # time = np.zeros(variable_info[variable_info.field == read_field_name].shape[0])
+                temp = pymp.shared.array((num_nodes, 1, variable_info[variable_info.field == read_field_name].shape[0]), dtype=float)
+                time = pymp.shared.array(variable_info[variable_info.field == read_field_name].shape[0], dtype=float)
+                threadsNum = int(multiprocessing.cpu_count()*0.7)
+                with pymp.Parallel(min(threadsNum, variable_info[variable_info.field == read_field_name].shape[0])) as p1:
+                    for i in p1.range(variable_info[variable_info.field == read_field_name].shape[0]):
+                # for i in range(variable_info[variable_info.field == read_field_name].shape[0]):
+                        result = read_alyabin_array(
+                            filename=self.alya_output_dir + variable_info[variable_info.field == read_field_name].iloc[i][
+                                'filename'],
+                            number_of_blocks=number_of_blocks, alya_id_type=alya_id_type)
+                        temp[inverse_pt_correspondence, :, i] = result['tuples'].ravel()
+                        time[i] = result['header']['Time']
+            elif read_field_type == 'vector':
+                # temp = np.zeros((num_nodes, 3, variable_info[variable_info.field == read_field_name].shape[0]))
+                # time = np.zeros(variable_info[variable_info.field == read_field_name].shape[0])
+                # for i in range(variable_info[variable_info.field == read_field_name].shape[0]):
+                temp = pymp.shared.array(
+                    (num_nodes, 3, variable_info[variable_info.field == read_field_name].shape[0]), dtype=float)
+                time = pymp.shared.array(variable_info[variable_info.field == read_field_name].shape[0],
+                                         dtype=float)
+                threadsNum = int(multiprocessing.cpu_count()*0.7)
+                with pymp.Parallel(
+                        min(threadsNum, variable_info[variable_info.field == read_field_name].shape[0])) as p1:
+                    for i in p1.range(variable_info[variable_info.field == read_field_name].shape[0]):
+                        result = read_alyabin_array(
+                            filename=self.alya_output_dir + variable_info[variable_info.field == read_field_name].iloc[i][
+                                'filename'],
+                            number_of_blocks=number_of_blocks, alya_id_type=alya_id_type)
+                        ncomponents = result['tuples'].shape[1]
+                        temp[inverse_pt_correspondence, 0:ncomponents, i] = result['tuples']
+                        time[i] = result['header']['Time']
+            else:
+                print('postprocessing.py: Read field type ' + read_field_type + ' not recognised. ')
+                quit()
+        else:
+            print('Read_CSV_FIELD: Must specify field and type')
+        self.post_nodefield.add_field(data=temp, data_name=read_field_name, field_type='postnodefield')
+        self.post_nodefield.add_field(data=time, data_name='time', field_type='postnodefield')
+        temp = None
+        time = None
+
     def read_csv_fields(self, read_field_name, read_field_type, nodes_xyz=None):
         name = self.simulation_dict['name']
         self.post_nodefield.add_field(data=pd.read_csv(self.alyacsv_dir + 'timeset_1.csv', delimiter=',',header=None).values.transpose()[0].astype(float),
@@ -595,7 +706,7 @@ class PostProcessing(MeshStructure):
             print('Reading csv for field: '  + 'from : '+self.alyacsv_dir + name + '.' + field_type + '.' + field_name + '-******.csv')
             if field_type == 'scalar':
                 temp = pymp.shared.array((number_of_nodes, time.shape[0]), dtype=float)
-                threadsNum = 50 # multiprocessing.cpu_count()
+                threadsNum = int(multiprocessing.cpu_count()*0.7)
                 with pymp.Parallel(min(threadsNum, time_index_shared.shape[0])) as p1:
                     for time_i in p1.range(time_index_shared.shape[0]):
                 # temp = np.zeros((number_of_nodes, time.shape[0]))
@@ -608,7 +719,7 @@ class PostProcessing(MeshStructure):
                 self.post_nodefield.dict[field_name] = temp
             elif field_type == 'vector':
                 temp = pymp.shared.array((number_of_nodes, 3, time.shape[0]), dtype=float)
-                threadsNum = multiprocessing.cpu_count()
+                threadsNum = int(multiprocessing.cpu_count()*0.7)
                 with pymp.Parallel(min(threadsNum, time_index_shared.shape[0])) as p1:
                     for time_i in p1.range(time_index_shared.shape[0]):
                         index = '{:06d}'.format(time_index_shared[time_i])
@@ -846,7 +957,8 @@ class PostProcessing(MeshStructure):
 
     def evaluate_strain_biomarkers(self, beat):
         print('Strain evaluations in ventricular coordinates')
-        self.read_csv_fields(read_field_name='EPSXX', read_field_type='scalar') # to get time information
+        self.read_binary_outputs(read_field_name='EPSXX', read_field_type='scalar') # to get time information
+        # self.read_csv_fields(read_field_name='EPSXX', read_field_type='scalar') # to get time information
         # Select time segment according to specified beat # TODO assuming CL is always 1.0 s
         CL = 1.0
         time_idx = []
@@ -861,11 +973,16 @@ class PostProcessing(MeshStructure):
 
         # Evaluate longitudinal, circumferential, and radial strains
         if 'E_cc' not in self.post_nodefield.dict.keys():
-            self.read_csv_fields(read_field_name='EPSYY', read_field_type='scalar')
-            self.read_csv_fields(read_field_name='EPSZZ', read_field_type='scalar')
-            self.read_csv_fields(read_field_name='EPSXY', read_field_type='scalar')
-            self.read_csv_fields(read_field_name='EPSXZ', read_field_type='scalar')
-            self.read_csv_fields(read_field_name='EPSYZ', read_field_type='scalar')
+            # self.read_csv_fields(read_field_name='EPSYY', read_field_type='scalar')
+            # self.read_csv_fields(read_field_name='EPSZZ', read_field_type='scalar')
+            # self.read_csv_fields(read_field_name='EPSXY', read_field_type='scalar')
+            # self.read_csv_fields(read_field_name='EPSXZ', read_field_type='scalar')
+            # self.read_csv_fields(read_field_name='EPSYZ', read_field_type='scalar')
+            self.read_binary_outputs(read_field_name='EPSYY', read_field_type='scalar')
+            self.read_binary_outputs(read_field_name='EPSZZ', read_field_type='scalar')
+            self.read_binary_outputs(read_field_name='EPSXY', read_field_type='scalar')
+            self.read_binary_outputs(read_field_name='EPSXZ', read_field_type='scalar')
+            self.read_binary_outputs(read_field_name='EPSYZ', read_field_type='scalar')
             print('Evaluating E_cc, E_ll, E_rr...')
             E = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0], 3, 3)) # Strain tensors at each node over time
             E_cc = pymp.shared.array((self.geometry.number_of_nodes, time_idx.shape[0]))
@@ -889,7 +1006,7 @@ class PostProcessing(MeshStructure):
             exy[:, :] = self.post_nodefield.dict['EPSXY'][:, time_idx]
             exz[:, :] = self.post_nodefield.dict['EPSXZ'][:, time_idx]
             eyz[:, :] = self.post_nodefield.dict['EPSYZ'][:, time_idx]
-            threadsNum = multiprocessing.cpu_count()
+            threadsNum = int(multiprocessing.cpu_count()*0.7)
             with pymp.Parallel(min(threadsNum, time_idx.shape[0])) as p1:
                 for time_i in p1.range(time_idx.shape[0]):
                     E[:, time_i, 0, 0] = exx[:, time_i]
@@ -943,7 +1060,7 @@ class PostProcessing(MeshStructure):
         E_cc[:,:] = self.post_nodefield.dict['E_cc']
         E_ll[:, :] = self.post_nodefield.dict['E_ll']
         E_rr[:, :] = self.post_nodefield.dict['E_rr']
-        threadsNum = multiprocessing.cpu_count()
+        threadsNum = int(multiprocessing.cpu_count()*0.7)
         with pymp.Parallel(min(threadsNum, time_idx.shape[0])) as p1:
             for time_i in p1.range(time_idx.shape[0]):
                 # Circumferential strains
@@ -1627,7 +1744,7 @@ def evaluate_lat(time, vm, percentage, time_window):
     activation_map = pymp.shared.array(vm.shape[0])
     time_shared = pymp.shared.array(time.shape)
     time_shared[:] = time
-    threadsNum = multiprocessing.cpu_count()
+    threadsNum = int(multiprocessing.cpu_count()*0.7)
     with pymp.Parallel(min(threadsNum, vm.shape[0])) as p1:
         for node_i in p1.range(vm.shape[0]):
             local_vm = vm[node_i, :]
@@ -1662,7 +1779,7 @@ def evaluate_rt(time, vm, percentage, time_window):
 def mapIndices(points_to_map_xyz, reference_points_xyz,
                return_unique_only=False):  # TODO the unique should be done after this function
     mapped_indexes = pymp.shared.array((points_to_map_xyz.shape[0]), dtype=int)
-    threadsNum = multiprocessing.cpu_count()
+    threadsNum = int(multiprocessing.cpu_count()*0.7)
     with pymp.Parallel(min(threadsNum, points_to_map_xyz.shape[0])) as p1:
         for conf_i in p1.range(points_to_map_xyz.shape[0]):
             mapped_indexes[conf_i] = np.argmin(
@@ -1673,5 +1790,127 @@ def mapIndices(points_to_map_xyz, reference_points_xyz,
         mapped_indexes = mapped_indexes[sorted(unique_meta_indexes)]  # TODO this could just be one line of code
     return mapped_indexes
 
+
+def identify_alya_id_type(inputfolder, project_name):
+    # read he header where element ids are stored and see if it's int8 or int4
+    file_suffix = '.post.alyabin'
+    filename = os.path.join(inputfolder, project_name + '-LNODS' + str(file_suffix))
+
+    with open(filename, 'rb') as f:
+        header = read_header_alyabin(f)
+        if '32' in header['DataType']:
+            alya_id_type = np.int32
+        elif '64' in header['DataType']:
+            alya_id_type = np.int64
+        else:
+            assert False, 'Alya id type ' + header[6] + ' is not supported'
+    return alya_id_type
+
+
+def read_alyabin_array(filename, number_of_blocks, alya_id_type):
+    with open(filename, 'rb') as f:
+        header = read_header_alyabin(f)
+        number_of_dimensions = header['Columns']
+        number_of_tuples_total = header['Lines']
+        time_instant_int = header['TimeStepNo']
+        time_instant_real = header['Time']
+        # print(f'Reading array: {number_of_dimensions} dim, {number_of_tuples_total} tuples\n')
+
+        datatype = np.dtype(header['DataType'])
+
+        tuples = np.zeros((number_of_tuples_total, number_of_dimensions), dtype=datatype)
+
+        c = 0
+
+        tuples_per_block = np.zeros(number_of_blocks, dtype=np.int32)
+        for i in range(number_of_blocks):
+            number_of_tuples_in_block = read_one_fp90_record(f, 1, alya_id_type)[0]  # stored by alya
+            tuples_per_block[i] = number_of_tuples_in_block
+
+            # print(f'Block {i}/{number_of_blocks}: {(number_of_tuples_in_block)} tuples\n')
+            tuples_temp = read_one_fp90_record(f, number_of_dimensions * number_of_tuples_in_block, datatype)
+
+            tuples[c:c + number_of_tuples_in_block, :] = np.reshape(tuples_temp, (
+                number_of_tuples_in_block, number_of_dimensions))
+            c = c + number_of_tuples_in_block
+    return {'tuples': tuples, 'header': header, 'tuples_per_block': tuples_per_block}
+
+
+def read_one_fp90_record(file_object, number_of_elements, datatype):
+    # fortran stores length with every block, in the beginning and the end
+    count_read = 0
+    record = []
+    while count_read < number_of_elements:
+        # in case the record is stored as several blocks join them
+        block_len = np.fromfile(file_object, dtype=np.int32, count=1)
+        # block_len is in bytes
+        block = np.fromfile(file_object, dtype=datatype, count=block_len[0] // np.dtype(datatype).itemsize)
+        block_len = np.fromfile(file_object, dtype=np.int32, count=1)
+        count_read = count_read + block_len
+        record = record + [block]
+
+    return np.concatenate(record)
+
+
+def read_header_alyabin(file_object):
+    # a sanity check
+    assert hasattr(file_object, 'read'), "read_header: argument is not a file object"
+
+    ihead = read_one_fp90_record(file_object, 1, np.int32)  # ! Header: 1234, int32
+    assert ihead[0] == 1234, "Header is not 1234"
+    strings = []
+    integers = []
+    for i in range(0, 9):
+        strings = strings + [read_one_fp90_record(file_object, 8, np.uint8).tobytes().decode().strip()]
+
+    for i in range(0, 5):
+        integers = integers + [read_one_fp90_record(file_object, 1, np.int32)]
+
+    if (strings[1][0:5] != 'V0001'):
+        integers = integers + [read_one_fp90_record(file_object, 1, np.int32)]
+        # read(ii) integers(4) ! Time step, int32
+
+    reals = read_one_fp90_record(file_object, 1, np.float64)
+    # read(ii) reals(1)    ! Time, float64
+
+    if (strings[1][0:5] == 'V0001'):
+        integers[3] = int(reals)  # ! floor()?
+
+    number_of_dimensions = integers[0][0]
+    number_of_tuples_total = integers[1][0]
+    time_instant_int = integers[3][0]
+    time_instant_real = reals[0]
+
+    if (strings[5] == 'REAL'):
+        field_dtype = 'float'
+    if (strings[5] == 'INTEG'):
+        field_dtype = 'int'
+
+    if (strings[4] == 'NPOIN'):
+        association = 'node'
+    else:
+        association = 'element'
+
+    if strings[6] == '4BYTE':
+        field_dtype = field_dtype + '32'
+    elif strings[6] == '8BYTE':
+        field_dtype = field_dtype + '64'
+    else:
+        assert False, 'Alya id type ' + str(field_dtype) + ' is not supported'
+
+    if (strings[3] == 'SCALA'):
+        variabletype = 'scalar'
+    elif (strings[3] == 'VECTO'):
+        variabletype = 'vector'
+    else:
+        assert False, "unsupported type of variable"
+
+    assert (strings[8] == 'NOFIL'), "Filtered types not supported"
+
+    header = {'DataType': field_dtype, 'Lines': number_of_tuples_total, 'Columns': number_of_dimensions,
+              'TimeStepNo': time_instant_int, \
+              'Time': time_instant_real, 'Association': association, 'VariableType': variabletype}
+
+    return header
 
 
