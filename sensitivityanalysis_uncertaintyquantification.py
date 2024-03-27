@@ -863,7 +863,7 @@ class SAUQ:
                                    facecolor='green')
         if save_filename:
             plt.savefig(save_filename)
-        # plt.show()
+        plt.show()
         return corrs, ranges
         # ###############################################################################################################
         # fig = plt.figure(tight_layout=True, figsize=(18, 10))

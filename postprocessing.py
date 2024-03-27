@@ -1132,7 +1132,7 @@ class PostProcessing(MeshStructure):
         qoi['max_mid_Ecc'] = np.max(mean_mid_E_cc)
         qoi['min_mid_Ecc'] = np.min(mean_mid_E_cc)
         qoi['max_mid_Err'] = np.max(mean_mid_E_rr)
-        qoi['min__mid_Err'] = np.min(mean_mid_E_rr)
+        qoi['min_mid_Err'] = np.min(mean_mid_E_rr)
         qoi['max_four_chamber_Ell'] = np.max(mean_four_chamber_E_ll)
         qoi['min_four_chamber_Ell'] = np.min(mean_four_chamber_E_ll)
         self.qoi.update(qoi)
