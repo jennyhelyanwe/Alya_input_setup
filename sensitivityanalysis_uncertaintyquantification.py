@@ -242,7 +242,7 @@ class SAUQ:
                 qoi = json.load(open(filename, 'r'))
                 qois = pd.concat([qois, pd.DataFrame([qoi])])
             qois.to_csv(qoi_save_dir + 'strain_qois.csv')
-        elif qoi_group_name == 'fibrework':
+        elif qoi_group_name == 'fibre_work':
             for simulation_i in range(len(self.finished_simulation_dirs)):
                 filename = qoi_save_dir + 'fibrework_qoi_' + str(simulation_i) + '.csv'
                 qoi = json.load(open(filename, 'r'))
@@ -472,24 +472,51 @@ class SAUQ:
                 ax_avpd.legend()
                 ax_apex.legend()
                 ax_wall.legend()
+        if fibre_work_post:
+            fig = plt.figure(tight_layout=True, figsize=(18, 10))
+            gs = GridSpec(1, 2)
+            ax_lambda = fig.add_subplot(gs[0,0])
+            ax_ta = fig.add_subplot(gs[0,1])
+            for simulation_i in range(len(fibre_work_post)):
+                if labels:
+                    ax_lambda.plot(fibre_work_post[simulation_i].fibre_work_transients['fibrework_t'],
+                                 fibre_work_post[simulation_i].fibre_work_transients['mean_lambda'],
+                                 label=labels[simulation_i])
+                    ax_ta.plot(fibre_work_post[simulation_i].fibre_work_transients['fibrework_t'],
+                                 fibre_work_post[simulation_i].fibre_work_transients['mean_Ta'],
+                                 label=labels[simulation_i])
+                else:
+                    ax_lambda.plot(deformation_post[simulation_i].deformation_transients['fibrework_t'],
+                                 deformation_post[simulation_i].deformation_transients['mean_lambda'])
+                    ax_ta.plot(deformation_post[simulation_i].deformation_transients['fibrework_t'],
+                                 deformation_post[simulation_i].deformation_transients['mean_Ta'])
+            ax_lambda.set_title('Fibre stretch ratio')
+            ax_lambda.set_xlabel('Time (s)')
+            ax_lambda.set_ylabel('Lambda')
+            ax_ta.set_title('Active tension')
+            ax_ta.set_xlabel('Time (s)')
+            ax_ta.set_ylabel('Ta (kPa)')
+            if labels:
+                ax_lambda.legend()
+                ax_ta.legend()
         if strain_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(1, 3)
             ax_Err = fig.add_subplot(gs[0, 0])
             ax_Ecc = fig.add_subplot(gs[0, 1])
-            ax_Ell = fig.add_subplot(gs[0, 1])
+            ax_Ell = fig.add_subplot(gs[0, 2])
             for simulation_i in range(len(strain_post)):
                 if labels:
                     ax_Ecc.plot(strain_post[simulation_i].strain_transients['strain_t'],
-                                strain_post[simulation_i].strain_transients['mid_E_cc_median'], label=labels[simulation_i])
+                                strain_post[simulation_i].strain_transients['mean_mid_E_cc'], label=labels[simulation_i])
                     ax_Err.plot(strain_post[simulation_i].strain_transients['strain_t'],
-                                strain_post[simulation_i].strain_transients['mid_E_rr_median'], label=labels[simulation_i])
+                                strain_post[simulation_i].strain_transients['mean_mid_E_rr'], label=labels[simulation_i])
                     ax_Ell.plot(strain_post[simulation_i].strain_transients['strain_t'],
-                                strain_post[simulation_i].strain_transients['four_chamber_E_ll_median'], label=labels[simulation_i])
+                                strain_post[simulation_i].strain_transients['mean_four_chamber_E_ll'], label=labels[simulation_i])
                 else:
-                    ax_Ecc.plot(strain_post[simulation_i].strain_transients['strain_t'], strain_post[simulation_i].strain_transients['mid_E_cc_median'])
-                    ax_Err.plot(strain_post[simulation_i].strain_transients['strain_t'], strain_post[simulation_i].strain_transients['mid_E_rr_median'])
-                    ax_Ell.plot(strain_post[simulation_i].strain_transients['strain_t'], strain_post[simulation_i].strain_transients['four_chamber_E_ll_median'])
+                    ax_Ecc.plot(strain_post[simulation_i].strain_transients['strain_t'], strain_post[simulation_i].strain_transients['mean_mid_E_cc'])
+                    ax_Err.plot(strain_post[simulation_i].strain_transients['strain_t'], strain_post[simulation_i].strain_transients['mean_mid_E_rr'])
+                    ax_Ell.plot(strain_post[simulation_i].strain_transients['strain_t'], strain_post[simulation_i].strain_transients['mean_four_chamber_E_ll'])
             ax_Err.set_title('Mid-vent Err')
             ax_Err.set_xlabel('Time (s)')
             ax_Ecc.set_title('Mid-vent Ecc')
@@ -530,7 +557,7 @@ class SAUQ:
         print('Showing figure...')
         if save_filename:
             plt.savefig(save_filename)
-        plt.show()
+        # plt.show()
 
 
     def visualise_uq(self, beat, parameter_name, ecg_post=None, pv_post=None, deformation_post=None, fibre_work_post=None):
@@ -786,7 +813,7 @@ class SAUQ:
                 y[~np.isfinite(y)] = 0
                 sns.regplot(x=x, y=y, ax=ax, scatter_kws={'s':1})
                 ax.text(x=np.nanmin(x), y=np.nanmax(y), va='top', ha='left',
-                                          s='p=%.2f' % (np.corrcoef(x,y)[0,1]) + 'range=%.1f' % (np.amax(y[np.nonzero(y)]) - np.amin(y[np.nonzero(y)])))
+                                          s='p=%.2f' % (np.corrcoef(x,y)[0,1]) + 'range=%.2f' % (np.amax(y[np.nonzero(y)]) - np.amin(y[np.nonzero(y)])))
                 corrs[qoi_i, param_j] = np.corrcoef(x, y)[0, 1]
                 ranges[qoi_i, param_j] = np.amax(y) - np.amin(y)
                 if qoi_i == num_qois-1:
@@ -836,7 +863,7 @@ class SAUQ:
                                    facecolor='green')
         if save_filename:
             plt.savefig(save_filename)
-        plt.show()
+        # plt.show()
         return corrs, ranges
         # ###############################################################################################################
         # fig = plt.figure(tight_layout=True, figsize=(18, 10))

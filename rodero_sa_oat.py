@@ -46,30 +46,30 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
-passive_mechanics = True
+passive_mechanics = False
 active_mechanics = False
-cellular = False
+cellular = True
 haemodynamic = False
 if passive_mechanics:
     parameter_names = np.array(['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'as_myocardium', 'afs_myocardium'])
+    # parameter_names = np.array(
+    #     ['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium'])
     sa_folder_root_name = 'sensitivity_analyses_mechanical_parameters_oat'
 elif active_mechanics:
+    # parameter_names = np.array(
+    #     ['tref_scaling_myocardium', 'tref_sheet_scaling_myocardium', 'cal50_myocardium', 'sfkws_myocardium'])
     parameter_names = np.array(
-        ['tref_scaling_myocardium', 'tref_sheet_scaling_myocardium', 'cal50_myocardium', 'sfkws_myocardium'])
+            ['tref_scaling_myocardium', 'cal50_myocardium', 'sfkws_myocardium'])
     sa_folder_root_name = 'sensitivity_analyses_active_mechanical_parameters_oat'
 elif cellular:
     parameter_names = np.array(['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup'])
     sa_folder_root_name = 'sensitivity_analyses_cellular_parameters_oat'
 elif haemodynamic:
-    parameter_names = np.array(['arterial_compliance_lv',
-                                              'arterial_resistance_lv',
-                                              'gain_derror_relaxation_lv',
-                                              'gain_error_relaxation_lv',
-                                              'gain_error_contraction_lv',
-                                              'gain_derror_contraction_lv',
-                                              'gain_derror_relaxation_rv',
-                                              'gain_error_relaxation_rv',
-                                              'ejection_pressure_threshold_lv'])
+    parameter_names = np.array(['arterial_resistance_lv',
+                                'arterial_compliance_lv',
+                                'gain_error_relaxation_lv',
+                                'gain_derror_relaxation_lv',
+                                'ejection_pressure_threshold_lv'])
     sa_folder_root_name = 'sensitivity_analyses_haemodynamics_parameters_oat'
 else:
     print('Turn on one of the SA types!')
@@ -120,9 +120,9 @@ simulation_dict = json.load(open(simulation_json_file, 'r'))
 # Evaluate QoIs and correlations
 evaluate_pv= False
 evaluate_ecg = False
-evaluate_deformation = True
+evaluate_deformation = False
 evaluate_fibrework = False
-evaluate_strain = False
+evaluate_strain = True
 for param in parameter_names:
     simulation_dir = ''
     if system == 'jureca':
@@ -204,7 +204,7 @@ for param in parameter_names:
                                            analysis_type='sa')
         sa.visualise_sa(beat=1, fibre_work_post=fibre_work_post, labels=labels,
                         save_filename=simulation_dir + '/fibre_work_post.png')
-        qoi_names = ['peak_lambda', 'min_lambda', 'peak_ta']
+        qoi_names = ['peak_lambda', 'min_lambda', 'peak_ta', 'diastolic_ta']
         corrs, ranges = sa.analyse(filename=simulation_dir + 'fibrework_qois.csv', qois=qoi_names,
                                    show_healthy_ranges=False, save_filename='fibre_scatter.png')
         fibre_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))
@@ -217,9 +217,9 @@ for param in parameter_names:
     if evaluate_strain:
         strain_post = sa.evaluate_qois(qoi_group_name='strain', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                        analysis_type='sa')
-        sa.visualise_sa(beat=1, deformation_post=strain_post, labels=labels,
+        sa.visualise_sa(beat=1, strain_post=strain_post, labels=labels,
                         save_filename=simulation_dir + '/strain_post.png')
-        qoi_names = ['max_median_mid_Ecc', 'max_median_mid_Err', 'max_median_four_chamber_Ell']
+        qoi_names = ['max_mid_Ecc', 'min_mid_Ecc', 'max_mid_Err', 'min_mid_Err', 'max_four_chamber_Ell', 'min_four_chamber_Ell']
         corrs, ranges = sa.analyse(filename=simulation_dir + 'strain_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename='strain_scatter.png')
         strain_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))

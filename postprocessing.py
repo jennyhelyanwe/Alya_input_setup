@@ -364,13 +364,13 @@ class PostProcessing(MeshStructure):
         # Select time segment according to specified beat # TODO assuming CL is always 1.0 s
         CL = 1.0
         time_idx = []
-        deformation_t = []
+        t = []
         for time_i in range(self.post_nodefield.dict['time'].shape[0]):
             if (self.post_nodefield.dict['time'][time_i] > (beat - 1) * CL) & (
                     self.post_nodefield.dict['time'][time_i] < beat * CL):
-                deformation_t.append(self.post_nodefield.dict['time'][time_i] - (beat - 1) * CL)
+                t.append(self.post_nodefield.dict['time'][time_i] - (beat - 1) * CL)
                 time_idx.append(time_i)
-        fibrework_t = np.array(deformation_t)
+        fibrework_t = np.array(t)
         time_idx = np.array(time_idx, dtype=int)
 
         # Separate mesh into three longitudinal chunks
@@ -468,13 +468,8 @@ class PostProcessing(MeshStructure):
         mid_midshort_lambda_lq = mid_midshort_lambda[np.where(abs(systole - np.percentile(systole, 25)) < tol)[0][0],
                                   :]
 
-        systole_ta = np.min(midv_Ta, axis=1)
-        midv_ta_median = midv_Ta[np.where(abs(systole_ta - np.percentile(systole_ta, 50)) < tol)[0][0], :]
-        midv_ta_uq = midv_Ta[np.where(abs(systole_ta - np.percentile(systole_ta, 75)) < tol)[0][0], :]
-        midv_ta_lq = midv_Ta[np.where(abs(systole_ta - np.percentile(systole_ta, 25)) < tol)[0][0], :]
-
-        self.fibre_work = {}
-        self.fibre_work['fibrework_t'] = fibrework_t
+        self.fibre_work_transients = {}
+        self.fibre_work_transients['fibrework_t'] = fibrework_t
         # self.fibre_work['apical_lambda'] = apical_lambda
         # self.fibre_work['midv_lambda'] = midv_lambda
         # self.fibre_work['basal_lambda'] = basal_lambda
@@ -485,39 +480,39 @@ class PostProcessing(MeshStructure):
         # self.fibre_work['midw_cross_lambda'] = midw_cross_lambda
         # self.fibre_work['epi_cross_lambda'] = epi_cross_lambda
 
-        self.fibre_work['midv_Ta'] = midv_Ta
-        self.fibre_work['midv_Ta_media'] = midv_ta_median
-        self.fibre_work['midv_Ta_uq'] = midv_ta_uq
-        self.fibre_work['midv_Ta_lq'] = midv_ta_lq
+        self.fibre_work_transients['endo_midshort_lambda']= endo_midshort_lambda
+        self.fibre_work_transients['endo_midshort_lambda_median'] = endo_midshort_lambda_median
+        self.fibre_work_transients['endo_midshort_lambda_uq'] = endo_midshort_lambda_uq
+        self.fibre_work_transients['endo_midshort_lambda_lq'] = endo_midshort_lambda_lq
 
-        self.fibre_work['endo_midshort_lambda']= endo_midshort_lambda
-        self.fibre_work['endo_midshort_lambda_median'] = endo_midshort_lambda_median
-        self.fibre_work['endo_midshort_lambda_uq'] = endo_midshort_lambda_uq
-        self.fibre_work['endo_midshort_lambda_lq'] = endo_midshort_lambda_lq
+        self.fibre_work_transients['epi_midshort_lambda'] = epi_midshort_lambda
+        self.fibre_work_transients['epi_midshort_lambda_median'] = epi_midshort_lambda_median
+        self.fibre_work_transients['epi_midshort_lambda_uq'] = epi_midshort_lambda_uq
+        self.fibre_work_transients['epi_midshort_lambda_lq'] = epi_midshort_lambda_lq
 
-        self.fibre_work['epi_midshort_lambda'] = epi_midshort_lambda
-        self.fibre_work['epi_midshort_lambda_median'] = epi_midshort_lambda_median
-        self.fibre_work['epi_midshort_lambda_uq'] = epi_midshort_lambda_uq
-        self.fibre_work['epi_midshort_lambda_lq'] = epi_midshort_lambda_lq
+        self.fibre_work_transients['mid_midshort_lambda'] = mid_midshort_lambda
+        self.fibre_work_transients['mid_midshort_lambda_median'] = mid_midshort_lambda_median
+        self.fibre_work_transients['mid_midshort_lambda_uq'] = mid_midshort_lambda_uq
+        self.fibre_work_transients['mid_midshort_lambda_lq'] = mid_midshort_lambda_lq
 
-        self.fibre_work['mid_midshort_lambda'] = mid_midshort_lambda
-        self.fibre_work['mid_midshort_lambda_median'] = mid_midshort_lambda_median
-        self.fibre_work['mid_midshort_lambda_uq'] = mid_midshort_lambda_uq
-        self.fibre_work['mid_midshort_lambda_lq'] = mid_midshort_lambda_lq
+        self.fibre_work_transients['mean_lambda'] = np.mean(lambda_shared[:,0,:], axis=0)[time_idx]
+        self.fibre_work_transients['mean_Ta'] = np.mean(ta_shared[:,0,:], axis=0)[time_idx]
 
-        self.fibre_work['apical_Ta'] = apical_Ta
-        self.fibre_work['midv_Ta'] = midv_Ta
-        self.fibre_work['basal_Ta'] = basal_Ta
-        self.fibre_work['endo_Ta'] = endo_Ta
-        self.fibre_work['midw_Ta'] = midw_Ta
-        self.fibre_work['epi_Ta'] = epi_Ta
+        self.fibre_work_transients['apical_Ta'] = apical_Ta
+        self.fibre_work_transients['midv_Ta'] = midv_Ta
+        self.fibre_work_transients['basal_Ta'] = basal_Ta
+        self.fibre_work_transients['endo_Ta'] = endo_Ta
+        self.fibre_work_transients['midw_Ta'] = midw_Ta
+        self.fibre_work_transients['epi_Ta'] = epi_Ta
         # Save QoIs
         qoi = {}
         # qoi['peak_Ta'] = np.amax(np.mean(ta_shared[:,0, :], axis=0))
         # qoi['min_Ta'] = np.amin(np.mean(ta_shared[:,0, :], axis=0))
         qoi['peak_lambda'] = np.amax(np.mean(lambda_shared[:,0, :], axis=0))
         qoi['min_lambda'] = np.amin(np.mean(lambda_shared[:, 0, :], axis=0))
-        qoi['peak_ta'] = np.amax(np.mean(ta_shared[:, 0, :], axis=0))
+        qoi['peak_ta'] = np.amax(np.mean(ta_shared[:,0,:], axis=0))
+        mean_ta = np.mean(ta_shared[:,0,:], axis=0)
+        qoi['diastolic_ta'] = np.amin(mean_ta[np.nonzero(mean_ta)])
         self.qoi.update(qoi)
 
     def calculate_ecg_biomarkers(self, time, V, LAT=None, qrs_end_t=None):
@@ -584,7 +579,7 @@ class PostProcessing(MeshStructure):
 
     def read_binary_outputs(self, read_field_name, read_field_type, nodes_xyz=None):
         inputfolder = self.alya_output_dir
-        print('Reading alyabins from : ' + self.alya_output_dir)
+        print('Reading ' + read_field_name + ' alyabins from : ' + self.alya_output_dir)
         project_name = 'heart'
         alya_id_type = identify_alya_id_type(inputfolder, project_name)
         file_suffix = '.post.alyabin'
@@ -639,8 +634,12 @@ class PostProcessing(MeshStructure):
             if read_field_type == 'scalar':
                 # temp = np.zeros((num_nodes, 1, variable_info[variable_info.field == read_field_name].shape[0]))
                 # time = np.zeros(variable_info[variable_info.field == read_field_name].shape[0])
-                temp = pymp.shared.array((num_nodes, 1, variable_info[variable_info.field == read_field_name].shape[0]), dtype=float)
+                temp = pymp.shared.array((num_nodes, variable_info[variable_info.field == read_field_name].shape[0]), dtype=float)
                 time = pymp.shared.array(variable_info[variable_info.field == read_field_name].shape[0], dtype=float)
+                result = read_alyabin_array(
+                    filename=self.alya_output_dir + variable_info[variable_info.field == read_field_name].iloc[0][
+                        'filename'],
+                    number_of_blocks=number_of_blocks, alya_id_type=alya_id_type)
                 threadsNum = int(multiprocessing.cpu_count()*0.7)
                 with pymp.Parallel(min(threadsNum, variable_info[variable_info.field == read_field_name].shape[0])) as p1:
                     for i in p1.range(variable_info[variable_info.field == read_field_name].shape[0]):
@@ -649,8 +648,9 @@ class PostProcessing(MeshStructure):
                             filename=self.alya_output_dir + variable_info[variable_info.field == read_field_name].iloc[i][
                                 'filename'],
                             number_of_blocks=number_of_blocks, alya_id_type=alya_id_type)
-                        temp[inverse_pt_correspondence, :, i] = result['tuples'].ravel()
+                        temp[inverse_pt_correspondence, i] = result['tuples'].ravel()
                         time[i] = result['header']['Time']
+
             elif read_field_type == 'vector':
                 # temp = np.zeros((num_nodes, 3, variable_info[variable_info.field == read_field_name].shape[0]))
                 # time = np.zeros(variable_info[variable_info.field == read_field_name].shape[0])
@@ -1033,7 +1033,7 @@ class PostProcessing(MeshStructure):
             self.post_nodefield.add_field(data=E_cc, data_name='E_cc', field_type='postnodefield')
             self.post_nodefield.add_field(data=E_rr, data_name='E_rr', field_type='postnodefield')
             self.post_nodefield.add_field(data=E_ll, data_name='E_ll', field_type='postnodefield')
-            self.save_postprocessing_fields()
+            # self.save_postprocessing_fields()
         else:
             print('E_ll, E_cc, E_rr have already been calculated')
 
@@ -1081,108 +1081,120 @@ class PostProcessing(MeshStructure):
         # Circumferential
         systole = np.min(base_E_cc, axis=1)
         tol = 0.01 * abs(np.min(systole))
-        base_E_cc_median = base_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        base_E_cc_uq = base_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        base_E_cc_lq = base_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        systole = np.min(mid_E_cc, axis=1)
-        mid_E_cc_median = mid_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        mid_E_cc_uq = mid_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        mid_E_cc_lq = mid_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        systole = np.min(apex_E_cc, axis=1)
-        apex_E_cc_median = apex_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        apex_E_cc_uq = apex_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        apex_E_cc_lq = apex_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        # Radial
-        systole = np.min(base_E_rr, axis=1)
-        base_E_rr_median = base_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        base_E_rr_uq = base_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        base_E_rr_lq = base_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        systole = np.min(mid_E_rr, axis=1)
-        mid_E_rr_median = mid_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        mid_E_rr_uq = mid_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        mid_E_rr_lq = mid_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        systole = np.min(apex_E_rr, axis=1)
-        apex_E_rr_median = apex_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        apex_E_rr_uq = apex_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        apex_E_rr_lq = apex_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        # Longitudinal
-        systole = np.min(two_chamber_E_ll, axis=1)
-        two_chamber_E_ll_median = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        two_chamber_E_ll_uq = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        two_chamber_E_ll_lq = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        systole = np.min(four_chamber_E_ll, axis=1)
-        four_chamber_E_ll_median = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        four_chamber_E_ll_uq = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        four_chamber_E_ll_lq = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        systole = np.min(three_chamber_E_ll, axis=1)
-        three_chamber_E_ll_median = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        three_chamber_E_ll_uq = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        three_chamber_E_ll_lq = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        # base_E_cc_median = base_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        # base_E_cc_uq = base_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        # base_E_cc_lq = base_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        # systole = np.min(mid_E_cc, axis=1)
+        # mid_E_cc_median = mid_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        # mid_E_cc_uq = mid_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        # mid_E_cc_lq = mid_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        # systole = np.min(apex_E_cc, axis=1)
+        # apex_E_cc_median = apex_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        # apex_E_cc_uq = apex_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        # apex_E_cc_lq = apex_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        # # Radial
+        # systole = np.min(base_E_rr, axis=1)
+        # base_E_rr_median = base_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        # base_E_rr_uq = base_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        # base_E_rr_lq = base_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        # systole = np.min(mid_E_rr, axis=1)
+        # mid_E_rr_median = mid_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        # mid_E_rr_uq = mid_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        # mid_E_rr_lq = mid_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        # systole = np.min(apex_E_rr, axis=1)
+        # apex_E_rr_median = apex_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        # apex_E_rr_uq = apex_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        # apex_E_rr_lq = apex_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        # # Longitudinal
+        # systole = np.min(two_chamber_E_ll, axis=1)
+        # two_chamber_E_ll_median = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        # two_chamber_E_ll_uq = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        # two_chamber_E_ll_lq = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        # systole = np.min(four_chamber_E_ll, axis=1)
+        # four_chamber_E_ll_median = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        # four_chamber_E_ll_uq = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        # four_chamber_E_ll_lq = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        # systole = np.min(three_chamber_E_ll, axis=1)
+        # three_chamber_E_ll_median = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        # three_chamber_E_ll_uq = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        # three_chamber_E_ll_lq = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
 
         self.strain_transients = {}
+        mean_mid_E_cc = np.mean(mid_E_cc, axis=0)
+        mean_mid_E_rr = np.mean(mid_E_rr, axis=0)
+        mean_four_chamber_E_ll = np.mean(four_chamber_E_ll, axis=0)
         self.strain_transients['strain_t'] = strain_t
-        self.strain_transients['base_E_cc'] = base_E_cc
-        self.strain_transients['base_E_cc_median'] = base_E_cc_median
-        self.strain_transients['base_E_cc_uq'] = base_E_cc_uq
-        self.strain_transients['base_E_cc_lq'] = base_E_cc_lq
-
-        self.strain_transients['mid_E_cc'] = mid_E_cc
-        self.strain_transients['mid_E_cc_median'] = mid_E_cc_median
-        self.strain_transients['mid_E_cc_uq'] = mid_E_cc_uq
-        self.strain_transients['mid_E_cc_lq'] = mid_E_cc_lq
-
-        self.strain_transients['apex_E_cc'] = apex_E_cc
-        self.strain_transients['apex_E_cc_median'] = apex_E_cc_median
-        self.strain_transients['apex_E_cc_uq'] = apex_E_cc_uq
-        self.strain_transients['apex_E_cc_lq'] = apex_E_cc_lq
-
-        self.strain_transients['base_E_rr'] = base_E_rr
-        self.strain_transients['base_E_rr_median'] = base_E_rr_median
-        self.strain_transients['base_E_rr_uq'] = base_E_rr_uq
-        self.strain_transients['base_E_rr_lq'] = base_E_rr_lq
-
-        self.strain_transients['mid_E_rr'] = mid_E_rr
-        self.strain_transients['mid_E_rr_median'] = mid_E_rr_median
-        self.strain_transients['mid_E_rr_uq'] = mid_E_rr_uq
-        self.strain_transients['mid_E_rr_lq'] = mid_E_rr_lq
-
-        self.strain_transients['apex_E_rr'] = apex_E_rr
-        self.strain_transients['apex_E_rr_median'] = apex_E_rr_median
-        self.strain_transients['apex_E_rr_uq'] = apex_E_rr_uq
-        self.strain_transients['apex_E_rr_lq'] = apex_E_rr_lq
-
-        self.strain_transients['two_chamber_E_ll'] = two_chamber_E_ll
-        self.strain_transients['two_chamber_E_ll_median'] = two_chamber_E_ll_median
-        self.strain_transients['two_chamber_E_ll_uq'] = two_chamber_E_ll_uq
-        self.strain_transients['two_chamber_E_ll_lq'] = two_chamber_E_ll_lq
-
-        self.strain_transients['four_chamber_E_ll'] = four_chamber_E_ll
-        self.strain_transients['four_chamber_E_ll_median'] = four_chamber_E_ll_median
-        self.strain_transients['four_chamber_E_ll_uq'] = four_chamber_E_ll_uq
-        self.strain_transients['four_chamber_E_ll_lq'] = four_chamber_E_ll_lq
-
-        self.strain_transients['three_chamber_E_ll'] = three_chamber_E_ll
-        self.strain_transients['three_chamber_E_ll_median'] = three_chamber_E_ll_median
-        self.strain_transients['three_chamber_E_ll_uq'] = three_chamber_E_ll_uq
-        self.strain_transients['three_chamber_E_ll_lq'] = three_chamber_E_ll_lq
+        self.strain_transients['mean_mid_E_cc'] = mean_mid_E_cc
+        self.strain_transients['mean_mid_E_rr'] = mean_mid_E_rr
+        self.strain_transients['mean_four_chamber_E_ll'] = mean_four_chamber_E_ll
 
         qoi = {}
-        qoi['max_median_mid_Ecc'] = np.max(mid_E_cc_median)
-        qoi['min_median_mid_Ecc'] = np.min(mid_E_cc_median)
-        qoi['max_median_mid_Err'] = np.max(mid_E_rr_median)
-        qoi['min_median_mid_Err'] = np.min(mid_E_rr_median)
-        qoi['max_median_four_chamber_Ell'] = np.max(four_chamber_E_ll_median)
-        qoi['min_median_four_chamber_Ell'] = np.min(four_chamber_E_ll_median)
+        qoi['max_mid_Ecc'] = np.max(mean_mid_E_cc)
+        qoi['min_mid_Ecc'] = np.min(mean_mid_E_cc)
+        qoi['max_mid_Err'] = np.max(mean_mid_E_rr)
+        qoi['min__mid_Err'] = np.min(mean_mid_E_rr)
+        qoi['max_four_chamber_Ell'] = np.max(mean_four_chamber_E_ll)
+        qoi['min_four_chamber_Ell'] = np.min(mean_four_chamber_E_ll)
         self.qoi.update(qoi)
-        del base_E_cc
-        del mid_E_cc
-        del apex_E_cc
-        del base_E_rr
-        del mid_E_rr
-        del apex_E_rr
-        del two_chamber_E_ll
-        del four_chamber_E_ll
-        del three_chamber_E_ll
+
+        # self.strain_transients['base_E_cc'] = base_E_cc
+        # self.strain_transients['base_E_cc_median'] = base_E_cc_median
+        # self.strain_transients['base_E_cc_uq'] = base_E_cc_uq
+        # self.strain_transients['base_E_cc_lq'] = base_E_cc_lq
+        #
+        # self.strain_transients['mid_E_cc'] = mid_E_cc
+        # self.strain_transients['mean_mid_Ecc'] = np.mean(mid_E_cc, axis=0)
+        # self.strain_transients['mid_E_cc_median'] = mid_E_cc_median
+        # self.strain_transients['mid_E_cc_uq'] = mid_E_cc_uq
+        # self.strain_transients['mid_E_cc_lq'] = mid_E_cc_lq
+        #
+        # self.strain_transients['apex_E_cc'] = apex_E_cc
+        # self.strain_transients['apex_E_cc_median'] = apex_E_cc_median
+        # self.strain_transients['apex_E_cc_uq'] = apex_E_cc_uq
+        # self.strain_transients['apex_E_cc_lq'] = apex_E_cc_lq
+        #
+        # self.strain_transients['base_E_rr'] = base_E_rr
+        # self.strain_transients['base_E_rr_median'] = base_E_rr_median
+        # self.strain_transients['base_E_rr_uq'] = base_E_rr_uq
+        # self.strain_transients['base_E_rr_lq'] = base_E_rr_lq
+        #
+        # self.strain_transients['mid_E_rr'] = mid_E_rr
+        # self.strain_transients['mean_mid_Err'] = np.mean(mid_E_rr, axis=0)
+        # self.strain_transients['mid_E_rr_median'] = mid_E_rr_median
+        # self.strain_transients['mid_E_rr_uq'] = mid_E_rr_uq
+        # self.strain_transients['mid_E_rr_lq'] = mid_E_rr_lq
+        #
+        # self.strain_transients['apex_E_rr'] = apex_E_rr
+        # self.strain_transients['apex_E_rr_median'] = apex_E_rr_median
+        # self.strain_transients['apex_E_rr_uq'] = apex_E_rr_uq
+        # self.strain_transients['apex_E_rr_lq'] = apex_E_rr_lq
+        #
+        # self.strain_transients['two_chamber_E_ll'] = two_chamber_E_ll
+        # self.strain_transients['two_chamber_E_ll_median'] = two_chamber_E_ll_median
+        # self.strain_transients['two_chamber_E_ll_uq'] = two_chamber_E_ll_uq
+        # self.strain_transients['two_chamber_E_ll_lq'] = two_chamber_E_ll_lq
+        #
+        # self.strain_transients['four_chamber_E_ll'] = four_chamber_E_ll
+        # self.strain_transients['mean_four_chamber_E_ll'] = np.mean(four_chamber_E_ll, axis=0)
+        # self.strain_transients['four_chamber_E_ll_median'] = four_chamber_E_ll_median
+        # self.strain_transients['four_chamber_E_ll_uq'] = four_chamber_E_ll_uq
+        # self.strain_transients['four_chamber_E_ll_lq'] = four_chamber_E_ll_lq
+        #
+        # self.strain_transients['three_chamber_E_ll'] = three_chamber_E_ll
+        # self.strain_transients['three_chamber_E_ll_median'] = three_chamber_E_ll_median
+        # self.strain_transients['three_chamber_E_ll_uq'] = three_chamber_E_ll_uq
+        # self.strain_transients['three_chamber_E_ll_lq'] = three_chamber_E_ll_lq
+
+
+        # del base_E_cc
+        # del mid_E_cc
+        # del apex_E_cc
+        # del base_E_rr
+        # del mid_E_rr
+        # del apex_E_rr
+        # del two_chamber_E_ll
+        # del four_chamber_E_ll
+        # del three_chamber_E_ll
 
 
     def shift_to_start_at_ED(self, t, trace):
@@ -1792,7 +1804,7 @@ def mapIndices(points_to_map_xyz, reference_points_xyz,
 
 
 def identify_alya_id_type(inputfolder, project_name):
-    # read he header where element ids are stored and see if it's int8 or int4
+    # read the header where element ids are stored and see if it's int8 or int4
     file_suffix = '.post.alyabin'
     filename = os.path.join(inputfolder, project_name + '-LNODS' + str(file_suffix))
 
