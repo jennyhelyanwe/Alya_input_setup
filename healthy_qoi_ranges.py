@@ -22,7 +22,7 @@ class HealthyBiomarkerRanges:
                                 # % female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
                                 'PmaxR': [2.8, 3.6],
                                 # [kPa] +- standard deviation https://www.sciencedirect.com/science/article/pii/016752739190221A
-                                'es_ed_avpd': [1.0, 2.0],
+                                'es_ed_avpd': [1.4, 1.9],
                                 # [cm] ES - ED for controls https://journals.physiology.org/doi/full/10.1152/ajpheart.01148.2006 range, lower range comes from
                                # https://heart.bmj.com/content/heartjnl/78/3/230.full.pdf for zero mortality cut off
                                 'es_ed_apical_displacement': [-0.001, 0.51],
@@ -49,7 +49,7 @@ class HealthyBiomarkerRanges:
                                 # range https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.28724
                                 'max_median_four_chamber_Ell': [-0.16, -0.16],
                                 'max_median_mid_Err': [0.22, 0.29],
-                                'max_median_mid_Ecc': [0, 0], # REF NEEDED
+                                'max_median_mid_Ecc': [-0.14, -0.08], # REF NEEDED
                                 'qt_dur_mean': [0.378, 0.419],
                                 # [ms] UKB Imaging + EST combined interquartile range https://www.ahajournals.org/doi/full/10.1161/CIRCGEN.120.003231 (Table 1)
                                 't_pe_mean': [0.050, 0.072],

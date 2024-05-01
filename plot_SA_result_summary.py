@@ -8,14 +8,14 @@ from matplotlib.gridspec import GridSpec
 from healthy_qoi_ranges import HealthyBiomarkerRanges
 
 ########################################################################################################################
-data = pd.read_csv('SA_summary_OAT_corrs.csv').values
+data = pd.read_csv('SA_summary_OAT_published_subset_corrs.csv').values
 correlation_matrix = data[:, 1:]
 data = pd.read_csv('SA_summary_OAT_ranges.csv').values
 ranges_matrix = data[:, 1:]
 ranges_matrix_normalised = ranges_matrix
 maxima = np.nanmax(ranges_matrix, axis=0)
 ranges_matrix_normalised[:, np.nonzero(maxima)] = ranges_matrix[:, np.nonzero(maxima)] / maxima[np.nonzero(maxima)]
-qoi_names = pd.read_csv('SA_summary_OAT_corrs.csv').columns.values[1:]
+qoi_names = pd.read_csv('SA_summary_OAT_published_subset_corrs.csv').columns.values[1:]
 qoi = {}
 qoi_ticks = []
 for i in range(len(qoi_names)):
@@ -53,9 +53,9 @@ for i in range(len(param_names)):
 # ax.set_yticks(param_ticks)
 # ax.set_yticklabels(param_names)
 # ax.set_xlim([0, 1])
-# ax.set_ylim([0, len(qoi_names)])
+# ax.set_ylim([0, max(len(qoi_names), len(param_names))])
 # secax = ax.twinx()
-# secax.set_ylim(0, len(qoi_names))
+# secax.set_ylim(0, max(len(qoi_names), len(param_names)))
 # secax.set_yticks(qoi_ticks)
 # secax.set_yticklabels(qoi_names)
 # plt.tight_layout()
@@ -98,11 +98,11 @@ for i in range(len(param_names)):
 # plt.tight_layout()
 # plt.show()
 
-########################################################################################################################
+#######################################################################################################################
 # Highlight separate groups of QoIs
 # group = ['QT', 'Tpe', 'Tamp']
-group = ['LVEF']
-# group = ['LVEDV', 'LVESV','SVL','LVESP','LVEF', 'dPdt', 'PER', 'PFR']
+# group = ['LVEDV', 'LVESV','SVL','LVESP','LVEF', 'dPdtmax', 'PER', 'PFR']
+group = ['Systolic AVPD', 'Systolic AD', 'dThickness', 'Systolic Ecc', 'Systolic Err', 'Systolic Ell']
 # group = ['LVEDV', 'LVESV', 'SVL', 'LVESP']
 # group = ['RVEDV', 'RVESV', 'SVR', 'RVESP']
 # group = ['LVEDV', 'LVESV', 'RVEDV', 'RVESV', 'LVSV', 'RVSV', 'LVESP', 'RVESP', 'LVEF', 'dPdt', 'PER', 'PFR']
@@ -133,9 +133,9 @@ ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 ax.set_yticks(param_ticks)
 ax.set_yticklabels(param_names)
 ax.set_xlim([0, 1])
-ax.set_ylim([0, len(qoi_names)])
+ax.set_ylim([0, max(len(qoi_names), len(param_names))])
 secax = ax.twinx()
-secax.set_ylim(0, len(qoi_names))
+secax.set_ylim(0, max(len(qoi_names), len(param_names)))
 secax.set_yticks(qoi_ticks)
 secax.set_yticklabels(qoi_names)
 plt.tight_layout()
