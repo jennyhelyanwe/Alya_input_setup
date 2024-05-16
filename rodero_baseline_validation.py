@@ -17,16 +17,23 @@ if 'icei' in workdir:
     system = 'jureca'
 elif 'cosma' in workdir:
     system = 'cosma'
+elif 'e769' in workdir:
+    system = 'archer2'
 else:
     system = 'heart'
+
 if system == 'jureca':
     meta_data_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/meta_data/'
 elif system == 'cosma':
     meta_data_dir = '/cosma8/data/dp287/dc-wang14/Alya_pipeline/meta_data/'
+elif system == 'archer2':
+    meta_data_dir = '/work/e769/e769/jennywang/Alya_pipeline/meta_data/'
 elif system == 'heart':
     meta_data_dir = '/data/Personalisation_projects/meta_data/'
 geometric_data_dir = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_fine/'
+print(geometric_data_dir)
 clinical_data_dir = meta_data_dir + 'clinical_data/'
+
 verbose = False
 mesh_preprocess = False
 calibrate_cv = False
@@ -34,12 +41,12 @@ generate_fields_original_doste = False
 generate_fields_Green_fibres = False
 generate_fields_12090_fibres = False
 generate_fields_slices_and_local_bases = False
-setup_em_alya_literature_parameters_files = False
+setup_em_alya_literature_parameters_files = True
 setup_em_alya_files = False
 setup_ep_alya_files = False
-run_alya_baseline_simulation = False
+run_alya_baseline_simulation = True
 run_alya_baseline_postprocessing = False
-evaluate_simulated_biomarkers = True
+evaluate_simulated_biomarkers = False
 setup_validation_alya_simulations = False
 run_alya_validation_simulations = False
 run_alya_validation_postprocessing = False
@@ -52,6 +59,8 @@ if system == 'heart':
     vtk_dir = '/users/jenang/RoderoNiedererMeshHealthy/' + mesh_number + '/'
 elif system == 'jureca':
     vtk_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/meta_data/geometric_data/vtk/'
+elif system == 'archer2':
+    vtk_dir = meta_data_dir + '/geometric_data/vtk/'
 vtk_name = mesh_number + '_bivent_only'
 simulation_json_file = 'rodero_baseline_simulation_ep.json'
 if mesh_preprocess:
@@ -119,12 +128,14 @@ elif system == 'cosma':
     simulation_root_dir = '/cosma8/data/dp287/dc-wang14/Alya_pipeline/alya_simulations/'
 elif system == 'heart':
     simulation_root_dir = './'
+elif system == 'archer2':
+    simulation_root_dir = '/work/e769/e769/jennywang/Alya_pipeline/alya_simulations/'
 alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
-                  simulation_dir = simulation_root_dir, verbose=verbose)
+                  simulation_dir = simulation_root_dir, job_version=system, verbose=verbose)
 
 # Sanity check:
-if not system == 'jureca' and not system == 'cosma':
+if not system == 'jureca' and not system == 'cosma' and not system == 'archer2':
     alya.visual_sanity_check(simulation_json_file=simulation_json_file)
 if setup_em_alya_files:
     simulation_json_file = 'rodero_baseline_simulation_em.json'
@@ -160,7 +171,6 @@ if evaluate_simulated_biomarkers:
     pp.evaluate_fibre_work_biomarkers(beat=beat)
     pp.evaluate_strain_biomarkers(beat=beat)
     pp.visualise_qoi_comparisons()
-    quit()
     # pp.visualise_calibration_comparisons_global(beat=beat)
     # pp.visualise_calibration_comparisons_strain()
     # pp.compare_ecg_with_clinical_ranges(beat=beat)
@@ -186,6 +196,9 @@ elif system == 'cosma':
 elif system == 'heart':
     baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_rodero_05_fine/'
     simulation_dir = validation_folder_name + '/'
+elif system == 'archer2':
+    baseline_dir = simulation_root_dir + 'rodero_baseline_simulation_em_rodero_05_fine_mec_baseline/'
+    simulation_dir = simulation_root_dir + validation_folder_name + '/'
 experiment = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 2, parameter_names=perturbed_parameter_name,
           baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
           simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)

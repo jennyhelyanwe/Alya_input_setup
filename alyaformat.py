@@ -8,7 +8,7 @@ from meshstructure import MeshStructure
 from matplotlib import pyplot as plt
 
 class AlyaFormat(MeshStructure):
-    def __init__(self, name, geometric_data_dir, personalisation_dir, clinical_data_dir, simulation_dir, verbose):
+    def __init__(self, name, geometric_data_dir, personalisation_dir, clinical_data_dir, simulation_dir, job_version, verbose):
         if geometric_data_dir:
             super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
         else:
@@ -16,7 +16,7 @@ class AlyaFormat(MeshStructure):
         self.version = 'alya-compbiomed2'  # 'Alya_multiple_BZRZ_models'
         self.template_dir = 'alya_input_templates/'
         self.job_template_dir = 'util/job_script_template/'
-        self.job_version = 'cosma'
+        self.job_version = job_version
         self.geometric_data_dir = geometric_data_dir
         self.personalisation_dir = personalisation_dir
         self.clinical_data_dir = clinical_data_dir
@@ -780,8 +780,10 @@ class AlyaFormat(MeshStructure):
 
     def add_job_scripts(self):
         filename = self.job_template_dir + self.job_version + '.main.py'
-        keys = ['alya_exec_path', 'casename']
-        insert_data = [[self.simulation_dict['alya_exec_path'], self.simulation_dict['name']]]
+        # keys = ['alya_exec_path', 'casename']
+        # insert_data = [[self.simulation_dict['alya_exec_path'], self.simulation_dict['name']]]
+        keys = ['casename']
+        insert_data = [[self.simulation_dict['name']]]
         data = self.template(filename=filename, keys=keys, data=insert_data, num_duplicates=1)
         filename = self.output_dir + 'main.py'
         with open(filename, 'w') as f:
@@ -799,6 +801,9 @@ class AlyaFormat(MeshStructure):
         elif self.job_version == 'cosma':
             tasks_per_node = 128
             job_type = 'cosma8'
+        elif self.job_version == 'archer2':
+            tasks_per_node = 128
+            job_type = 'standard'
         insert_data = [[self.simulation_dict['name'], str(int(np.ceil(self.simulation_dict['time_end']*2.))),
                        np.ceil(self.simulation_dict['computational_cores']/tasks_per_node).astype(int), tasks_per_node,
                        self.simulation_dict['computational_cores'], job_type, 'main.py']]

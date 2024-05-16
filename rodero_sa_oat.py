@@ -31,6 +31,7 @@ verbose = False
 
 ########################################################################################################################
 # Step 1: Initialise Alya input files writing capabilities.
+simulation_root_dir = ''
 if system == 'jureca':
     simulation_root_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/'
 elif system == 'cosma':
@@ -42,7 +43,7 @@ elif system == 'heart':
 personalisation_data_dir = meta_data_dir + 'results/personalisation_data/rodero_'+mesh_number+'/'
 alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
-                  simulation_dir = simulation_root_dir, verbose=verbose)
+                  simulation_dir = simulation_root_dir, job_version=system, verbose=verbose)
 
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!

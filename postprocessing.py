@@ -1,5 +1,5 @@
 import matplotlib
-matplotlib.use('TKagg')
+# matplotlib.use('TKagg')
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as np

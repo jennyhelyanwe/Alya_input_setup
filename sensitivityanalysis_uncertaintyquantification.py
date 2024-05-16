@@ -7,7 +7,7 @@ import os
 from alyaformat import AlyaFormat
 import pymp, multiprocessing
 import matplotlib
-matplotlib.use('tkagg')
+# matplotlib.use('tkagg')
 from matplotlib.gridspec import GridSpec
 from matplotlib import pyplot as plt
 import seaborn as sns
