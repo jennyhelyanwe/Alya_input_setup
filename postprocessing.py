@@ -1211,6 +1211,29 @@ class PostProcessing(MeshStructure):
         assert len(dydt) == len(y)
         return np.array(dydt)
 
+    def visualise_strain_volume_loops(self, beat):
+        fig = plt.figure(tight_layout=True, figsize=(18, 10))
+        gs = GridSpec(1, 1)
+        ax = fig.add_subplot(gs[0, 0])
+        ax.set_title('Longitudinal strain vs LV volume')
+
+        # Get Ell
+        Ell = self.strains['four_chamber_E_ll_median']
+        Ell_t = self.strains['strain_t']
+
+        # Get LVV
+        LVV = self.pvs['vls'][beat - 1]
+        LVV_t = self.pvs['ts'][beat - 1]
+
+        Ell_resampled = np.zeros(LVV.shape[0])
+        for i in range(0, len(LVV_t)):
+            map_idx = np.argmin(abs(Ell_t - LVV_t[i]))
+            print(map_idx)
+            Ell_resampled[i] = Ell[map_idx]
+
+        ax.plot(LVV, Ell_resampled)
+        plt.show()
+
     def visualise_qoi_comparisons(self, simulated_qois=None):
         qoi_names = ['qt_dur_mean', 't_pe_mean', 't_peak_mean', 'EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection',
                      'dvdt_filling', 'dpdt_max', 'EDVR', 'ESVR', 'PmaxR', 'SVR', 'diff_lv_wall_thickness', 'es_ed_avpd',
