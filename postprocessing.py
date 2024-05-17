@@ -13,6 +13,7 @@ from meshstructure import MeshStructure
 from myformat import Fields
 import pandas as pd
 import healthy_qoi_ranges
+from scipy.signal import resample
 
 class PostProcessing(MeshStructure):
     def __init__(self, alya, simulation_json_file, alya_output_dir, protocol, verbose):
@@ -107,7 +108,7 @@ class PostProcessing(MeshStructure):
             print('Reading PV from: ', pv_filename)
             self.pvs = ecgpv._read_PV(pv_filename)
 
-    def evaluate_ecg_biomarkers(self, beat):
+    def evaluate_ecg_biomarkers(self, beat, show_landmarks=True):
         # if 'INTRA' not in self.post_nodefield.dict.keys():
         #     self.read_csv_fields(read_field_name='INTRA', read_field_type='scalar')
         #     self.evaluate_ep_maps()
@@ -123,30 +124,37 @@ class PostProcessing(MeshStructure):
         qrs_dur = np.zeros((len(lead_names)))
         qt_dur = np.zeros((len(lead_names)))
         t_pe = np.zeros((len(lead_names)))
+        t_op = np.zeros((len(lead_names)))
         t_peak = np.zeros((len(lead_names)))
         qtpeak_dur = np.zeros((len(lead_names)))
-        t_polarity = np.zeros((len(lead_names)))
+        t_dur = np.zeros((len(lead_names)))
         for i, lead_i in enumerate(lead_names):
             # qrs_dur[i], qt_dur[i], t_pe[i], t_peak[i], qtpeak_dur[i], t_polarity[i], landmarks_temp = \
             #     self.calculate_ecg_biomarkers(time=self.ecgs['ts'][beat-1], V=self.ecgs[lead_i][beat-1],
             #                                   LAT=self.post_nodefield.dict['lat'])
-            qrs_dur[i], qt_dur[i], t_pe[i], t_peak[i], qtpeak_dur[i], t_polarity[i], landmarks_temp = \
-                    self.calculate_ecg_biomarkers(time=self.ecgs['ts'][beat-1], V=self.ecgs[lead_i][beat-1],
-                                                  qrs_end_t=0.1)
+            # qrs_dur[i], qt_dur[i], t_pe[i], t_peak[i], qtpeak_dur[i], t_polarity[i], landmarks_temp = \
+            #         self.calculate_ecg_biomarkers(time=self.ecgs['ts'][beat-1], V=self.ecgs[lead_i][beat-1],
+            #                                       qrs_end_t=0.1)
+            # QRS_duration, QT_duration, QTpeak_duration, t_wave_duration, t_peak_end, t_start_peak, t_magnitude_true,  landmarks
+            qrs_dur[i], qt_dur[i],qtpeak_dur[i], t_dur[i], t_pe[i], t_op[i], t_peak[i], landmarks_temp = \
+                        self.calculate_ecg_biomarkers_HolmesSmith(T=self.ecgs['ts'][beat-1], V=self.ecgs[lead_i][beat-1], show=show_landmarks)
 
         qoi = {}
         qoi['qrs_dur_mean'] = np.mean(qrs_dur)
         qoi['qt_dur_mean'] = np.mean(qt_dur)
-        qoi['t_pe_mean'] = np.mean(t_pe)
-        qoi['t_peak_mean'] = np.mean(t_peak)
         qoi['qtpeak_dur_mean'] = np.mean(qtpeak_dur)
-        qoi['t_polarity_mean'] = np.mean(t_polarity)
+        qoi['t_dur_mean'] = np.mean(t_dur)
+        qoi['t_pe_mean'] = np.mean(t_pe)
+        qoi['t_op_mean'] = np.mean(t_op)
+        qoi['t_peak_mean'] = np.mean(t_peak)
+
         qoi['qrs_dur_std'] = np.std(qrs_dur)
         qoi['qt_dur_std'] = np.std(qt_dur)
+        qoi['qtpeak_dur_std'] = np.std(qtpeak_dur)
+        qoi['t_dur_std'] = np.std(t_dur)
         qoi['t_pe_std'] = np.std(t_pe)
+        qoi['t_op_std'] = np.std(t_op)
         qoi['t_peak_std'] = np.std(t_peak)
-        qoi['qtpeak_dur_std']  = np.std(qtpeak_dur)
-        qoi['t_polarity_std'] = np.std(t_polarity)
         self.qoi.update(qoi)
 
     def evaluate_pv_biomarkers(self, beat):
@@ -514,6 +522,115 @@ class PostProcessing(MeshStructure):
         mean_ta = np.mean(ta_shared[:,0,:], axis=0)
         qoi['diastolic_ta'] = np.amin(mean_ta[np.nonzero(mean_ta)])
         self.qoi.update(qoi)
+
+    def calculate_ecg_biomarkers_HolmesSmith(self, T, V, width=3, show=False):
+        # Resample V and T to 1000 Hz
+        V = resample(V, 1000)
+        T = resample(T, 1000)
+
+        def get_window(signal, i, width):
+            window = signal[(i - width):(i + width + 1)]
+            return np.mean(window)
+
+        dV = np.gradient(V)
+        ddV = np.gradient(dV)
+
+        T_ex = np.concatenate([[-3, -2, -1, 0, 1], T])
+        V_ex = np.concatenate([[0, 0, 0], V])
+        dV_ex = np.gradient(V_ex)
+        ddV_ex = np.gradient(dV_ex)
+        dV_windowed = np.zeros(300)
+        for i in range(width, 301):
+            dV_windowed[i - width] = abs(get_window(dV_ex, i, width))
+
+        QRS_start_tol = 0.01 * max(abs(V)) / 30
+        QRS_end_tol_ddV = 0.1 * max(abs(V)) / (30 * width + 2)
+        QRS_end_tol_dV = 0.07 * max(abs(dV_windowed))
+        T_start_tol = 0.12 * max(abs(V)) / 30
+        T_end_tol = 0.01 * max(abs(V)) / 30
+
+        # Determine QRS start time
+        for i in range(width, 101):
+            QRS_window = abs(get_window(ddV_ex, i, width))
+            if (QRS_window > QRS_start_tol):
+                QRS_start_idx = i - width
+                break
+
+        # # Determining QRS end time, and QRS duration
+        QRS_window2 = np.zeros(501 - 30)
+        for i in range(30, 501):
+            QRS_window2[i - 30] = get_window(abs(ddV_ex), i, 2)
+        QRS_end_idx_lst = 30 + np.where(QRS_window2 < QRS_end_tol_ddV)[0] - 1
+
+        for idx in QRS_end_idx_lst:
+            dV_window = get_window(abs(dV), idx, width + 2)
+            if (abs(dV_window) < QRS_end_tol_dV):
+                QRS_end_idx = idx - (width - 2)
+                break
+
+        QRS_start_time = T[QRS_start_idx]
+        QRS_end_time = T[QRS_end_idx]
+        QRS_duration = QRS_end_time - QRS_start_time
+
+        segment = V[QRS_end_idx + 100:1000]  # Assuming ~100 of ST segment
+        t_magnitude = max(abs(segment))
+        peak_idx = np.where(abs(segment) == t_magnitude)[-1][0]
+        t_peak_idx = QRS_end_idx + 100 + peak_idx
+        t_sign = np.sign(V[t_peak_idx])
+        t_magnitude_true = t_sign * t_magnitude
+
+        t_wave_peak_time = T[t_peak_idx]
+
+        # Find T-wave end point
+        t_wave_end_idx = 0
+        for i in range(len(V) - width - 1, t_peak_idx, -1):
+            tend_window = abs(get_window(dV, i, width))
+            if tend_window > T_end_tol:
+                t_wave_end_idx = i
+                break
+        t_wave_end_time = T[t_wave_end_idx]
+
+        # Find T-wave start point and calculate QT
+        try:
+            for i in range(t_peak_idx - 20, QRS_end_idx, -1):
+                tstart_window = abs(get_window(dV, i, width))
+                if tstart_window < T_start_tol:
+                    if (max(abs(V[i - 30:i])) < abs(V[i])) & (abs(V[i]) < (0.5 * t_magnitude)):
+                        t_wave_start_idx = i
+                        break
+            t_wave_start_time = T[t_wave_start_idx]
+        except:
+            t_wave_start_idx = np.nan
+            t_wave_start_time = np.nan
+
+        t_wave_duration = t_wave_end_time - t_wave_start_time
+        QT_duration = t_wave_end_time - QRS_start_time
+        t_peak_end = t_wave_end_time - t_wave_peak_time
+        t_start_peak = t_wave_peak_time - t_wave_start_time
+        QTpeak_duration = t_wave_peak_time - QRS_start_time
+
+        segment = V[t_wave_end_idx - 10:t_wave_end_idx]
+        if max(abs(segment)) > t_magnitude * 0.1:
+            if max(segment) > V(t_wave_end_idx):
+                inverse = True
+            else:
+                inverse = False
+        else:
+            inverse = False
+        landmarks = np.array(
+            [[T[QRS_start_idx], V[QRS_start_idx]], [T[QRS_end_idx], V[QRS_end_idx]], [T[t_peak_idx], V[t_peak_idx]],
+             [T[t_wave_end_idx], V[t_wave_end_idx]]])
+
+        if show:
+
+            plt.plot(T, V , landmarks[:, 0], landmarks[:, 1], '*')
+            plt.title(str(int(QRS_duration * 1000)) + ' ' + str(int(QT_duration * 1000)) + '\n' + str(
+                int(t_wave_duration * 1000)))
+            plt.xlabel('Time (s)')
+            plt.ylabel('Normalised ECG')
+            plt.show()
+
+        return QRS_duration, QT_duration, QTpeak_duration, t_wave_duration, t_peak_end, t_start_peak, t_magnitude_true,  landmarks
 
     def calculate_ecg_biomarkers(self, time, V, LAT=None, qrs_end_t=None):
         """This is not to be used with clinical data because it assumes that the signal returns to baseline after the end
@@ -1206,9 +1323,9 @@ class PostProcessing(MeshStructure):
                     simulated_qois[qoi_name] >= self.healthy_ranges[qoi_name][0]):
                 self.baseline_qoi_differences[qoi_name] = 0.0 # Within range
             elif (simulated_qois[qoi_name] > self.healthy_ranges[qoi_name][1]):
-                self.baseline_qoi_differences[qoi_name] = self.health_ranges[qoi_name][1] - simulated_qois[qoi_name]
+                self.baseline_qoi_differences[qoi_name] = self.healthy_ranges[qoi_name][1] - simulated_qois[qoi_name]
             elif (simulated_qois[qoi_name] < self.healthy_ranges[qoi_name][0]):
-                self.baseline_qoi_differences[qoi_name] = self.health_ranges[qoi_name][0] - simulated_qois[qoi_name]
+                self.baseline_qoi_differences[qoi_name] = self.healthy_ranges[qoi_name][0] - simulated_qois[qoi_name]
         print(self.baseline_qoi_differences)
 
     def shift_to_start_at_ED(self, t, trace):

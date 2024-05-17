@@ -167,7 +167,7 @@ if evaluate_simulated_biomarkers:
                         alya_output_dir=alya_output_dir, protocol='postprocess', verbose=verbose)
     beat = 1
     pp.evaluate_pv_biomarkers(beat=beat)
-    pp.evaluate_ecg_biomarkers(beat=beat)
+    pp.evaluate_ecg_biomarkers(beat=beat, show_landmarks=True)
     pp.evaluate_deformation_biomarkers(beat=beat)
     pp.evaluate_fibre_work_biomarkers(beat=beat)
     pp.evaluate_strain_biomarkers(beat=beat)
