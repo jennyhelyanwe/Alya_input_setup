@@ -50,16 +50,14 @@ class HealthyBiomarkerRanges:
                                 'max_four_chamber_Ell': [-0.16, -0.16],
                                 'max_mid_Err': [0.22, 0.29],
                                 'max_mid_Ecc': [-0.14, -0.08], # REF NEEDED
-                                'qt_dur_mean': [0.378, 0.419],
+                                'qt_dur_mean': [378, 419],
                                 # [ms] UKB Imaging + EST combined interquartile range https://www.ahajournals.org/doi/full/10.1161/CIRCGEN.120.003231 (Table 1)
-                                't_pe_mean': [0.050, 0.072],
+                                't_pe_mean': [50, 72],
                                 # [ms] LTVA interquartile range UKB https://www.ahajournals.org/action/downloadSupplement?doi=10.1161%2FJAHA.121.025897&file=jah37786-sup-0001-data-tabs-figs.pdf
-                                't_peak_mean': [0, 0],
-                                'T_duration': [0.100, 0.114],
+                                't_dur_mean': [100, 114],
                                 # [ms] UKB normal LV mass interquartile range https://academic.oup.com/ehjdh/article/4/4/316/7188159?login=true
-                                'QRS_duration': [0.077, 0.091],
+                                'qrs_dur_mean': [77, 91],
                                 # [ms] UKB Imaging + EST combined interquartile range https://academic.oup.com/ehjdh/article/4/4/316/7188159?login=true
-                                'diastoic_duration': [0.45],
                                 'dvdt_ejection': [308, 512], # ml/s, +- std left ventricular dV/dt ejection rate from MRI https://www.sciencedirect.com/science/article/pii/S0894731702744702#fig2
                                 'dvdt_filling': [251, 471], # mL/s, +- std left ventricular filling rate from MRI https://www.sciencedirect.com/science/article/pii/S0894731702744702#fig2
                                 'hypertension_dvdt_ejection': [222, 430], # mL/s, +- std, ejection rate from echo for HTN patients https://www.sciencedirect.com/science/article/pii/S0894731702744702#fig2

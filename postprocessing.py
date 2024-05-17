@@ -188,7 +188,9 @@ class PostProcessing(MeshStructure):
         # Get volume flow rates
         t = self.pvs['ts'][beat-1]
         y = self.pvs['vls'][beat-1]
-        end_systole_idx = np.argmin(y)
+
+        ed_idx = np.where(t>0.15)[0][0]
+        end_systole_idx = np.argmin(y[ed_idx:]) + ed_idx
         dvdt = self.get_first_derivative(t=t, y=y)
         if end_systole_idx > 10:
             dvdt_ejection = abs(np.amin(dvdt[10:end_systole_idx]))
@@ -646,7 +648,6 @@ class PostProcessing(MeshStructure):
             [[T[QRS_start_idx], V[QRS_start_idx]], [T[QRS_end_idx], V[QRS_end_idx]],
              [T[t_wave_start_idx], V[t_wave_start_idx]], [T[t_peak_idx], V[t_peak_idx]],
              [T[t_wave_end_idx], V[t_wave_end_idx]]])
-
 
         return QRS_duration, QT_duration, QTpeak_duration, t_wave_duration, t_peak_end, t_start_peak, t_magnitude_true,  landmarks
 
