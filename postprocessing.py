@@ -525,8 +525,18 @@ class PostProcessing(MeshStructure):
 
     def calculate_ecg_biomarkers_HolmesSmith(self, T, V, width=3, show=False):
         # Resample V and T to 1000 Hz
-        V = resample(V, 1000)
-        T = resample(T, 1000)
+        T_raw = T
+        V_raw = V
+        idx_end = int(np.floor(max(T)*1000))
+        T = []
+        V = []
+        for i in range(0, idx_end):
+            current_t = i/1000
+            T.append(current_t)
+            idx = np.where(abs(T_raw - current_t) == min(abs(T_raw - current_t)))[0][0]
+            V.append(V_raw[idx])
+        V = np.array(V)
+        T = np.array(T)
 
         def get_window(signal, i, width):
             window = signal[(i - width):(i + width + 1)]
