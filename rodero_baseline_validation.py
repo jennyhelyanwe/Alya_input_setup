@@ -159,6 +159,7 @@ if run_alya_baseline_postprocessing:
 ########################################################################################################################
 # Step 6: Postprocess
 if evaluate_simulated_biomarkers:
+    print('Evaluating simulated biomarkers')
     simulation_json_file = 'rodero_baseline_simulation_em.json'
     alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_literature_parameters_' + simulation_name + '/'
     # alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[
@@ -167,7 +168,7 @@ if evaluate_simulated_biomarkers:
                         alya_output_dir=alya_output_dir, protocol='postprocess', verbose=verbose)
     beat = 1
     pp.evaluate_pv_biomarkers(beat=beat)
-    pp.evaluate_ecg_biomarkers(beat=beat, show_landmarks=True)
+    pp.evaluate_ecg_biomarkers(beat=beat, show_landmarks=False)
     pp.evaluate_deformation_biomarkers(beat=beat)
     pp.evaluate_fibre_work_biomarkers(beat=beat)
     pp.evaluate_strain_biomarkers(beat=beat)

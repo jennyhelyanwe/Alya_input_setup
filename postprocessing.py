@@ -1,5 +1,5 @@
 import matplotlib
-# matplotlib.use('TKagg')
+matplotlib.use('TKagg')
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as np
@@ -128,6 +128,13 @@ class PostProcessing(MeshStructure):
         t_peak = np.zeros((len(lead_names)))
         qtpeak_dur = np.zeros((len(lead_names)))
         t_dur = np.zeros((len(lead_names)))
+        if show_landmarks:
+            fig = plt.figure(tight_layout=True, figsize=[11, 9])
+            gs = GridSpec(3, 4)
+            axes = []
+            for i in range(4):
+                for j in range(3):
+                    axes.append(fig.add_subplot(gs[j, i]))
         for i, lead_i in enumerate(lead_names):
             # qrs_dur[i], qt_dur[i], t_pe[i], t_peak[i], qtpeak_dur[i], t_polarity[i], landmarks_temp = \
             #     self.calculate_ecg_biomarkers(time=self.ecgs['ts'][beat-1], V=self.ecgs[lead_i][beat-1],
@@ -136,8 +143,15 @@ class PostProcessing(MeshStructure):
             #         self.calculate_ecg_biomarkers(time=self.ecgs['ts'][beat-1], V=self.ecgs[lead_i][beat-1],
             #                                       qrs_end_t=0.1)
             # QRS_duration, QT_duration, QTpeak_duration, t_wave_duration, t_peak_end, t_start_peak, t_magnitude_true,  landmarks
-            qrs_dur[i], qt_dur[i],qtpeak_dur[i], t_dur[i], t_pe[i], t_op[i], t_peak[i], landmarks_temp = \
+            qrs_dur[i], qt_dur[i],qtpeak_dur[i], t_dur[i], t_pe[i], t_op[i], t_peak[i], landmarks = \
                         self.calculate_ecg_biomarkers_HolmesSmith(T=self.ecgs['ts'][beat-1], V=self.ecgs[lead_i][beat-1], show=show_landmarks)
+            if show_landmarks:
+                axes[i].plot(self.ecgs['ts'][beat-1]*1000, self.ecgs[lead_i][beat-1], 'k-', landmarks[0, 0], landmarks[0, 1], 'r*', landmarks[1, 0], landmarks[1, 1], 'b*',
+                         landmarks[2, 0], landmarks[2, 1], 'g*', landmarks[3, 0], landmarks[3, 1], 'm*', landmarks[4, 0],
+                         landmarks[4, 1], 'c*')
+                axes[i].set_title(lead_i)
+        if show_landmarks:
+            plt.show()
 
         qoi = {}
         qoi['qrs_dur_mean'] = np.mean(qrs_dur)
@@ -536,8 +550,7 @@ class PostProcessing(MeshStructure):
             idx = np.where(abs(T_raw - current_t) == min(abs(T_raw - current_t)))[0][0]
             V.append(V_raw[idx])
         V = np.array(V)
-        T = np.array(T)
-
+        T = np.array(T) * 1000
         def get_window(signal, i, width):
             window = signal[(i - width):(i + width + 1)]
             return np.mean(window)
@@ -560,17 +573,19 @@ class PostProcessing(MeshStructure):
         T_end_tol = 0.01 * max(abs(V)) / 30
 
         # Determine QRS start time
-        for i in range(width, 101):
+        QRS_window_ = []
+        for i in range(width + 100, 500):
             QRS_window = abs(get_window(ddV_ex, i, width))
+            QRS_window_.append(QRS_window)
             if (QRS_window > QRS_start_tol):
                 QRS_start_idx = i - width
                 break
 
         # # Determining QRS end time, and QRS duration
-        QRS_window2 = np.zeros(501 - 30)
-        for i in range(30, 501):
-            QRS_window2[i - 30] = get_window(abs(ddV_ex), i, 2)
-        QRS_end_idx_lst = 30 + np.where(QRS_window2 < QRS_end_tol_ddV)[0] - 1
+        QRS_window2 = np.zeros(501 - 30 - QRS_start_idx)
+        for i in range(QRS_start_idx + 30, 501):
+            QRS_window2[i - 30 - QRS_start_idx] = get_window(abs(ddV_ex), i, 2)
+        QRS_end_idx_lst = QRS_start_idx + 30 + np.where(QRS_window2 < QRS_end_tol_ddV)[0] - 1
 
         for idx in QRS_end_idx_lst:
             dV_window = get_window(abs(dV), idx, width + 2)
@@ -582,7 +597,7 @@ class PostProcessing(MeshStructure):
         QRS_end_time = T[QRS_end_idx]
         QRS_duration = QRS_end_time - QRS_start_time
 
-        segment = V[QRS_end_idx + 100:1000]  # Assuming ~100 of ST segment
+        segment = V[(QRS_end_idx + 100):1000]  # Assuming ~100 of ST segment
         t_magnitude = max(abs(segment))
         peak_idx = np.where(abs(segment) == t_magnitude)[-1][0]
         t_peak_idx = QRS_end_idx + 100 + peak_idx
@@ -621,24 +636,17 @@ class PostProcessing(MeshStructure):
 
         segment = V[t_wave_end_idx - 10:t_wave_end_idx]
         if max(abs(segment)) > t_magnitude * 0.1:
-            if max(segment) > V(t_wave_end_idx):
+            if max(segment) > V[t_wave_end_idx]:
                 inverse = True
             else:
                 inverse = False
         else:
             inverse = False
         landmarks = np.array(
-            [[T[QRS_start_idx], V[QRS_start_idx]], [T[QRS_end_idx], V[QRS_end_idx]], [T[t_peak_idx], V[t_peak_idx]],
+            [[T[QRS_start_idx], V[QRS_start_idx]], [T[QRS_end_idx], V[QRS_end_idx]],
+             [T[t_wave_start_idx], V[t_wave_start_idx]], [T[t_peak_idx], V[t_peak_idx]],
              [T[t_wave_end_idx], V[t_wave_end_idx]]])
 
-        if show:
-
-            plt.plot(T, V , landmarks[:, 0], landmarks[:, 1], '*')
-            plt.title(str(int(QRS_duration * 1000)) + ' ' + str(int(QT_duration * 1000)) + '\n' + str(
-                int(t_wave_duration * 1000)))
-            plt.xlabel('Time (s)')
-            plt.ylabel('Normalised ECG')
-            plt.show()
 
         return QRS_duration, QT_duration, QTpeak_duration, t_wave_duration, t_peak_end, t_start_peak, t_magnitude_true,  landmarks
 
