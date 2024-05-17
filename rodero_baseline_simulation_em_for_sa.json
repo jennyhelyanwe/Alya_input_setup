@@ -92,5 +92,5 @@
   "tref_sheet_scaling" : [0.0, 0],
   "tref_normal_scaling" : [0.3, 0],
   "tref_scaling" : [20, 0],
-  "computational_cores" : 1280
+  "computational_cores" : 768
 }

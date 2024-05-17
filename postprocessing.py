@@ -1197,6 +1197,20 @@ class PostProcessing(MeshStructure):
         # del three_chamber_E_ll
 
 
+    def evaluate_baseline_qoi_against_healthy_ranges(self, qoi_names):
+        simulated_qois = self.qoi
+        self.baseline_qoi_differences = {}
+        for qoi_i in range(len(qoi_names)):
+            qoi_name = qoi_names[qoi_i]
+            if (simulated_qois[qoi_name] <= self.healthy_ranges[qoi_name][1]) & (
+                    simulated_qois[qoi_name] >= self.healthy_ranges[qoi_name][0]):
+                self.baseline_qoi_differences[qoi_name] = 0.0 # Within range
+            elif (simulated_qois[qoi_name] > self.healthy_ranges[qoi_name][1]):
+                self.baseline_qoi_differences[qoi_name] = self.health_ranges[qoi_name][1] - simulated_qois[qoi_name]
+            elif (simulated_qois[qoi_name] < self.healthy_ranges[qoi_name][0]):
+                self.baseline_qoi_differences[qoi_name] = self.health_ranges[qoi_name][0] - simulated_qois[qoi_name]
+        print(self.baseline_qoi_differences)
+
     def shift_to_start_at_ED(self, t, trace):
         t_tol = 1e-3
         ed_idx = np.argmin(abs(t-self.simulation_dict['end_diastole_t'][0]))

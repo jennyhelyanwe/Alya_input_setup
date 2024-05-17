@@ -41,12 +41,13 @@ generate_fields_original_doste = False
 generate_fields_Green_fibres = False
 generate_fields_12090_fibres = False
 generate_fields_slices_and_local_bases = False
-setup_em_alya_literature_parameters_files = True
+setup_em_alya_literature_parameters_files = False
 setup_em_alya_files = False
 setup_ep_alya_files = False
-run_alya_baseline_simulation = True
+run_alya_baseline_simulation = False
 run_alya_baseline_postprocessing = False
-evaluate_simulated_biomarkers = False
+evaluate_simulated_biomarkers = True
+calculate_sa_range_based_on_oat_results = True
 setup_validation_alya_simulations = False
 run_alya_validation_simulations = False
 run_alya_validation_postprocessing = False
@@ -159,9 +160,9 @@ if run_alya_baseline_postprocessing:
 # Step 6: Postprocess
 if evaluate_simulated_biomarkers:
     simulation_json_file = 'rodero_baseline_simulation_em.json'
-    # alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_literature_parameters_' + simulation_name + '/'
-    alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[
-        0] + '_' + simulation_name + '_mec_baseline/'
+    alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_literature_parameters_' + simulation_name + '/'
+    # alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[
+    #     0] + '_' + simulation_name + '_mec_baseline/'
     pp = PostProcessing(alya=alya, simulation_json_file=simulation_json_file,
                         alya_output_dir=alya_output_dir, protocol='postprocess', verbose=verbose)
     beat = 1
@@ -171,10 +172,19 @@ if evaluate_simulated_biomarkers:
     pp.evaluate_fibre_work_biomarkers(beat=beat)
     pp.evaluate_strain_biomarkers(beat=beat)
     pp.visualise_qoi_comparisons()
+    pp.evaluate_baseline_qoi_against_healthy_ranges(qoi_names=['qt_dur_mean', 't_pe_mean', 't_peak_mean', 'EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection',
+                     'dvdt_filling', 'dpdt_max', 'EDVR', 'ESVR', 'PmaxR', 'SVR', 'diff_lv_wall_thickness', 'es_ed_avpd',
+                     'es_ed_apical_displacement', 'min_lambda', 'max_median_mid_Ecc', 'max_median_mid_Err',
+                     'max_median_four_chamber_Ell'])
     # pp.visualise_calibration_comparisons_global(beat=beat)
     # pp.visualise_calibration_comparisons_strain()
     # pp.compare_ecg_with_clinical_ranges(beat=beat)
     # pp.compare_deformation_with_clinical_ranges(beat=beat)
+
+########################################################################################################################
+# Step 7: Use OAT SA results and evaluation of biomarkers to assign new ranges for calibration SA
+if calculate_sa_range_based_on_oat_results:
+    print ('Calculating new SA ranges based on OAT results and evaluation of previous baseline')
 
 ########################################################################################################################
 # Step 6: Validation experiments - volume perturbation
