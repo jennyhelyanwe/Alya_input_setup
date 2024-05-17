@@ -171,11 +171,14 @@ if evaluate_simulated_biomarkers:
     pp.evaluate_deformation_biomarkers(beat=beat)
     pp.evaluate_fibre_work_biomarkers(beat=beat)
     pp.evaluate_strain_biomarkers(beat=beat)
-    pp.visualise_qoi_comparisons()
+    pp.visualise_qoi_comparisons(qoi_names = ['qt_dur_mean', 't_pe_mean', 't_peak_mean', 'EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection',
+                     'dvdt_filling', 'dpdt_max', 'EDVR', 'ESVR', 'PmaxR', 'SVR', 'diff_lv_wall_thickness', 'es_ed_avpd',
+                     'es_ed_apical_displacement', 'min_lambda', 'max_mid_Ecc', 'max_mid_Err',
+                     'max_four_chamber_Ell'])
     pp.evaluate_baseline_qoi_against_healthy_ranges(qoi_names=['qt_dur_mean', 't_pe_mean', 't_peak_mean', 'EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection',
                      'dvdt_filling', 'dpdt_max', 'EDVR', 'ESVR', 'PmaxR', 'SVR', 'diff_lv_wall_thickness', 'es_ed_avpd',
-                     'es_ed_apical_displacement', 'min_lambda', 'max_median_mid_Ecc', 'max_median_mid_Err',
-                     'max_median_four_chamber_Ell'])
+                     'es_ed_apical_displacement', 'min_lambda', 'max_mid_Ecc', 'max_mid_Err',
+                     'max_four_chamber_Ell'])
     # pp.visualise_calibration_comparisons_global(beat=beat)
     # pp.visualise_calibration_comparisons_strain()
     # pp.compare_ecg_with_clinical_ranges(beat=beat)

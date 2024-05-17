@@ -47,9 +47,9 @@ class HealthyBiomarkerRanges:
                                 # range https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.28724
                                 'cross_lambda_epi': [0.88, 0.9],
                                 # range https://onlinelibrary.wiley.com/doi/full/10.1002/mrm.28724
-                                'max_median_four_chamber_Ell': [-0.16, -0.16],
-                                'max_median_mid_Err': [0.22, 0.29],
-                                'max_median_mid_Ecc': [-0.14, -0.08], # REF NEEDED
+                                'max_four_chamber_Ell': [-0.16, -0.16],
+                                'max_mid_Err': [0.22, 0.29],
+                                'max_mid_Ecc': [-0.14, -0.08], # REF NEEDED
                                 'qt_dur_mean': [0.378, 0.419],
                                 # [ms] UKB Imaging + EST combined interquartile range https://www.ahajournals.org/doi/full/10.1161/CIRCGEN.120.003231 (Table 1)
                                 't_pe_mean': [0.050, 0.072],

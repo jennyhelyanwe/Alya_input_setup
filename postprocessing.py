@@ -1248,11 +1248,8 @@ class PostProcessing(MeshStructure):
         ax.plot(LVV, Ell_resampled)
         plt.show()
 
-    def visualise_qoi_comparisons(self, simulated_qois=None):
-        qoi_names = ['qt_dur_mean', 't_pe_mean', 't_peak_mean', 'EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection',
-                     'dvdt_filling', 'dpdt_max', 'EDVR', 'ESVR', 'PmaxR', 'SVR', 'diff_lv_wall_thickness', 'es_ed_avpd',
-                     'es_ed_apical_displacement', 'min_lambda', 'max_median_mid_Ecc', 'max_median_mid_Err',
-                     'max_median_four_chamber_Ell']
+    def visualise_qoi_comparisons(self, qoi_names, simulated_qois=None):
+
         qoi_units = ['ms', 'ms', 'mV', 'mL', 'mL', 'kPa', '%', 'mL', 'mL/s', 'mL/s', 'kPa/s', 'mL', 'mL',
                      'kPa', 'mL',  'cm', 'cm', 'cm', '', '', '', '']
         simulated_qois = self.qoi
