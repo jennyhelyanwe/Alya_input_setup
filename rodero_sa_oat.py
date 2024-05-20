@@ -274,7 +274,7 @@ for param in parameter_names:
         json.dump(r_values, open(simulation_dir + '/strain_r_values.csv', 'w'))
         json.dump(ranges, open(simulation_dir + '/strain_ranges.csv', 'w'))
 
-quit()
+
 #######################################################################################################################
 # # Postprocessing for visualisation purposes only
 # for param in parameter_names:
