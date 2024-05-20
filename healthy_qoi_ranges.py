@@ -8,10 +8,10 @@ class HealthyBiomarkerRanges:
                                 # [mL] female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
                                 'LVEF': [51, 70],
                                 # % female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
-                                'EDPL': [0.5, 1.5],
-                                # # [kPa] +- standard error of the mean https://link.springer.com/article/10.1007/s12265-018-9816-y/tables/1
-                                'PmaxL': [14.3, 15.3],
-                                # [kPa] +- standard error of the mean https://link.springer.com/article/10.1007/s12265-018-9816-y/tables/1
+                                'EDPL': [5000, 15000],
+                                # # [Barye] +- standard error of the mean https://link.springer.com/article/10.1007/s12265-018-9816-y/tables/1
+                                'PmaxL': [143000, 153000],
+                                # [Barye] +- standard error of the mean https://link.springer.com/article/10.1007/s12265-018-9816-y/tables/1
                                 'EDVR': [85, 166],
                                 # [mL] female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
                                 'ESVR': [27, 77],
@@ -20,8 +20,8 @@ class HealthyBiomarkerRanges:
                                 # [mL] female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
                                 'RVEF': [47, 68],
                                 # % female UKB https://jcmr-online.biomedcentral.com/articles/10.1186/s12968-017-0327-9/tables/3
-                                'PmaxR': [2.8, 3.6],
-                                # [kPa] +- standard deviation https://www.sciencedirect.com/science/article/pii/016752739190221A
+                                'PmaxR': [28000, 36000],
+                                # [Barye] +- standard deviation https://www.sciencedirect.com/science/article/pii/016752739190221A
                                 'es_ed_avpd': [1.4, 1.9],
                                 # [cm] ES - ED for controls https://journals.physiology.org/doi/full/10.1152/ajpheart.01148.2006 range, lower range comes from
                                # https://heart.bmj.com/content/heartjnl/78/3/230.full.pdf for zero mortality cut off
@@ -63,7 +63,7 @@ class HealthyBiomarkerRanges:
                                 'hypertension_dvdt_ejection': [222, 430], # mL/s, +- std, ejection rate from echo for HTN patients https://www.sciencedirect.com/science/article/pii/S0894731702744702#fig2
                                 'hypertension_dvdt_filling': [109, 327], # mL/s, +- std, filling rate from echo for HTN patients https://www.sciencedirect.com/science/article/pii/S0894731702744702#fig2
                                 'dpdt_max_mmHg': [895, 1347], # mmHg/s, +- std, invasively measured in patients after CRT application. https://academic.oup.com/europace/article/13/7/984/446139
-                                'dpdt_max': [90, 210], # kPa/s, converted from measurement https://academic.oup.com/europace/article/13/7/984/446139
+                                'dpdt_max': [900000, 2100000], # Barye/s, converted from measurement https://academic.oup.com/europace/article/13/7/984/446139
                                 'edpvr_a_klotz': [28.2], # mmHg/mL, https://journals.physiology.org/doi/full/10.1152/ajpheart.01240.2005
                                 'edpvr_b_klotz' : [2.79], # dimensionless, https://journals.physiology.org/doi/full/10.1152/ajpheart.01240.2005
                                 'edpvr_v_intercept': [0, 0],

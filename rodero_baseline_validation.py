@@ -172,14 +172,18 @@ if evaluate_simulated_biomarkers:
     # pp.evaluate_deformation_biomarkers(beat=beat)
     # pp.evaluate_fibre_work_biomarkers(beat=beat)
     # pp.evaluate_strain_biomarkers(beat=beat)
-    pp.visualise_qoi_comparisons(qoi_names = ['qrs_dur_mean', 'qt_dur_mean', 't_pe_mean', 'EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection',
-                     'dvdt_filling', 'dpdt_max'], save_figure=alya_output_dir+'/qoi_evaluation.png')
+    # pp.visualise_qoi_comparisons(qoi_names = ['qrs_dur_mean', 'qt_dur_mean', 't_pe_mean', 'EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection',
+    #                  'dvdt_filling', 'dpdt_max'], save_figure=alya_output_dir+'/qoi_evaluation.png')
     # Rank QoIs according to importance for matching - based on ??
-    ranked_qoi_names = ['LVEF', 'qt_dur_mean', 'qrs_dur_mean', 't_pe_mean', 'PmaxL', 'SVL', 'EDVL', 'ESVL', 'dpdt_max',
+    ranked_qoi_names = ['LVEF', 'PmaxL', 'SVL', 'EDVL', 'ESVL', 'dpdt_max',
                         'dvdt_ejection', 'dvdt_filling']
+    baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
+    simulation_json_file = baseline_json_file
+    simulation_dict = json.load(open(simulation_json_file, 'r'))
     pp.calculate_calibration_sa_parameter_ranges(ranked_qoi_names=ranked_qoi_names,
-                                                 oat_sa_corrs='SA_summary_OAT_corrs.csv',
-                                                 oat_sa_ranges='SA_summary_OAT_ranges.csv')
+                                                 oat_sa_corrs_filename='SA_summary_OAT_corrs.csv',
+                                                 oat_sa_ranges_filename='SA_summary_OAT_ranges.csv',
+                                                 simulation_dict=simulation_dict)
 
     # pp.visualise_calibration_comparisons_global(beat=beat)
     # pp.visualise_calibration_comparisons_strain()
