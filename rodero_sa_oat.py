@@ -17,6 +17,8 @@ elif 'cosma' in workdir:
     system = 'cosma'
 elif 'polaris' in workdir:
     system = 'polaris'
+elif 'Expansion' in workdir:
+    system = 'archive'
 else:
     system = 'heart'
 if system == 'jureca':
@@ -25,6 +27,8 @@ elif system == 'cosma':
     meta_data_dir = '/cosma8/data/dp287/dc-wang14/Alya_pipeline/meta_data/'
 elif system == 'heart':
     meta_data_dir = '/data/Personalisation_projects/meta_data/'
+elif system == 'archive':
+    meta_data_dir = '/run/media/jenang/Expansion/JURECA_COSMA_download_April2024/meta_data/'
 geometric_data_dir = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_fine/'
 clinical_data_dir = meta_data_dir + 'clinical_data/'
 verbose = False
@@ -40,10 +44,12 @@ elif system == 'polaris':
     simulation_root_dir = '/grand/projects/CompBioAffin/jenang/Alya_pipeline/alya_simulations/'
 elif system == 'heart':
     simulation_root_dir = './'
+elif system == 'archive':
+    simulation_root_dir = '/run/media/jenang/Expansion/JURECA_COSMA_download_April2024/Alya_pipeline/alya_simulations/'
 personalisation_data_dir = meta_data_dir + 'results/personalisation_data/rodero_'+mesh_number+'/'
 alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
-                  simulation_dir = simulation_root_dir, job_version=system, verbose=verbose)
+                  simulation_dir = simulation_root_dir, verbose=verbose)
 
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
@@ -120,10 +126,10 @@ simulation_dict = json.load(open(simulation_json_file, 'r'))
 ########################################################################################################################
 # Evaluate QoIs and correlations
 evaluate_pv= False
-evaluate_ecg = False
+evaluate_ecg = True
 evaluate_deformation = False
 evaluate_fibrework = False
-evaluate_strain = True
+evaluate_strain = False
 for param in parameter_names:
     simulation_dir = ''
     if system == 'jureca':
@@ -134,6 +140,8 @@ for param in parameter_names:
         simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
     elif system == 'heart':
         simulation_dir = sa_folder_root_name + '_' + param + '/'
+    elif system == 'archive':
+        simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
     if 'sf_' in param:
         baseline_parameter_values = np.array([simulation_dict[param][0][0]])
     elif '_lv' in param:
@@ -157,9 +165,12 @@ for param in parameter_names:
     beat = 1
     ####################################################################################################################
     # Can be done as the simulations are running, using raw outputs.
-    sa.sort_simulations(
-        tag='raw')  # Collate list of finished simulations by checking the existence of particular files.
-
+    if system == 'archive':
+        sa.sort_simulations_archive(tag='raw')
+    else:
+        sa.sort_simulations(
+            tag='raw')  # Collate list of finished simulations by checking the existence of particular files.
+    print('Number of finished simulations: ', len(sa.finished_simulation_dirs))
     if evaluate_pv:
         # Pressure volume information
         pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
@@ -178,8 +189,11 @@ for param in parameter_names:
     if evaluate_ecg:
         ecg_post = sa.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                     analysis_type='sa')
+        if not ecg_post:
+            print('ERROR: ECG postprocessing did not happen for some reason')
+            quit()
         sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post.png')
-        qoi_names = ['qt_dur_mean', 't_pe_mean', 't_peak_mean']
+        qoi_names = ['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean']
         corrs, ranges = sa.analyse(filename=simulation_dir + 'ecg_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/ecg_scatter.png')
         ecg_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))

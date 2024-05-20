@@ -176,7 +176,7 @@ class SAUQ:
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
                                       alya_output_dir=alya_output_dir, protocol='raw',
                                       verbose=self.verbose)
-                post.evaluate_ecg_biomarkers(beat=beat)
+                post.evaluate_ecg_biomarkers(beat=beat, show_landmarks=False)
                 post.save_qoi(filename=qoi_save_dir + 'ecg_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
             elif qoi_group_name == 'pv':
@@ -320,6 +320,27 @@ class SAUQ:
         #                    alpha=0.3, facecolor='green')
         plt.show()
 
+    def sort_simulations_archive(self, tag='postprocess'):
+        print(self.simulation_dir)
+        with open(self.simulation_dir + '/all_simulation_dirs.txt', 'r') as f:
+            all_simulation_dirs = f.readlines()
+        self.finished_simulation_dirs = []
+        if tag=='postprocess':
+            for simulation_i in range(len(all_simulation_dirs)):
+                dir = self.simulation_dir + all_simulation_dirs[simulation_i].split('/')[-2]
+                if os.path.exists(dir + '/heart-cardiac-cycle.sld.res'):
+                    if os.path.exists(dir + '/results_csv/timeset_1.csv'):
+                        self.finished_simulation_dirs.append(dir + '/')
+        elif tag== 'raw':
+            for simulation_i in range(len(all_simulation_dirs)):
+                dir = self.simulation_dir + all_simulation_dirs[simulation_i].split('/')[-2]
+                if os.path.exists(dir+'/heart-cardiac-cycle.sld.res'):
+                    self.finished_simulation_dirs.append(dir + '/')
+        elif tag == 'cube_postprocess':
+            for simulation_i in range(len(all_simulation_dirs)):
+                dir = self.simulation_dir + all_simulation_dirs[simulation_i].split('/')[-2]
+                if os.path.exists(dir + '/results_csv/timeset_1.csv'):
+                    self.finished_simulation_dirs.append(dir + '/')
 
     def sort_simulations(self, tag='postprocess'):
         with open(self.simulation_dir + '/all_simulation_dirs.txt', 'r') as f:
@@ -435,6 +456,7 @@ class SAUQ:
             ax_V6.set_ylim([-1, 1])
             if labels:
                 ax_V1.legend()
+            plt.show()
         if deformation_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(1, 3)
@@ -555,9 +577,10 @@ class SAUQ:
                 ax_displ.legend()
                 ax_ta.legend()
         print('Showing figure...')
+        plt.show(block=True)
+        quit()
         if save_filename:
             plt.savefig(save_filename)
-        # plt.show()
 
 
     def visualise_uq(self, beat, parameter_name, ecg_post=None, pv_post=None, deformation_post=None, fibre_work_post=None):

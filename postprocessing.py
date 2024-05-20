@@ -636,14 +636,14 @@ class PostProcessing(MeshStructure):
         t_start_peak = t_wave_peak_time - t_wave_start_time
         QTpeak_duration = t_wave_peak_time - QRS_start_time
 
-        segment = V[t_wave_end_idx - 10:t_wave_end_idx]
-        if max(abs(segment)) > t_magnitude * 0.1:
-            if max(segment) > V[t_wave_end_idx]:
-                inverse = True
-            else:
-                inverse = False
-        else:
-            inverse = False
+        # segment = V[t_wave_end_idx - 10:t_wave_end_idx]
+        # if max(abs(segment)) > t_magnitude * 0.1:
+        #     if max(segment) > V[t_wave_end_idx]:
+        #         inverse = True
+        #     else:
+        #         inverse = False
+        # else:
+        #     inverse = False
         landmarks = np.array(
             [[T[QRS_start_idx], V[QRS_start_idx]], [T[QRS_end_idx], V[QRS_end_idx]],
              [T[t_wave_start_idx], V[t_wave_start_idx]], [T[t_peak_idx], V[t_peak_idx]],
@@ -1347,6 +1347,7 @@ class PostProcessing(MeshStructure):
                 self.baseline_qoi_differences[qoi_name] = self.healthy_ranges[qoi_name][0] - simulated_qois[qoi_name]
         print(self.baseline_qoi_differences)
 
+
     def shift_to_start_at_ED(self, t, trace):
         t_tol = 1e-3
         ed_idx = np.argmin(abs(t-self.simulation_dict['end_diastole_t'][0]))
@@ -1384,7 +1385,7 @@ class PostProcessing(MeshStructure):
         ax.plot(LVV, Ell_resampled)
         plt.show()
 
-    def visualise_qoi_comparisons(self, qoi_names, simulated_qois=None):
+    def visualise_qoi_comparisons(self, qoi_names, save_figure=None):
 
         qoi_units = ['ms', 'ms', 'mV', 'mL', 'mL', 'kPa', '%', 'mL', 'mL/s', 'mL/s', 'kPa/s', 'mL', 'mL',
                      'kPa', 'mL',  'cm', 'cm', 'cm', '', '', '', '']
@@ -1405,11 +1406,22 @@ class PostProcessing(MeshStructure):
             ax.set_yticks([0], [qoi_name])
             ax.set_xticks([])
             plt.tick_params(top='off', bottom='off', left='off', right='off', labelleft='on', labelbottom='off')
-            plt.text(self.healthy_ranges[qoi_name][1], 0, qoi_unit, ha='right', va='center')
+            plt.text(self.healthy_ranges[qoi_name][1], 0, str(int(self.healthy_ranges[qoi_name][1])), ha='right',
+                     va='bottom', weight='bold')
+            plt.text(self.healthy_ranges[qoi_name][0], 0, str(int(self.healthy_ranges[qoi_name][0])), ha='left',
+                     va='bottom', weight='bold')
+            plt.text(simulated_qois[qoi_name], 0, str(int(simulated_qois[qoi_name])), ha='right', va='top')
             ax.axvspan(self.healthy_ranges[qoi_name][0], self.healthy_ranges[qoi_name][1], alpha=0.3, color='green')
+            plot_range = max([self.healthy_ranges[qoi_name][1], simulated_qois[qoi_name]]) - \
+                    min([self.healthy_ranges[qoi_name][0], simulated_qois[qoi_name]])
+            plt.xlim(max([0, min([self.healthy_ranges[qoi_name][0], simulated_qois[qoi_name]]) - np.ceil(plot_range*0.2)]),
+                         max([self.healthy_ranges[qoi_name][1], simulated_qois[qoi_name]]) + np.ceil(plot_range*0.2))
             for spine in plt.gca().spines.values():
                 spine.set_visible(False)
         plt.show()
+        if save_figure:
+            print('Saving figure to ', save_figure)
+            plt.savefig(save_figure)
 
     def visualise_calibration_comparisons_global(self, beat):
         fig = plt.figure(tight_layout=True, figsize=(8, 12))
