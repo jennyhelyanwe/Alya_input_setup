@@ -54,9 +54,9 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
 passive_mechanics = False
-active_mechanics = False
+active_mechanics = True
 cellular = False
-haemodynamic = True
+haemodynamic = False
 if passive_mechanics:
     parameter_names = np.array(['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'as_myocardium', 'afs_myocardium'])
     # parameter_names = np.array(
@@ -125,7 +125,7 @@ simulation_dict = json.load(open(simulation_json_file, 'r'))
 # quit()
 ########################################################################################################################
 # Evaluate QoIs and correlations
-evaluate_pv= False
+evaluate_pv= True
 evaluate_ecg = True
 evaluate_deformation = False
 evaluate_fibrework = False

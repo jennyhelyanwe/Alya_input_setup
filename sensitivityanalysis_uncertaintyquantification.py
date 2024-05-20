@@ -834,11 +834,13 @@ class SAUQ:
                     y = Y[:,qoi_i]
                 x[~np.isfinite(x)] = 0
                 y[~np.isfinite(y)] = 0
+                x_no_outlier = x[abs(y - np.mean(y)) < 2 * np.std(y)]
+                y_no_outlier = y[abs(y - np.mean(y)) < 2 * np.std(y)]
                 sns.regplot(x=x, y=y, ax=ax, scatter_kws={'s':1})
                 ax.text(x=np.nanmin(x), y=np.nanmax(y), va='top', ha='left',
-                                          s='p=%.2f' % (np.corrcoef(x,y)[0,1]) + 'range=%.2f' % (np.amax(y[np.nonzero(y)]) - np.amin(y[np.nonzero(y)])))
-                corrs[qoi_i, param_j] = np.corrcoef(x, y)[0, 1]
-                ranges[qoi_i, param_j] = np.amax(y) - np.amin(y)
+                                          s='p=%.2f' % (np.corrcoef(x_no_outlier,y_no_outlier)[0,1]) + 'range=%.2f' % (np.amax(y[np.nonzero(y)]) - np.amin(y[np.nonzero(y)])))
+                corrs[qoi_i, param_j] = np.corrcoef(y_no_outlier, y_no_outlier)[0, 1]
+                ranges[qoi_i, param_j] = np.amax(y_no_outlier) - np.amin(y_no_outlier)
                 if qoi_i == num_qois-1:
                     ax.set_xlabel(names[param_j])
                 if param_j == 0:
