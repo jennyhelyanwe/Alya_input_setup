@@ -576,9 +576,6 @@ class SAUQ:
             if labels:
                 ax_displ.legend()
                 ax_ta.legend()
-        print('Showing figure...')
-        plt.show(block=True)
-        quit()
         if save_filename:
             plt.savefig(save_filename)
 
