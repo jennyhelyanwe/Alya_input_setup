@@ -178,12 +178,18 @@ for param in parameter_names:
         sa.visualise_sa(beat=1, pv_post=pv_post, labels=labels, save_filename=simulation_dir+'/pv_post.png')
         qoi_names = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max', 'EDVR', 'ESVR',
                      'PmaxR', 'SVR']
-        corrs, ranges = sa.analyse(filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=False,
+        slopes, intercepts, p_values, r_values, ranges = sa.analyse(filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/pv_scatter.png')
-        pv_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))
-        pv_ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        json.dump(pv_corrs, open(simulation_dir + '/pv_corrs.csv', 'w'))
-        json.dump(pv_ranges, open(simulation_dir + '/pv_ranges.csv', 'w'))
+        slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
+        intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
+        p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
+        r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
+        ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
+        json.dump(slopes, open(simulation_dir + '/pv_slopes.csv', 'w'))
+        json.dump(intercepts, open(simulation_dir + '/pv_intercepts.csv', 'w'))
+        json.dump(p_values, open(simulation_dir + '/pv_p_values.csv', 'w'))
+        json.dump(r_values, open(simulation_dir + '/pv_r_values.csv', 'w'))
+        json.dump(ranges, open(simulation_dir + '/pv_ranges.csv', 'w'))
 
     # ECG information
     if evaluate_ecg:
@@ -194,12 +200,18 @@ for param in parameter_names:
             quit()
         sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post.png')
         qoi_names = ['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean']
-        corrs, ranges = sa.analyse(filename=simulation_dir + 'ecg_qois.csv', qois=qoi_names, show_healthy_ranges=False,
+        slopes, intercepts, p_values, r_values, ranges = sa.analyse(filename=simulation_dir + 'ecg_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/ecg_scatter.png')
-        ecg_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))
-        ecg_ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        json.dump(ecg_corrs, open(simulation_dir + '/ecg_corrs.csv', 'w'))
-        json.dump(ecg_ranges, open(simulation_dir + '/ecg_ranges.csv', 'w'))
+        slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
+        intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
+        p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
+        r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
+        ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
+        json.dump(slopes, open(simulation_dir + '/ecg_slopes.csv', 'w'))
+        json.dump(intercepts, open(simulation_dir + '/ecg_intercepts.csv', 'w'))
+        json.dump(p_values, open(simulation_dir + '/ecg_p_values.csv', 'w'))
+        json.dump(r_values, open(simulation_dir + '/ecg_r_values.csv', 'w'))
+        json.dump(ranges, open(simulation_dir + '/ecg_ranges.csv', 'w'))
 
     # Deformation
     if evaluate_deformation:
@@ -208,12 +220,18 @@ for param in parameter_names:
         sa.visualise_sa(beat=1, deformation_post=deformation_post, labels=labels,
                         save_filename=simulation_dir + '/deformation_post.png')
         qoi_names = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness']
-        corrs, ranges = sa.analyse(filename=simulation_dir + 'deformation_qois.csv', qois=qoi_names,
+        slopes, intercepts, p_values, r_values, ranges = sa.analyse(filename=simulation_dir + 'deformation_qois.csv', qois=qoi_names,
                                    show_healthy_ranges=False, save_filename=simulation_dir + '/deformation_scatter.png')
-        deformation_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))
-        deformation_ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        json.dump(deformation_corrs, open(simulation_dir + '/deformation_corrs.csv', 'w'))
-        json.dump(deformation_ranges, open(simulation_dir + '/deformation_ranges.csv', 'w'))
+        slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
+        intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
+        p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
+        r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
+        ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
+        json.dump(slopes, open(simulation_dir + '/deformation_slopes.csv', 'w'))
+        json.dump(intercepts, open(simulation_dir + '/deformation_intercepts.csv', 'w'))
+        json.dump(p_values, open(simulation_dir + '/deformation_p_values.csv', 'w'))
+        json.dump(r_values, open(simulation_dir + '/deformation_r_values.csv', 'w'))
+        json.dump(ranges, open(simulation_dir + '/deformation_ranges.csv', 'w'))
 
     # Fibre strain and Ta
     if evaluate_fibrework:
@@ -222,12 +240,18 @@ for param in parameter_names:
         sa.visualise_sa(beat=1, fibre_work_post=fibre_work_post, labels=labels,
                         save_filename=simulation_dir + '/fibre_work_post.png')
         qoi_names = ['peak_lambda', 'min_lambda', 'peak_ta', 'diastolic_ta']
-        corrs, ranges = sa.analyse(filename=simulation_dir + 'fibrework_qois.csv', qois=qoi_names,
+        slopes, intercepts, p_values, r_values, ranges = sa.analyse(filename=simulation_dir + 'fibrework_qois.csv', qois=qoi_names,
                                    show_healthy_ranges=False, save_filename=simulation_dir + '/fibre_scatter.png')
-        fibre_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))
-        fibre_ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        json.dump(fibre_corrs, open(simulation_dir + '/fibre_corrs.csv', 'w'))
-        json.dump(fibre_ranges, open(simulation_dir + '/fibre_ranges.csv', 'w'))
+        slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
+        intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
+        p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
+        r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
+        ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
+        json.dump(slopes, open(simulation_dir + '/fibre_slopes.csv', 'w'))
+        json.dump(intercepts, open(simulation_dir + '/fibre_intercepts.csv', 'w'))
+        json.dump(p_values, open(simulation_dir + '/fibre_p_values.csv', 'w'))
+        json.dump(r_values, open(simulation_dir + '/fibre_r_values.csv', 'w'))
+        json.dump(ranges, open(simulation_dir + '/fibre_ranges.csv', 'w'))
 
 
     # Strain information
@@ -237,12 +261,18 @@ for param in parameter_names:
         sa.visualise_sa(beat=1, strain_post=strain_post, labels=labels,
                         save_filename=simulation_dir + '/strain_post.png')
         qoi_names = ['max_mid_Ecc', 'min_mid_Ecc', 'max_mid_Err', 'min_mid_Err', 'max_four_chamber_Ell', 'min_four_chamber_Ell']
-        corrs, ranges = sa.analyse(filename=simulation_dir + 'strain_qois.csv', qois=qoi_names, show_healthy_ranges=False,
+        slopes, intercepts, p_values, r_values, ranges = sa.analyse(filename=simulation_dir + 'strain_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/strain_scatter.png')
-        strain_corrs = dict(map(lambda i, j: (i, j), qoi_names, corrs[:, 0]))
-        strain_ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        json.dump(strain_corrs, open(simulation_dir + '/strain_corrs.csv', 'w'))
-        json.dump(strain_ranges, open(simulation_dir + '/strain_ranges.csv', 'w'))
+        slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
+        intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
+        p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
+        r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
+        ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
+        json.dump(slopes, open(simulation_dir + '/strain_slopes.csv', 'w'))
+        json.dump(intercepts, open(simulation_dir + '/strain_intercepts.csv', 'w'))
+        json.dump(p_values, open(simulation_dir + '/strain_p_values.csv', 'w'))
+        json.dump(r_values, open(simulation_dir + '/strain_r_values.csv', 'w'))
+        json.dump(ranges, open(simulation_dir + '/strain_ranges.csv', 'w'))
 
 quit()
 #######################################################################################################################

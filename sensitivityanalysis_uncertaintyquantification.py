@@ -822,7 +822,11 @@ class SAUQ:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
         fig.suptitle('N=' + str(Y.shape[0]))
         gs = GridSpec(num_qois, X.shape[1])
-        corrs = np.zeros((num_qois, X.shape[1]))
+        slopes = np.zeros((num_qois, X.shape[1]))
+        intercepts = np.zeros((num_qois, X.shape[1]))
+        # corrs = np.zeros((num_qois, X.shape[1]))
+        p_values = np.zeros((num_qois, X.shape[1]))
+        r_values = np.zeros((num_qois, X.shape[1]))
         ranges = np.zeros((num_qois, X.shape[1]))
         for qoi_i in range(num_qois):
             for param_j in range(X.shape[1]):
@@ -836,10 +840,15 @@ class SAUQ:
                 y[~np.isfinite(y)] = 0
                 x_no_outlier = x[abs(y - np.mean(y)) < 2 * np.std(y)]
                 y_no_outlier = y[abs(y - np.mean(y)) < 2 * np.std(y)]
-                sns.regplot(x=x, y=y, ax=ax, scatter_kws={'s':1})
+                sns.regplot(x=x_no_outlier, y=x_no_outlier, ax=ax, scatter_kws={'s':1})
+                slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(x_no_outlier, y_no_outlier)
                 ax.text(x=np.nanmin(x), y=np.nanmax(y), va='top', ha='left',
-                                          s='p=%.2f' % (np.corrcoef(x_no_outlier,y_no_outlier)[0,1]) + 'range=%.2f' % (np.amax(y[np.nonzero(y)]) - np.amin(y[np.nonzero(y)])))
-                corrs[qoi_i, param_j] = np.corrcoef(y_no_outlier, y_no_outlier)[0, 1]
+                                          s='slope=%.2f, '%(slope)  + 'p_value=%.2f, ' % (p_value) + 'r_value=%.2f' % (r_value))
+                # corrs[qoi_i, param_j] = np.corrcoef(y_no_outlier, y_no_outlier)[0, 1]
+                slopes[qoi_i, param_j] = slope
+                intercepts[qoi_i, param_j] = intercept
+                r_values[qoi_i, param_j] = r_value
+                p_values[qoi_i, param_j] = p_value
                 ranges[qoi_i, param_j] = np.amax(y_no_outlier) - np.amin(y_no_outlier)
                 if qoi_i == num_qois-1:
                     ax.set_xlabel(names[param_j])
@@ -889,7 +898,7 @@ class SAUQ:
         if save_filename:
             plt.savefig(save_filename)
         plt.show()
-        return corrs, ranges
+        return slopes, intercepts, p_values, r_values, ranges
         # ###############################################################################################################
         # fig = plt.figure(tight_layout=True, figsize=(18, 10))
         # fig.suptitle('N=' + str(Y.shape[0]))
