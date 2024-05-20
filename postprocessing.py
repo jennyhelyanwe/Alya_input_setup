@@ -539,6 +539,25 @@ class PostProcessing(MeshStructure):
         qoi['diastolic_ta'] = np.amin(mean_ta[np.nonzero(mean_ta)])
         self.qoi.update(qoi)
 
+
+    def calculate_calibration_sa_parameter_ranges(self, ranked_qoi_names, oat_sa_corrs, oat_sa_ranges):
+        # Step 1: Identify QoIs that don't match target ranges
+        print('Identify QoIs that do not match target ranges')
+        outstanding_qois = self.evaluate_baseline_qoi_against_healthy_ranges(ranked_qoi_names=ranked_qoi_names)
+        print(outstanding_qois)
+        quit()
+        # Step 2: For each QoI list most important parameters, ignoring any parameters that don't hav ea linear effect (corr < 0.6)
+        print('For each QoI list most important parameters, ignoring any parameters that have nonlinear effects (corr < 0.6)')
+        # Step 3: Rank QoI according to importance for correlation
+        print('Rank QoI according to importance for correlation')
+
+        # Step 4: For each QoI in descending order, evaluate scaling factor for parameter
+        print('For each QoI in descending order, evaluate scaling factor for parameter')
+            # Step 5: Check and resolve scaling factor conflict
+            # If parameter has already been modified by higher priority QoI, and sign of change is the same, keep scaling factor of higher priority
+            # If parameter has already been modified by higher priority QoI, and sign of change is opposite, select the next most important parameter and calculate scaling factor
+
+
     def calculate_ecg_biomarkers_HolmesSmith(self, T, V, width=3, show=False):
         # Resample V and T to 1000 Hz
         T_raw = T
@@ -1333,11 +1352,11 @@ class PostProcessing(MeshStructure):
         # del three_chamber_E_ll
 
 
-    def evaluate_baseline_qoi_against_healthy_ranges(self, qoi_names):
+    def evaluate_baseline_qoi_against_healthy_ranges(self, ranked_qoi_names):
         simulated_qois = self.qoi
         self.baseline_qoi_differences = {}
-        for qoi_i in range(len(qoi_names)):
-            qoi_name = qoi_names[qoi_i]
+        for qoi_i in range(len(ranked_qoi_names)):
+            qoi_name = ranked_qoi_names[qoi_i]
             if (simulated_qois[qoi_name] <= self.healthy_ranges[qoi_name][1]) & (
                     simulated_qois[qoi_name] >= self.healthy_ranges[qoi_name][0]):
                 self.baseline_qoi_differences[qoi_name] = 0.0 # Within range
@@ -1345,7 +1364,8 @@ class PostProcessing(MeshStructure):
                 self.baseline_qoi_differences[qoi_name] = self.healthy_ranges[qoi_name][1] - simulated_qois[qoi_name]
             elif (simulated_qois[qoi_name] < self.healthy_ranges[qoi_name][0]):
                 self.baseline_qoi_differences[qoi_name] = self.healthy_ranges[qoi_name][0] - simulated_qois[qoi_name]
-        print(self.baseline_qoi_differences)
+        # Return any non-zero entries - QoIs that don't fall within healthy ranges
+        return {x:y for x,y in self.baseline_qoi_differences.items() if y != 0}
 
 
     def shift_to_start_at_ED(self, t, trace):

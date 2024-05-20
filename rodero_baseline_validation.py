@@ -172,10 +172,15 @@ if evaluate_simulated_biomarkers:
     # pp.evaluate_deformation_biomarkers(beat=beat)
     # pp.evaluate_fibre_work_biomarkers(beat=beat)
     # pp.evaluate_strain_biomarkers(beat=beat)
-    pp.visualise_qoi_comparisons(qoi_names = ['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection',
+    pp.visualise_qoi_comparisons(qoi_names = ['qrs_dur_mean', 'qt_dur_mean', 't_pe_mean', 'EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection',
                      'dvdt_filling', 'dpdt_max'], save_figure=alya_output_dir+'/qoi_evaluation.png')
-    pp.evaluate_baseline_qoi_against_healthy_ranges(qoi_names=['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection',
-                     'dvdt_filling', 'dpdt_max'])
+    # Rank QoIs according to importance for matching - based on ??
+    ranked_qoi_names = ['LVEF', 'qt_dur_mean', 'qrs_dur_mean', 't_pe_mean', 'PmaxL', 'SVL', 'EDVL', 'ESVL', 'dpdt_max',
+                        'dvdt_ejection', 'dvdt_filling']
+    pp.calculate_calibration_sa_parameter_ranges(ranked_qoi_names=ranked_qoi_names,
+                                                 oat_sa_corrs='SA_summary_OAT_corrs.csv',
+                                                 oat_sa_ranges='SA_summary_OAT_ranges.csv')
+
     # pp.visualise_calibration_comparisons_global(beat=beat)
     # pp.visualise_calibration_comparisons_strain()
     # pp.compare_ecg_with_clinical_ranges(beat=beat)
