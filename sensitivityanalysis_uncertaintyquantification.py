@@ -837,9 +837,9 @@ class SAUQ:
                 y[~np.isfinite(y)] = 0
                 x_no_outlier = x[abs(y - np.mean(y)) < 2 * np.std(y)]
                 y_no_outlier = y[abs(y - np.mean(y)) < 2 * np.std(y)]
-                sns.regplot(x=x_no_outlier, y=x_no_outlier, ax=ax, scatter_kws={'s':1})
+                sns.regplot(x=x_no_outlier, y=y_no_outlier, ax=ax, scatter_kws={'s':1})
                 slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(x_no_outlier, y_no_outlier)
-                ax.text(x=np.nanmin(x), y=np.nanmax(y), va='top', ha='left',
+                ax.text(x=np.nanmin(x_no_outlier), y=np.nanmax(y_no_outlier), va='top', ha='left',
                                           s='slope=%.2f, '%(slope)  + 'p_value=%.2f, ' % (p_value) + 'r_value=%.2f' % (r_value))
                 # corrs[qoi_i, param_j] = np.corrcoef(y_no_outlier, y_no_outlier)[0, 1]
                 slopes[qoi_i, param_j] = slope
@@ -894,7 +894,8 @@ class SAUQ:
                                    facecolor='green')
         if save_filename:
             plt.savefig(save_filename)
-        plt.show()
+        else:
+            plt.show()
         return slopes, intercepts, p_values, r_values, ranges
         # ###############################################################################################################
         # fig = plt.figure(tight_layout=True, figsize=(18, 10))

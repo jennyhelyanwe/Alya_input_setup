@@ -5,6 +5,7 @@ from generatefields import FieldGeneration
 import os
 import numpy as np
 import json
+import pandas as pd
 
 ########################################################################################################################
 # Global Settings
@@ -53,10 +54,10 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
-passive_mechanics = False
+passive_mechanics = True
 active_mechanics = True
-cellular = False
-haemodynamic = False
+cellular = True
+haemodynamic = True
 if passive_mechanics:
     parameter_names = np.array(['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'as_myocardium', 'afs_myocardium'])
     # parameter_names = np.array(
@@ -126,10 +127,15 @@ simulation_dict = json.load(open(simulation_json_file, 'r'))
 ########################################################################################################################
 # Evaluate QoIs and correlations
 evaluate_pv= True
-evaluate_ecg = True
+evaluate_ecg = False
 evaluate_deformation = False
 evaluate_fibrework = False
 evaluate_strain = False
+all_slopes = []
+all_intercepts = []
+all_p_values = []
+all_r_values = []
+all_ranges = []
 for param in parameter_names:
     simulation_dir = ''
     if system == 'jureca':
@@ -185,11 +191,16 @@ for param in parameter_names:
         p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
         r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
         ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        json.dump(slopes, open(simulation_dir + '/pv_slopes.csv', 'w'))
-        json.dump(intercepts, open(simulation_dir + '/pv_intercepts.csv', 'w'))
-        json.dump(p_values, open(simulation_dir + '/pv_p_values.csv', 'w'))
-        json.dump(r_values, open(simulation_dir + '/pv_r_values.csv', 'w'))
-        json.dump(ranges, open(simulation_dir + '/pv_ranges.csv', 'w'))
+        all_slopes.append(pd.DataFrame(slopes, index=[param]))
+        all_intercepts.append(pd.DataFrame(intercepts, index=[param]))
+        all_p_values.append(pd.DataFrame(p_values, index=[param]))
+        all_r_values.append(pd.DataFrame(r_values, index=[param]))
+        all_ranges.append(pd.DataFrame(ranges, index=[param]))
+        pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/pv_slopes.csv')
+        pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/pv_intercepts.csv')
+        pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/pv_p_values.csv')
+        pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/pv_r_values.csv')
+        pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/pv_ranges.csv')
 
     # ECG information
     if evaluate_ecg:
@@ -207,11 +218,11 @@ for param in parameter_names:
         p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
         r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
         ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        json.dump(slopes, open(simulation_dir + '/ecg_slopes.csv', 'w'))
-        json.dump(intercepts, open(simulation_dir + '/ecg_intercepts.csv', 'w'))
-        json.dump(p_values, open(simulation_dir + '/ecg_p_values.csv', 'w'))
-        json.dump(r_values, open(simulation_dir + '/ecg_r_values.csv', 'w'))
-        json.dump(ranges, open(simulation_dir + '/ecg_ranges.csv', 'w'))
+        pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/ecg_slopes.csv')
+        pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/ecg_intercepts.csv')
+        pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/ecg_p_values.csv')
+        pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/ecg_r_values.csv')
+        pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/ecg_ranges.csv')
 
     # Deformation
     if evaluate_deformation:
@@ -227,11 +238,11 @@ for param in parameter_names:
         p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
         r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
         ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        json.dump(slopes, open(simulation_dir + '/deformation_slopes.csv', 'w'))
-        json.dump(intercepts, open(simulation_dir + '/deformation_intercepts.csv', 'w'))
-        json.dump(p_values, open(simulation_dir + '/deformation_p_values.csv', 'w'))
-        json.dump(r_values, open(simulation_dir + '/deformation_r_values.csv', 'w'))
-        json.dump(ranges, open(simulation_dir + '/deformation_ranges.csv', 'w'))
+        pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/deformation_slopes.csv')
+        pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/deformation_intercepts.csv')
+        pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/deformation_p_values.csv')
+        pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/deformation_r_values.csv')
+        pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/deformation_ranges.csv')
 
     # Fibre strain and Ta
     if evaluate_fibrework:
@@ -247,11 +258,11 @@ for param in parameter_names:
         p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
         r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
         ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        json.dump(slopes, open(simulation_dir + '/fibre_slopes.csv', 'w'))
-        json.dump(intercepts, open(simulation_dir + '/fibre_intercepts.csv', 'w'))
-        json.dump(p_values, open(simulation_dir + '/fibre_p_values.csv', 'w'))
-        json.dump(r_values, open(simulation_dir + '/fibre_r_values.csv', 'w'))
-        json.dump(ranges, open(simulation_dir + '/fibre_ranges.csv', 'w'))
+        pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/fibre_slopes.csv')
+        pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/fibre_intercepts.csv')
+        pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/fibre_p_values.csv')
+        pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/fibre_r_values.csv')
+        pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/fibre_ranges.csv')
 
 
     # Strain information
@@ -268,12 +279,19 @@ for param in parameter_names:
         p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
         r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
         ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        json.dump(slopes, open(simulation_dir + '/strain_slopes.csv', 'w'))
-        json.dump(intercepts, open(simulation_dir + '/strain_intercepts.csv', 'w'))
-        json.dump(p_values, open(simulation_dir + '/strain_p_values.csv', 'w'))
-        json.dump(r_values, open(simulation_dir + '/strain_r_values.csv', 'w'))
-        json.dump(ranges, open(simulation_dir + '/strain_ranges.csv', 'w'))
+        pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/strain_slopes.csv')
+        pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/strain_intercepts.csv')
+        pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/strain_p_values.csv')
+        pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/strain_r_values.csv')
+        pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/strain_ranges.csv')
 
+#######################################################################################################################
+# Concatenate all results into a single CSV file
+pd.concat(all_slopes).to_csv('SA_summary_OAT_slopes.csv')
+pd.concat(all_intercepts).to_csv('SA_summary_OAT_intercepts.csv')
+pd.concat(all_p_values).to_csv('SA_summary_OAT_p_values.csv')
+pd.concat(all_r_values).to_csv('SA_summary_OAT_r_values.csv')
+pd.concat(all_ranges).to_csv('SA_summary_OAT_ranges.csv')
 
 #######################################################################################################################
 # # Postprocessing for visualisation purposes only
