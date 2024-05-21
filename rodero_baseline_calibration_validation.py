@@ -46,8 +46,9 @@ setup_em_alya_files = False
 setup_ep_alya_files = False
 run_alya_baseline_simulation = False
 run_alya_baseline_postprocessing = False
-evaluate_simulated_biomarkers = True
-calculate_sa_range_based_on_oat_results = True
+evaluate_simulated_biomarkers = False
+setup_calibration_alya_simulations = True
+run_alya_calibration_simulations = False
 setup_validation_alya_simulations = False
 run_alya_validation_simulations = False
 run_alya_validation_postprocessing = False
@@ -175,6 +176,8 @@ if evaluate_simulated_biomarkers:
     # pp.visualise_qoi_comparisons(qoi_names = ['qrs_dur_mean', 'qt_dur_mean', 't_pe_mean', 'EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection',
     #                  'dvdt_filling', 'dpdt_max'], save_figure=alya_output_dir+'/qoi_evaluation.png')
     # Rank QoIs according to importance for matching - based on ??
+
+    # Use OAT SA results and evaluation of biomarkers to assign new ranges for calibration SA
     ranked_qoi_names = ['LVEF', 'PmaxL', 'SVL', 'EDVL', 'ESVL', 'dpdt_max',
                         'dvdt_ejection', 'dvdt_filling']
     baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
@@ -188,15 +191,40 @@ if evaluate_simulated_biomarkers:
                                                  oat_sa_intercepts='SA_summary_OAT_intercepts.csv',
                                                  simulation_dict=simulation_dict)
 
-    # pp.visualise_calibration_comparisons_global(beat=beat)
-    # pp.visualise_calibration_comparisons_strain()
-    # pp.compare_ecg_with_clinical_ranges(beat=beat)
-    # pp.compare_deformation_with_clinical_ranges(beat=beat)
+
 
 ########################################################################################################################
 # Step 7: Use OAT SA results and evaluation of biomarkers to assign new ranges for calibration SA
-if calculate_sa_range_based_on_oat_results:
-    print ('Calculating new SA ranges based on OAT results and evaluation of previous baseline')
+calibration_folder_name = 'calibration_simulations'
+baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
+simulation_json_file = baseline_json_file
+simulation_dict = json.load(open(simulation_json_file, 'r'))
+perturbed_parameter_name = json.load(open('calibration_sa_ranges.json', 'r')).keys()
+print(perturbed_parameter_name)
+if system == 'jureca':
+    baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
+    simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + calibration_folder_name + '/'
+elif system == 'cosma':
+    baseline_dir = simulation_root_dir + 'rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
+    simulation_dir = simulation_root_dir + calibration_folder_name + '/'
+elif system == 'heart':
+    baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
+    simulation_dir = calibration_folder_name + '/'
+elif system == 'archer2':
+    baseline_dir = simulation_root_dir + 'rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
+    simulation_dir = simulation_root_dir + calibration_folder_name + '/'
+upper_bounds = []
+lower_bounds = []
+for param in perturbed_parameter_name.keys():
+    lower_bounds.append(perturbed_parameter_name[param][0])
+    upper_bounds.append(perturbed_parameter_name[param][1])
+calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 5, parameter_names=perturbed_parameter_name,
+                  baseline_json_file=baseline_json_file,simulation_dir=simulation_dir, alya_format=alya,
+                   baseline_dir=baseline_dir, verbose=verbose)
+if setup_calibration_alya_simulations:
+    calibration.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
+if run_alya_calibration_simulations:
+    calibration.run_jobs(simulation_dir)
 
 ########################################################################################################################
 # Step 6: Validation experiments - volume perturbation

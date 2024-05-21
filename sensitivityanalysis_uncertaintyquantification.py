@@ -15,13 +15,12 @@ from postprocessing import PostProcessing, mapIndices
 import pandas as pd
 from healthy_qoi_ranges import HealthyBiomarkerRanges
 class SAUQ:
-    def __init__(self, name, sampling_method, n, parameter_names, baseline_parameter_values, baseline_json_file, baseline_dir,
+    def __init__(self, name, sampling_method, n, parameter_names, baseline_json_file, baseline_dir,
                  simulation_dir, alya_format, verbose):
         self.name = name
         self.sampling_method = sampling_method
         self.n = n # This is a parameter that could either be the number of samples (for LHS) or is related to number of samples (Saltelli)
         self.parameter_names = parameter_names
-        self.baseline_parameter_values = baseline_parameter_values
         self.baseline_dir = baseline_dir
         self.number_of_parameters = parameter_names.shape[0]
         self.parameter_set = None
@@ -64,8 +63,6 @@ class SAUQ:
                 f.write(self.all_simulation_dirs[i] + '\n')
 
     def generate_parameter_set(self, upper_bounds, lower_bounds):
-        # upper_bounds = self.baseline_parameter_values * 2.0
-        # lower_bounds = self.baseline_parameter_values * 0.5
         if self.sampling_method == 'lhs':
             sampler = scipy.stats.qms.LatinHypercube(d=self.number_of_parameters)
             sample = sampler.random(n=self.n)
