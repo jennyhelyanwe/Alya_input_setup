@@ -582,7 +582,7 @@ class PostProcessing(MeshStructure):
             insignificant_regressions = list(p_values.loc[p_values[qoi] > 0.05].index)
             nonlinear_regressions = list(r_values.loc[abs(r_values[qoi]) < 0.6].index)
             ranked_parameters = [param for param in sorted_parameters if (param not in insignificant_regressions) and (param not in nonlinear_regressions)]
-            for param_i, param in enumerate(sorted_parameters):
+            for param_i, param in enumerate(ranked_parameters):
                 print('Parameter name: ', param)
                 print('Baseline value for this parameter: ', baseline_parameters[param])
                 print('QoI/param slope due to this parameter: ', slopes[qoi].loc[param])
