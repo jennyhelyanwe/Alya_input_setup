@@ -676,6 +676,7 @@ class PostProcessing(MeshStructure):
         QRS_end_time = T[QRS_end_idx]
         QRS_duration = QRS_end_time - QRS_start_time
 
+        QRS_end_idx = min(150, QRS_end_idx)
         segment = V[(QRS_end_idx + 100):1000]  # Assuming ~100 of ST segment
         t_magnitude = max(abs(segment))
         peak_idx = np.where(abs(segment) == t_magnitude)[-1][0]
@@ -721,10 +722,16 @@ class PostProcessing(MeshStructure):
         #         inverse = False
         # else:
         #     inverse = False
-        landmarks = np.array(
-            [[T[QRS_start_idx], V[QRS_start_idx]], [T[QRS_end_idx], V[QRS_end_idx]],
-             [T[t_wave_start_idx], V[t_wave_start_idx]], [T[t_peak_idx], V[t_peak_idx]],
-             [T[t_wave_end_idx], V[t_wave_end_idx]]])
+        if np.isnan(t_wave_start_idx):
+            landmarks = np.array(
+                [[T[QRS_start_idx], V[QRS_start_idx]], [T[QRS_end_idx], V[QRS_end_idx]],
+                 [np.nan, np.nan], [T[t_peak_idx], V[t_peak_idx]],
+                 [T[t_wave_end_idx], V[t_wave_end_idx]]])
+        else:
+            landmarks = np.array(
+                [[T[QRS_start_idx], V[QRS_start_idx]], [T[QRS_end_idx], V[QRS_end_idx]],
+                 [T[t_wave_start_idx], V[t_wave_start_idx]], [T[t_peak_idx], V[t_peak_idx]],
+                 [T[t_wave_end_idx], V[t_wave_end_idx]]])
 
         return QRS_duration, QT_duration, QTpeak_duration, t_wave_duration, t_peak_end, t_start_peak, t_magnitude_true,  landmarks
 
