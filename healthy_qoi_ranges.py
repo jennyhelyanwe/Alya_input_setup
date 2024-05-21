@@ -52,6 +52,7 @@ class HealthyBiomarkerRanges:
                                 'max_mid_Ecc': [-0.14, -0.08], # REF NEEDED
                                 'qt_dur_mean': [378, 419],
                                 # [ms] UKB Imaging + EST combined interquartile range https://www.ahajournals.org/doi/full/10.1161/CIRCGEN.120.003231 (Table 1)
+                                'jt_dur_mean' : [294, 335], # [ms] UKB Imaging + EST combined interquartile range https://www.ahajournals.org/doi/full/10.1161/CIRCGEN.120.003231 (Table 1)
                                 't_pe_mean': [50, 72],
                                 # [ms] LTVA interquartile range UKB https://www.ahajournals.org/action/downloadSupplement?doi=10.1161%2FJAHA.121.025897&file=jah37786-sup-0001-data-tabs-figs.pdf
                                 't_dur_mean': [100, 114],

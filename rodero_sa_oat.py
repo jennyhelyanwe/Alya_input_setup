@@ -54,10 +54,11 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
-passive_mechanics = True
-active_mechanics = True
-cellular = True
-haemodynamic = True
+passive_mechanics = False
+active_mechanics = False
+cellular = False
+haemodynamic = False
+all_parameters_at_once = True
 if passive_mechanics:
     parameter_names = np.array(['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'as_myocardium', 'afs_myocardium'])
     # parameter_names = np.array(
@@ -79,6 +80,16 @@ elif haemodynamic:
                                 'gain_derror_relaxation_lv',
                                 'ejection_pressure_threshold_lv'])
     sa_folder_root_name = 'sensitivity_analyses_haemodynamics_parameters_oat'
+elif all_parameters_at_once:
+    parameter_names = np.array(['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium',
+                                'as_myocardium', 'afs_myocardium', 'tref_scaling_myocardium', 'cal50_myocardium',
+                                'sfkws_myocardium', 'sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup', 'arterial_resistance_lv',
+                                'arterial_compliance_lv', 'gain_error_relaxation_lv', 'gain_derror_relaxation_lv',
+                                'ejection_pressure_threshold_lv'])
+    sa_folder_root_names = np.array(['sensitivity_analyses_mechanical_parameters_oat'] * 6 +
+                                    ['sensitivity_analyses_active_mechanical_parameters_oat'] * 3 +
+                                    ['sensitivity_analyses_cellular_parameters_oat'] * 5 +
+                                    ['sensitivity_analyses_haemodynamics_parameters_oat'] * 5)
 else:
     print('Turn on one of the SA types!')
     quit()
@@ -131,13 +142,15 @@ evaluate_ecg = False
 evaluate_deformation = False
 evaluate_fibrework = False
 evaluate_strain = False
-all_slopes = []
-all_intercepts = []
-all_p_values = []
-all_r_values = []
-all_ranges = []
-for param in parameter_names:
-    simulation_dir = ''
+if all_parameters_at_once:
+    all_slopes = []
+    all_intercepts = []
+    all_p_values = []
+    all_r_values = []
+    all_ranges = []
+for param_i, param in enumerate(parameter_names):
+    if all_parameters_at_once:
+        sa_folder_root_name = sa_folder_root_names[param_i]
     if system == 'jureca':
         simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
     elif system == 'cosma':
@@ -184,23 +197,27 @@ for param in parameter_names:
         sa.visualise_sa(beat=1, pv_post=pv_post, labels=labels, save_filename=simulation_dir+'/pv_post.png')
         qoi_names = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max', 'EDVR', 'ESVR',
                      'PmaxR', 'SVR']
-        slopes, intercepts, p_values, r_values, ranges = sa.analyse(filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=False,
+        slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/pv_scatter.png')
         slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
         intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
         p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
         r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
         ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        all_slopes.append(pd.DataFrame(slopes, index=[param]))
-        all_intercepts.append(pd.DataFrame(intercepts, index=[param]))
-        all_p_values.append(pd.DataFrame(p_values, index=[param]))
-        all_r_values.append(pd.DataFrame(r_values, index=[param]))
-        all_ranges.append(pd.DataFrame(ranges, index=[param]))
+        if all_parameters_at_once:
+            all_slopes.append(pd.DataFrame(slopes, index=[param]))
+            all_intercepts.append(pd.DataFrame(intercepts, index=[param]))
+            all_p_values.append(pd.DataFrame(p_values, index=[param]))
+            all_r_values.append(pd.DataFrame(r_values, index=[param]))
+            all_ranges.append(pd.DataFrame(ranges, index=[param]))
         pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/pv_slopes.csv')
         pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/pv_intercepts.csv')
         pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/pv_p_values.csv')
         pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/pv_r_values.csv')
         pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/pv_ranges.csv')
+        pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/pv_ranges.csv')
+        np.savetxt(simulation_dir + '/param_'+param+'_inputs.csv', params, delimiter=',')
+        qois = pd.DataFrame(qois, columns=qoi_names).to_csv(simulation_dir + '/param_' + param + '_pv_qoi_outcomes.csv')
 
     # ECG information
     if evaluate_ecg:
@@ -210,19 +227,27 @@ for param in parameter_names:
             print('ERROR: ECG postprocessing did not happen for some reason')
             quit()
         sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post.png')
-        qoi_names = ['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean']
-        slopes, intercepts, p_values, r_values, ranges = sa.analyse(filename=simulation_dir + 'ecg_qois.csv', qois=qoi_names, show_healthy_ranges=False,
+        qoi_names = ['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'jt_dur_mean']
+        slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'ecg_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/ecg_scatter.png')
         slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
         intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
         p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
         r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
         ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
+        if all_parameters_at_once:
+            all_slopes.append(pd.DataFrame(slopes, index=[param]))
+            all_intercepts.append(pd.DataFrame(intercepts, index=[param]))
+            all_p_values.append(pd.DataFrame(p_values, index=[param]))
+            all_r_values.append(pd.DataFrame(r_values, index=[param]))
+            all_ranges.append(pd.DataFrame(ranges, index=[param]))
         pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/ecg_slopes.csv')
         pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/ecg_intercepts.csv')
         pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/ecg_p_values.csv')
         pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/ecg_r_values.csv')
         pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/ecg_ranges.csv')
+        np.savetxt(simulation_dir + '/param_' + param + '_inputs.csv', params, delimiter=',')
+        qois = pd.DataFrame(qois, columns=qoi_names).to_csv(simulation_dir + '/param_' + param + '_ecg_qoi_outcomes.csv')
 
     # Deformation
     if evaluate_deformation:
@@ -231,18 +256,26 @@ for param in parameter_names:
         sa.visualise_sa(beat=1, deformation_post=deformation_post, labels=labels,
                         save_filename=simulation_dir + '/deformation_post.png')
         qoi_names = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness']
-        slopes, intercepts, p_values, r_values, ranges = sa.analyse(filename=simulation_dir + 'deformation_qois.csv', qois=qoi_names,
+        slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'deformation_qois.csv', qois=qoi_names,
                                    show_healthy_ranges=False, save_filename=simulation_dir + '/deformation_scatter.png')
         slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
         intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
         p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
         r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
         ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
+        if all_parameters_at_once:
+            all_slopes.append(pd.DataFrame(slopes, index=[param]))
+            all_intercepts.append(pd.DataFrame(intercepts, index=[param]))
+            all_p_values.append(pd.DataFrame(p_values, index=[param]))
+            all_r_values.append(pd.DataFrame(r_values, index=[param]))
+            all_ranges.append(pd.DataFrame(ranges, index=[param]))
         pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/deformation_slopes.csv')
         pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/deformation_intercepts.csv')
         pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/deformation_p_values.csv')
         pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/deformation_r_values.csv')
         pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/deformation_ranges.csv')
+        np.savetxt(simulation_dir + '/param_' + param + '_inputs.csv', params, delimiter=',')
+        qois = pd.DataFrame(qois, columns=qoi_names).to_csv(simulation_dir + '/param_' + param + '_deformation_qoi_outcomes.csv')
 
     # Fibre strain and Ta
     if evaluate_fibrework:
@@ -251,19 +284,26 @@ for param in parameter_names:
         sa.visualise_sa(beat=1, fibre_work_post=fibre_work_post, labels=labels,
                         save_filename=simulation_dir + '/fibre_work_post.png')
         qoi_names = ['peak_lambda', 'min_lambda', 'peak_ta', 'diastolic_ta']
-        slopes, intercepts, p_values, r_values, ranges = sa.analyse(filename=simulation_dir + 'fibrework_qois.csv', qois=qoi_names,
+        slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'fibrework_qois.csv', qois=qoi_names,
                                    show_healthy_ranges=False, save_filename=simulation_dir + '/fibre_scatter.png')
         slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
         intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
         p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
         r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
         ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
+        if all_parameters_at_once:
+            all_slopes.append(pd.DataFrame(slopes, index=[param]))
+            all_intercepts.append(pd.DataFrame(intercepts, index=[param]))
+            all_p_values.append(pd.DataFrame(p_values, index=[param]))
+            all_r_values.append(pd.DataFrame(r_values, index=[param]))
+            all_ranges.append(pd.DataFrame(ranges, index=[param]))
         pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/fibre_slopes.csv')
         pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/fibre_intercepts.csv')
         pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/fibre_p_values.csv')
         pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/fibre_r_values.csv')
         pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/fibre_ranges.csv')
-
+        np.savetxt(simulation_dir + '/param_' + param + '_inputs.csv', params, delimiter=',')
+        qois = pd.DataFrame(qois, columns=qoi_names).to_csv(simulation_dir + '/param_' + param + '_fibre_qoi_outcomes.csv')
 
     # Strain information
     if evaluate_strain:
@@ -272,27 +312,37 @@ for param in parameter_names:
         sa.visualise_sa(beat=1, strain_post=strain_post, labels=labels,
                         save_filename=simulation_dir + '/strain_post.png')
         qoi_names = ['max_mid_Ecc', 'min_mid_Ecc', 'max_mid_Err', 'min_mid_Err', 'max_four_chamber_Ell', 'min_four_chamber_Ell']
-        slopes, intercepts, p_values, r_values, ranges = sa.analyse(filename=simulation_dir + 'strain_qois.csv', qois=qoi_names, show_healthy_ranges=False,
+        slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'strain_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/strain_scatter.png')
         slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
         intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
         p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
         r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
         ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
+        if all_parameters_at_once:
+            all_slopes.append(pd.DataFrame(slopes, index=[param]))
+            all_intercepts.append(pd.DataFrame(intercepts, index=[param]))
+            all_p_values.append(pd.DataFrame(p_values, index=[param]))
+            all_r_values.append(pd.DataFrame(r_values, index=[param]))
+            all_ranges.append(pd.DataFrame(ranges, index=[param]))
         pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/strain_slopes.csv')
         pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/strain_intercepts.csv')
         pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/strain_p_values.csv')
         pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/strain_r_values.csv')
         pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/strain_ranges.csv')
+        np.savetxt(simulation_dir + '/param_' + param + '_inputs.csv', params, delimiter=',')
+        qois = pd.DataFrame(qois, columns=qoi_names).to_csv(
+            simulation_dir + '/param_' + param + '_strain_qoi_outcomes.csv')
 
 #######################################################################################################################
 # Concatenate all results into a single CSV file
+print('Concatenate all results into SA_summary_OAT files...')
 pd.concat(all_slopes).to_csv('SA_summary_OAT_slopes.csv')
 pd.concat(all_intercepts).to_csv('SA_summary_OAT_intercepts.csv')
 pd.concat(all_p_values).to_csv('SA_summary_OAT_p_values.csv')
 pd.concat(all_r_values).to_csv('SA_summary_OAT_r_values.csv')
 pd.concat(all_ranges).to_csv('SA_summary_OAT_ranges.csv')
-
+print('Finished.')
 #######################################################################################################################
 # # Postprocessing for visualisation purposes only
 # for param in parameter_names:

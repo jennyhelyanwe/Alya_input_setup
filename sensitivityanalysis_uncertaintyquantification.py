@@ -456,7 +456,6 @@ class SAUQ:
             ax_V6.set_ylim([-1, 1])
             if labels:
                 ax_V1.legend()
-            plt.show()
         if deformation_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(1, 3)
@@ -578,6 +577,9 @@ class SAUQ:
                 ax_ta.legend()
         if save_filename:
             plt.savefig(save_filename)
+            plt.close()
+        else:
+            plt.show()
 
 
     def visualise_uq(self, beat, parameter_name, ecg_post=None, pv_post=None, deformation_post=None, fibre_work_post=None):
@@ -835,8 +837,12 @@ class SAUQ:
                     y = Y[:,qoi_i]
                 x[~np.isfinite(x)] = 0
                 y[~np.isfinite(y)] = 0
-                x_no_outlier = x[abs(y - np.mean(y)) < 2 * np.std(y)]
-                y_no_outlier = y[abs(y - np.mean(y)) < 2 * np.std(y)]
+                if np.std(y) > 0.001:
+                    x_no_outlier = x[abs(y - np.mean(y)) < 3 * np.std(y)]
+                    y_no_outlier = y[abs(y - np.mean(y)) < 3 * np.std(y)]
+                else:
+                    x_no_outlier = x
+                    y_no_outlier = y
                 sns.regplot(x=x_no_outlier, y=y_no_outlier, ax=ax, scatter_kws={'s':1})
                 slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(x_no_outlier, y_no_outlier)
                 ax.text(x=np.nanmin(x_no_outlier), y=np.nanmax(y_no_outlier), va='top', ha='left',
@@ -894,9 +900,10 @@ class SAUQ:
                                    facecolor='green')
         if save_filename:
             plt.savefig(save_filename)
+            plt.close()
         else:
             plt.show()
-        return slopes, intercepts, p_values, r_values, ranges
+        return slopes, intercepts, p_values, r_values, ranges, X, Y
         # ###############################################################################################################
         # fig = plt.figure(tight_layout=True, figsize=(18, 10))
         # fig.suptitle('N=' + str(Y.shape[0]))

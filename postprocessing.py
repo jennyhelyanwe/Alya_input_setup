@@ -128,6 +128,7 @@ class PostProcessing(MeshStructure):
         t_peak = np.zeros((len(lead_names)))
         qtpeak_dur = np.zeros((len(lead_names)))
         t_dur = np.zeros((len(lead_names)))
+        jt_dur = np.zeros((len(lead_names)))
         if show_landmarks:
             fig = plt.figure(tight_layout=True, figsize=[11, 9])
             gs = GridSpec(3, 4)
@@ -143,7 +144,7 @@ class PostProcessing(MeshStructure):
             #         self.calculate_ecg_biomarkers(time=self.ecgs['ts'][beat-1], V=self.ecgs[lead_i][beat-1],
             #                                       qrs_end_t=0.1)
             # QRS_duration, QT_duration, QTpeak_duration, t_wave_duration, t_peak_end, t_start_peak, t_magnitude_true,  landmarks
-            qrs_dur[i], qt_dur[i],qtpeak_dur[i], t_dur[i], t_pe[i], t_op[i], t_peak[i], landmarks = \
+            qrs_dur[i], qt_dur[i], qtpeak_dur[i], t_dur[i], t_pe[i], t_op[i], t_peak[i], jt_dur[i], landmarks = \
                         self.calculate_ecg_biomarkers_HolmesSmith(T=self.ecgs['ts'][beat-1], V=self.ecgs[lead_i][beat-1], show=show_landmarks)
             if show_landmarks:
                 axes[i].plot(self.ecgs['ts'][beat-1]*1000, self.ecgs[lead_i][beat-1], 'k-', landmarks[0, 0], landmarks[0, 1], 'r*', landmarks[1, 0], landmarks[1, 1], 'b*',
@@ -161,6 +162,7 @@ class PostProcessing(MeshStructure):
         qoi['t_pe_mean'] = np.mean(t_pe)
         qoi['t_op_mean'] = np.mean(t_op)
         qoi['t_peak_mean'] = np.mean(t_peak)
+        qoi['jt_dur_mean'] = np.mean(jt_dur)
 
         qoi['qrs_dur_std'] = np.std(qrs_dur)
         qoi['qt_dur_std'] = np.std(qt_dur)
@@ -169,6 +171,7 @@ class PostProcessing(MeshStructure):
         qoi['t_pe_std'] = np.std(t_pe)
         qoi['t_op_std'] = np.std(t_op)
         qoi['t_peak_std'] = np.std(t_peak)
+        qoi['jt_dur_std'] = np.std(jt_dur)
         self.qoi.update(qoi)
 
     def evaluate_pv_biomarkers(self, beat):
@@ -713,6 +716,7 @@ class PostProcessing(MeshStructure):
         t_peak_end = t_wave_end_time - t_wave_peak_time
         t_start_peak = t_wave_peak_time - t_wave_start_time
         QTpeak_duration = t_wave_peak_time - QRS_start_time
+        JT_duration = QT_duration - QRS_duration
 
         # segment = V[t_wave_end_idx - 10:t_wave_end_idx]
         # if max(abs(segment)) > t_magnitude * 0.1:
@@ -733,7 +737,7 @@ class PostProcessing(MeshStructure):
                  [T[t_wave_start_idx], V[t_wave_start_idx]], [T[t_peak_idx], V[t_peak_idx]],
                  [T[t_wave_end_idx], V[t_wave_end_idx]]])
 
-        return QRS_duration, QT_duration, QTpeak_duration, t_wave_duration, t_peak_end, t_start_peak, t_magnitude_true,  landmarks
+        return QRS_duration, QT_duration, QTpeak_duration, t_wave_duration, t_peak_end, t_start_peak, t_magnitude_true, JT_duration, landmarks
 
     def calculate_ecg_biomarkers(self, time, V, LAT=None, qrs_end_t=None):
         """This is not to be used with clinical data because it assumes that the signal returns to baseline after the end
