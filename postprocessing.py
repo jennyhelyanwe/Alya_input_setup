@@ -543,18 +543,21 @@ class PostProcessing(MeshStructure):
         self.qoi.update(qoi)
 
 
-    def calculate_calibration_sa_parameter_ranges(self, ranked_qoi_names, oat_sa_corrs_filename, oat_sa_ranges_filename, simulation_dict):
+    def calculate_calibration_sa_parameter_ranges(self, ranked_qoi_names, oat_sa_slopes, oat_sa_intercepts,
+                                                  oat_sa_p_values, oat_sa_r_values, simulation_dict):
         # Step 1: Identify QoIs that don't match target ranges
         print('Identify QoIs that do not match target ranges')
         outstanding_qois = self.evaluate_baseline_qoi_against_healthy_ranges(ranked_qoi_names=ranked_qoi_names)
         print(outstanding_qois)
         # Step 2: For each QoI list most important parameters, ignoring any parameters that don't hav ea linear effect (corr < 0.6)
         print('For each QoI list most important parameters, ignoring any parameters that have nonlinear effects (corr < 0.6)')
-        corrs = pd.read_csv(oat_sa_corrs_filename, index_col=0)
-        ranges = pd.read_csv(oat_sa_ranges_filename, index_col=0)
+        slopes = pd.read_csv(oat_sa_slopes, index_col=0)
+        intercepts = pd.read_csv(oat_sa_intercepts, index_col=0)
+        p_values = pd.read_csv(oat_sa_p_values, index_col=0)
+        r_values = pd.read_csv(oat_sa_r_values, index_col=0)
         # Get baseline parmaeters
         baseline_parameters = {}
-        parameters = list(corrs.index)
+        parameters = list(slopes.index)
         for param in parameters:
             if 'sf_' in param:
                 baseline_parameters[param] = simulation_dict[param][0][0]
@@ -569,29 +572,30 @@ class PostProcessing(MeshStructure):
             else:
                 baseline_parameters[param] = simulation_dict[param]
         sa_ranges = {}
+        sa_slopes = {}
         simulated_qois = self.qoi
         parameter_qoi_correspondence = {}
         for qoi in outstanding_qois:
             print('Evaluating scaling factor to achieve target for QoI: ', qoi)
             print(outstanding_qois[qoi])
-            sorted_parameters = list(ranges.sort_values(by=[qoi], ascending=False)[qoi].index)
-            nonlinear_corrs = list(corrs.loc[abs(corrs[qoi]) < 0.5].index)
-            ranked_parameters = [param for param in sorted_parameters if param not in nonlinear_corrs]
+            sorted_parameters = list(slopes.sort_values(by=[qoi], ascending=False)[qoi].index)
+            insignificant_regressions = list(p_values.loc[p_values[qoi] > 0.05].index)
+            nonlinear_regressions = list(r_values.loc[abs(r_values[qoi]) < 0.6].index)
+            ranked_parameters = [param for param in sorted_parameters if (param not in insignificant_regressions) and (param not in nonlinear_regressions)]
             for param_i, param in enumerate(sorted_parameters):
                 print('Parameter name: ', param)
                 print('Baseline value for this parameter: ', baseline_parameters[param])
-                print('OAT SA parameter range: ', baseline_parameters[param] * 0.5, baseline_parameters[param] * 2)
-                print('OAT SA QoI range due to this parameter: ', ranges[qoi].loc[param])
-                print('Baseline QoI', simulated_qois[qoi])
+                print('QoI/param slope due to this parameter: ', slopes[qoi].loc[param])
+                print('QoI intercept for this parameter: ', intercepts[qoi].loc[param])
                 print('Healthy ranges for the QoI: ', self.healthy_ranges[qoi])
-                gradient = np.sign(corrs[qoi].loc[param]) * ranges[qoi].loc[param] / ( baseline_parameters[param] * 1.5)
-                sa_range_l = (self.healthy_ranges[qoi][0] - simulated_qois[qoi] + gradient * baseline_parameters[param] )/gradient
-                sa_range_u = (self.healthy_ranges[qoi][1] - simulated_qois[qoi] + gradient * baseline_parameters[param] )/gradient
-                print('Gradient of Qoi/Param linear correlation: ', gradient)
-                print('SA exploration range for this parameter: ', [sa_range_l, sa_range_u])
+                sa_range_l = (self.healthy_ranges[qoi][0] - intercepts[qoi])/slopes[qoi]
+                sa_range_u = (self.healthy_ranges[qoi][1] - intercepts[qoi])/slopes[qoi]
+                sorted_sa_range = [sa_range_l, sa_range_u].sort()
+                print('SA exploration range for this parameter: ', sorted_sa_range)
                 if param in list(sa_ranges.keys()):
-                    if np.sign(sa_range_l) == np.sign(sa_ranges[param][0]):
-                        sa_ranges[param] = [min([sa_range_l, sa_ranges[param][0]]), max([sa_range_u, sa_ranges[param][1]])] # Augment the ranges as necessary
+                    if np.sign(slopes[qoi].loc[param]) == np.sign(sa_slopes[param]):
+                        sa_ranges[param] = [min([sorted_sa_range[0], sa_ranges[param][0]]), max([sorted_sa_range[1], sa_ranges[param][1]])] # Augment the ranges as necessary
+                        sa_slopes[param] = np.sign(sa_slopes[param])*max([abs(slopes[qoi].loc[param]), abs(sa_slopes[param])])
                         # Scaling factor for this parameter is unchanged, the QoI with higher priority takes precedence
                         parameter_qoi_correspondence[param] = parameter_qoi_correspondence[param] + ' and for: ' + qoi
                         break
@@ -600,7 +604,8 @@ class PostProcessing(MeshStructure):
                         continue
                 else:
                     # Parameter has not yet been selected for SA, use the scaling factor just calculated.
-                    sa_ranges[param] = [sa_range_l, sa_range_u]
+                    sa_ranges[param] = sorted_sa_range
+                    sa_slopes[param] = slopes[qoi].loc[param]
                     parameter_qoi_correspondence[param] = 'for: '+ qoi
                     break
 

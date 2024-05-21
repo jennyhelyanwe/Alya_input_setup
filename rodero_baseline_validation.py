@@ -181,8 +181,10 @@ if evaluate_simulated_biomarkers:
     simulation_json_file = baseline_json_file
     simulation_dict = json.load(open(simulation_json_file, 'r'))
     pp.calculate_calibration_sa_parameter_ranges(ranked_qoi_names=ranked_qoi_names,
-                                                 oat_sa_corrs_filename='SA_summary_OAT_corrs.csv',
-                                                 oat_sa_ranges_filename='SA_summary_OAT_ranges.csv',
+                                                 oat_sa_slopes='SA_summary_OAT_slopes.csv',
+                                                 oat_sa_p_values='SA_summary_OAT_p_values.csv',
+                                                 oat_sa_r_values='SA_summary_OAT_r_values.csv',
+                                                 oat_sa_intercepts='SA_summary_OAT_intercepts.csv',
                                                  simulation_dict=simulation_dict)
 
     # pp.visualise_calibration_comparisons_global(beat=beat)
