@@ -184,6 +184,7 @@ if evaluate_simulated_biomarkers:
                                                  oat_sa_slopes='SA_summary_OAT_slopes.csv',
                                                  oat_sa_p_values='SA_summary_OAT_p_values.csv',
                                                  oat_sa_r_values='SA_summary_OAT_r_values.csv',
+                                                 oat_sa_ranges='SA_summary_OAT_ranges.csv',
                                                  oat_sa_intercepts='SA_summary_OAT_intercepts.csv',
                                                  simulation_dict=simulation_dict)
 

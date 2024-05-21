@@ -544,7 +544,7 @@ class PostProcessing(MeshStructure):
 
 
     def calculate_calibration_sa_parameter_ranges(self, ranked_qoi_names, oat_sa_slopes, oat_sa_intercepts,
-                                                  oat_sa_p_values, oat_sa_r_values, simulation_dict):
+                                                  oat_sa_p_values, oat_sa_r_values, oat_sa_ranges, simulation_dict):
         # Step 1: Identify QoIs that don't match target ranges
         print('Identify QoIs that do not match target ranges')
         outstanding_qois = self.evaluate_baseline_qoi_against_healthy_ranges(ranked_qoi_names=ranked_qoi_names)
@@ -555,9 +555,10 @@ class PostProcessing(MeshStructure):
         intercepts = pd.read_csv(oat_sa_intercepts, index_col=0)
         p_values = pd.read_csv(oat_sa_p_values, index_col=0)
         r_values = pd.read_csv(oat_sa_r_values, index_col=0)
+        ranges = pd.read_csv(oat_sa_ranges, index_col=0)
         # Get baseline parmaeters
         baseline_parameters = {}
-        parameters = list(slopes.index)
+        parameters = list(ranges.index)
         for param in parameters:
             if 'sf_' in param:
                 baseline_parameters[param] = simulation_dict[param][0][0]
@@ -577,21 +578,25 @@ class PostProcessing(MeshStructure):
         parameter_qoi_correspondence = {}
         for qoi in outstanding_qois:
             print('Evaluating scaling factor to achieve target for QoI: ', qoi)
-            print(outstanding_qois[qoi])
-            sorted_parameters = list(slopes.sort_values(by=[qoi], ascending=False)[qoi].index)
+            print('Baseline QoI is: ', simulated_qois[qoi])
+            sorted_parameters = list(ranges.sort_values(by=[qoi], ascending=False)[qoi].index)
             insignificant_regressions = list(p_values.loc[p_values[qoi] > 0.05].index)
             nonlinear_regressions = list(r_values.loc[abs(r_values[qoi]) < 0.6].index)
             ranked_parameters = [param for param in sorted_parameters if (param not in insignificant_regressions) and (param not in nonlinear_regressions)]
             for param_i, param in enumerate(ranked_parameters):
                 print('Parameter name: ', param)
                 print('Baseline value for this parameter: ', baseline_parameters[param])
-                print('QoI/param slope due to this parameter: ', slopes[qoi].loc[param])
-                print('QoI intercept for this parameter: ', intercepts[qoi].loc[param])
+                print('QoI/param ranges due to this parameter: ', ranges[qoi].loc[param])
                 print('Healthy ranges for the QoI: ', self.healthy_ranges[qoi])
-                sa_range_l = (self.healthy_ranges[qoi][0] - intercepts[qoi])/slopes[qoi]
-                sa_range_u = (self.healthy_ranges[qoi][1] - intercepts[qoi])/slopes[qoi]
-                sorted_sa_range = [sa_range_l, sa_range_u].sort()
+                sa_range_l = (self.healthy_ranges[qoi][0] - intercepts[qoi].loc[param])/slopes[qoi].loc[param]
+                sa_range_u = (self.healthy_ranges[qoi][1] - intercepts[qoi].loc[param])/slopes[qoi].loc[param]
+                sorted_sa_range = [sa_range_l, sa_range_u]
+                sorted_sa_range.sort()
                 print('SA exploration range for this parameter: ', sorted_sa_range)
+                if (sa_range_l < 0) or (sa_range_u < 0):
+                    # Cannot use this parameter since the new parameter ranges go negative.
+                    print('SA ranges went negative, try next one...')
+                    continue
                 if param in list(sa_ranges.keys()):
                     if np.sign(slopes[qoi].loc[param]) == np.sign(sa_slopes[param]):
                         sa_ranges[param] = [min([sorted_sa_range[0], sa_ranges[param][0]]), max([sorted_sa_range[1], sa_ranges[param][1]])] # Augment the ranges as necessary
@@ -608,20 +613,8 @@ class PostProcessing(MeshStructure):
                     sa_slopes[param] = slopes[qoi].loc[param]
                     parameter_qoi_correspondence[param] = 'for: '+ qoi
                     break
-
-        print(sa_ranges)
-        print(parameter_qoi_correspondence)
-        quit()
-
-
-        # Step 3: Rank QoI according to importance for correlation
-        print('Rank QoI according to importance for correlation')
-
-        # Step 4: For each QoI in descending order, evaluate scaling factor for parameter
-        print('For each QoI in descending order, evaluate scaling factor for parameter')
-            # Step 5: Check and resolve scaling factor conflict
-            # If parameter has already been modified by higher priority QoI, and sign of change is the same, keep scaling factor of higher priority
-            # If parameter has already been modified by higher priority QoI, and sign of change is opposite, select the next most important parameter and calculate scaling factor
+        json.dump(sa_ranges, open('calibration_sa_ranges.json', 'w'))
+        json.dump(parameter_qoi_correspondence, open('calibration_sa_param_qoi_correspondence', 'w'))
 
 
     def calculate_ecg_biomarkers_HolmesSmith(self, T, V, width=3, show=False):
