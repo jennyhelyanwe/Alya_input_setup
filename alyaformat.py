@@ -804,7 +804,7 @@ class AlyaFormat(MeshStructure):
         elif self.job_version == 'archer2':
             tasks_per_node = 128
             job_type = 'standard'
-        insert_data = [[self.simulation_dict['name'], str(int(np.ceil(self.simulation_dict['time_end']*2.))),
+        insert_data = [[self.simulation_dict['name'], str(int(np.ceil(self.simulation_dict['time_end']*3.))),
                        np.ceil(self.simulation_dict['computational_cores']/tasks_per_node).astype(int), tasks_per_node,
                        self.simulation_dict['computational_cores'], job_type, 'main.py']]
         data = self.template(filename, keys=keys, data=insert_data, num_duplicates=1)

@@ -37,6 +37,8 @@ class SAUQ:
         self.generate_parameter_set( upper_bounds, lower_bounds)
         print('Number of samples/simulations to set up: ', str(self.parameter_set.shape[0]))
         print('Number of parameters included: ', str(self.parameter_set.shape[1]))
+        print('Parameter set is: ', self.parameter_set)
+        input('Press Enter to continue...')
         self.generate_alya_simulation_json(self.baseline_json_file)
 
     def setup_fibre_sa(self, fields, fibre_filenames, sheet_filenames, normal_filenames, map_filename, baseline_json_file):
@@ -339,7 +341,8 @@ class SAUQ:
                 if os.path.exists(dir + '/results_csv/timeset_1.csv'):
                     self.finished_simulation_dirs.append(dir + '/')
 
-    def sort_simulations(self, tag='postprocess'):
+    def sort_simulations(self, tag='postprocess', show_parameters=True):
+        print('Counting number of finished simulations...')
         with open(self.simulation_dir + '/all_simulation_dirs.txt', 'r') as f:
             all_simulation_dirs = f.readlines()
         self.finished_simulation_dirs = []
@@ -350,8 +353,12 @@ class SAUQ:
                         self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
         elif tag== 'raw':
             for simulation_i in range(len(all_simulation_dirs)):
-                if os.path.exists(all_simulation_dirs[simulation_i].split()[0]+'/heart-cardiac-cycle.sld.res'):
-                    self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
+                filename = all_simulation_dirs[simulation_i].split()[0]+'/heart-cardiac-cycle.sld.res'
+                if os.path.exists(filename):
+                    with open(filename, 'r') as f:
+                        lines = f.readlines()
+                        if len(lines) > 18:
+                            self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
         elif tag == 'cube_postprocess':
             for simulation_i in range(len(all_simulation_dirs)):
                 if os.path.exists(all_simulation_dirs[simulation_i].split()[0] + '/results_csv/timeset_1.csv'):
@@ -360,6 +367,26 @@ class SAUQ:
             #     with open(all_simulation_dirs[simulation_i].split()[0] + '/heart.post.alyafil', 'r') as f:
             #         if len(f.readlines()) >= 1000:
             #             self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
+        print('Number of finished simulations: ', len(self.finished_simulation_dirs))
+
+    def visualise_finished_parameter_sets(self, upper_bounds, lower_bounds):
+        self.generate_parameter_set(upper_bounds, lower_bounds)
+        finished_hue_label = np.zeros(self.parameter_set.shape)
+        finished_parameters_i = []
+        for i in range(len(self.finished_simulation_dirs)):
+            finished_parameters_i.append(int(self.finished_simulation_dirs[i].split('/')[-2].split('_')[1]))
+        finished_hue_label[finished_parameters_i, :] = 1
+        fig = plt.figure(tight_layout=True, figsize=(18, 10))
+        gs = GridSpec(1, len(self.parameter_names))
+        for i in range(len(self.parameter_names)):
+            ax = fig.add_subplot(gs[0, i])
+            ax.plot(self.parameter_set[:, i], 'k*', alpha=0.5)
+            ax.plot(self.parameter_set[finished_parameters_i, i], 'r*')
+            # sns.swarmplot(data=self.parameter_set[:, i], ax=ax, hue=finished_hue_label[:,i])
+            ax.set_xlabel(self.parameter_names[i])
+            ax.set_ylabel('Parameter value')
+        plt.show()
+
 
 
     def visualise_sa(self, beat, ecg_post=None, pv_post=None, deformation_post=None,
@@ -1010,12 +1037,17 @@ class SAUQ:
         plt.show()
 
 
-    def run_jobs(self, simulation_dir, start_id=0):
+    def run_jobs(self, simulation_dir, start_id=0, end_id=None):
         with open(simulation_dir+'/all_simulation_dirs.txt', 'r') as f:
             all_simulation_dirs = f.readlines()
-        for simulation_i in range(start_id, len(all_simulation_dirs)):
-            cmd = 'cd '+all_simulation_dirs[simulation_i].split()[0]
-            os.system('cd '+all_simulation_dirs[simulation_i].split()[0]+'; pwd ; sbatch run_job.cmd')
+        if end_id:
+            for simulation_i in range(start_id, end_id):
+                cmd = 'cd '+all_simulation_dirs[simulation_i].split()[0]
+                os.system('cd '+all_simulation_dirs[simulation_i].split()[0]+'; pwd ; sbatch run_job.cmd')
+        else:
+            for simulation_i in range(start_id, len(all_simulation_dirs)):
+                cmd = 'cd '+all_simulation_dirs[simulation_i].split()[0]
+                os.system('cd '+all_simulation_dirs[simulation_i].split()[0]+'; pwd ; sbatch run_job.cmd')
 
 
     def run_jobs_postprocess(self, simulation_dir):

@@ -20,6 +20,8 @@ elif 'polaris' in workdir:
     system = 'polaris'
 elif 'Expansion' in workdir:
     system = 'archive'
+elif 'e769' in workdir:
+    system = 'archer2'
 else:
     system = 'heart'
 if system == 'jureca':
@@ -30,6 +32,8 @@ elif system == 'heart':
     meta_data_dir = '/data/Personalisation_projects/meta_data/'
 elif system == 'archive':
     meta_data_dir = '/run/media/jenang/Expansion/JURECA_COSMA_download_April2024/meta_data/'
+elif system == 'archer2':
+    meta_data_dir = '/work/e769/e769/jennywang/Alya_pipeline/meta_data/'
 geometric_data_dir = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_fine/'
 clinical_data_dir = meta_data_dir + 'clinical_data/'
 verbose = False
@@ -47,18 +51,22 @@ elif system == 'heart':
     simulation_root_dir = './'
 elif system == 'archive':
     simulation_root_dir = '/run/media/jenang/Expansion/JURECA_COSMA_download_April2024/Alya_pipeline/alya_simulations/'
+elif system == 'archer2':
+    simulation_root_dir = '/work/e769/e769/jennywang/Alya_pipeline/alya_simulations/'
 personalisation_data_dir = meta_data_dir + 'results/personalisation_data/rodero_'+mesh_number+'/'
 alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
-                  simulation_dir = simulation_root_dir, verbose=verbose)
+                  simulation_dir = simulation_root_dir, verbose=verbose, job_version=system)
 
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
-passive_mechanics = False
+setup_simulations = True
+run_simulations = False
+passive_mechanics = True
 active_mechanics = False
 cellular = False
 haemodynamic = False
-all_parameters_at_once = True
+all_parameters_at_once = False
 if passive_mechanics:
     parameter_names = np.array(['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'as_myocardium', 'afs_myocardium'])
     # parameter_names = np.array(
@@ -98,43 +106,52 @@ baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
 simulation_json_file = baseline_json_file
 simulation_dict = json.load(open(simulation_json_file, 'r'))
 ########################################################################################################################
-# # Run simulations
-# for param in parameter_names:
-#     if 'sf_' in param:
-#         baseline_parameter_values = np.array([simulation_dict[param][0][0]])
-#     elif '_lv' in param:
-#         baseline_parameter_values = np.array([simulation_dict[param.split('_lv')[0]][0]])
-#     elif '_rv' in param:
-#         baseline_parameter_values = np.array([simulation_dict[param.split('_rv')[0]][1]])
-#     elif '_myocardium' in param:
-#         baseline_parameter_values = np.array([simulation_dict[param.split('_myocardium')[0]][0]])
-#     elif '_valveplug' in param:
-#         baseline_parameter_values = np.array([simulation_dict[param.split('_valveplug')[0]][1]])
-#     else:
-#         baseline_parameter_values = np.array([simulation_dict[param]])
-#     upper_bounds = baseline_parameter_values * 2.0
-#     lower_bounds = baseline_parameter_values * 0.1
-#     baseline_json_file = 'rodero_baseline_simulation_em.json'
-#     simulation_dir = ''
-#     baseline_dir = ''
-#     if system == 'jureca':
-#         baseline_dir = simulation_root_dir + 'rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
-#         simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
-#     elif system == 'cosma':
-#         baseline_dir = '/cosma8/data/dp287/dc-wang14/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
-#         simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
-#     elif system == 'polaris':
-#         baseline_dir = '/grand/projects/CompBioAffin/jenang/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
-#     elif system == 'heart':
-#         baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
-#         simulation_dir = sa_folder_root_name + '_' + param + '/'
-#     parameter_names = np.array([param])
-#     sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names,
-#               baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
-#               simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-#     sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
-#     sa.run_jobs(simulation_dir)
-# quit()
+# Run simulations
+
+for param in parameter_names:
+    print('Setting up One-at-a-time SA for parameter: ', param)
+    if 'sf_' in param:
+        baseline_parameter_values = np.array([simulation_dict[param][0][0]])
+    elif '_lv' in param:
+        baseline_parameter_values = np.array([simulation_dict[param.split('_lv')[0]][0]])
+    elif '_rv' in param:
+       baseline_parameter_values = np.array([simulation_dict[param.split('_rv')[0]][1]])
+    elif '_myocardium' in param:
+        baseline_parameter_values = np.array([simulation_dict[param.split('_myocardium')[0]][0]])
+    elif '_valveplug' in param:
+        baseline_parameter_values = np.array([simulation_dict[param.split('_valveplug')[0]][1]])
+    else:
+        baseline_parameter_values = np.array([simulation_dict[param]])
+    upper_bounds = baseline_parameter_values * 2.0
+    lower_bounds = baseline_parameter_values * 0.1
+    if passive_mechanics:
+        upper_bounds = baseline_parameter_values * 100.0
+        lower_bounds = baseline_parameter_values * 0.01
+    baseline_json_file = 'rodero_baseline_simulation_em.json'
+    simulation_dir = ''
+    baseline_dir = ''
+    if system == 'jureca':
+        baseline_dir = simulation_root_dir + 'rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
+        simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
+    elif system == 'cosma':
+        baseline_dir = '/cosma8/data/dp287/dc-wang14/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
+        simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
+    elif system == 'polaris':
+        baseline_dir = '/grand/projects/CompBioAffin/jenang/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
+    elif system == 'heart':
+        baseline_dir = '/users/jenang/Alya_setup_SA/rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
+        simulation_dir = sa_folder_root_name + '_' + param + '/'
+    elif system == 'archer2':
+        baseline_dir = simulation_root_dir + 'rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
+        simulation_dir = simulation_root_dir + sa_folder_root_name + '/'
+    parameter_names = np.array([param])
+    sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names, baseline_json_file=baseline_json_file,
+             simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+    if setup_simulations:
+        sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
+    if run_simulations:
+        sa.run_jobs(simulation_dir)
+quit()
 ########################################################################################################################
 # Evaluate QoIs and correlations
 evaluate_pv= True
@@ -161,6 +178,10 @@ for param_i, param in enumerate(parameter_names):
         simulation_dir = sa_folder_root_name + '_' + param + '/'
     elif system == 'archive':
         simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
+    elif system == 'archer2':
+        simulation_dir = simulation_root_dir + sa_folder_root_name + '_' + param + '/'
+    print(simulation_dir)
+    quit()
     if 'sf_' in param:
         baseline_parameter_values = np.array([simulation_dict[param][0][0]])
     elif '_lv' in param:
@@ -177,8 +198,7 @@ for param_i, param in enumerate(parameter_names):
     lower_bounds = baseline_parameter_values * 0.1
     parameter_names = np.array([param])  # Dummy
     baseline_dir = ''  # Dummy
-    sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names,
-              baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+    sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names, baseline_json_file=baseline_json_file,
               simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
     labels = [param +'=' + s for s in ["%.1f" % x for x in np.linspace(lower_bounds, upper_bounds, 8)]]
     beat = 1

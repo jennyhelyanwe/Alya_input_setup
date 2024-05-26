@@ -41,14 +41,15 @@ generate_fields_original_doste = False
 generate_fields_Green_fibres = False
 generate_fields_12090_fibres = False
 generate_fields_slices_and_local_bases = False
-setup_em_alya_literature_parameters_files = False
+setup_em_alya_literature_parameters_files = True
 setup_em_alya_files = False
 setup_ep_alya_files = False
-run_alya_baseline_simulation = False
+run_alya_baseline_simulation = True
 run_alya_baseline_postprocessing = False
 evaluate_simulated_biomarkers = False
-setup_calibration_alya_simulations = True
+setup_calibration_alya_simulations = False
 run_alya_calibration_simulations = False
+evaluate_calibration_sa = False
 setup_validation_alya_simulations = False
 run_alya_validation_simulations = False
 run_alya_validation_postprocessing = False
@@ -147,7 +148,8 @@ if setup_ep_alya_files:
     alya.do(simulation_json_file=simulation_json_file)
 
 if setup_em_alya_literature_parameters_files:
-    simulation_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
+    # simulation_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
+    simulation_json_file = 'rodero_baseline_simulation_em_literature_parameters_high_sfkws.json'
     alya.do(simulation_json_file=simulation_json_file)
 
 ########################################################################################################################
@@ -156,7 +158,7 @@ if run_alya_baseline_simulation:
     run_job(alya.output_dir)
 if run_alya_baseline_postprocessing:
     run_job_postprocess(alya.output_dir)
-
+quit()
 ########################################################################################################################
 # Step 6: Postprocess
 if evaluate_simulated_biomarkers:
@@ -199,8 +201,9 @@ calibration_folder_name = 'calibration_simulations'
 baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
 simulation_json_file = baseline_json_file
 simulation_dict = json.load(open(simulation_json_file, 'r'))
-perturbed_parameter_name = json.load(open('calibration_sa_ranges.json', 'r')).keys()
-print(perturbed_parameter_name)
+perturbed_parameters = json.load(open('calibration_sa_ranges.json', 'r'))
+perturbed_parameters_name = np.array(list(perturbed_parameters.keys()))
+print(perturbed_parameters_name)
 if system == 'jureca':
     baseline_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
     simulation_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/' + calibration_folder_name + '/'
@@ -215,24 +218,79 @@ elif system == 'archer2':
     simulation_dir = simulation_root_dir + calibration_folder_name + '/'
 upper_bounds = []
 lower_bounds = []
-for param in perturbed_parameter_name.keys():
-    lower_bounds.append(perturbed_parameter_name[param][0])
-    upper_bounds.append(perturbed_parameter_name[param][1])
-calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 5, parameter_names=perturbed_parameter_name,
-                  baseline_json_file=baseline_json_file,simulation_dir=simulation_dir, alya_format=alya,
+for param in perturbed_parameters_name:
+    lower_bounds.append(perturbed_parameters[param][0])
+    upper_bounds.append(perturbed_parameters[param][1])
+calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 5, parameter_names=perturbed_parameters_name,
+                   baseline_json_file=baseline_json_file, simulation_dir=simulation_dir, alya_format=alya,
                    baseline_dir=baseline_dir, verbose=verbose)
 if setup_calibration_alya_simulations:
     calibration.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
 if run_alya_calibration_simulations:
-    calibration.run_jobs(simulation_dir)
+    calibration.run_jobs(simulation_dir, start_id=128, end_id=256) # Maximum job submission in archer2 is 128 for QoS:taskfarm.
 
+# calibration.run_jobs(simulation_dir, start_id=0, end_id=128) # Maximum job submission in archer2 is 128 for QoS:taskfarm.
+if evaluate_calibration_sa:
+    if system == 'archive':
+        calibration.sort_simulations_archive(tag='raw')
+    else:
+        calibration.sort_simulations(
+            tag='raw')  # Collate list of finished simulations by checking the existence of particular files.
+    calibration.visualise_finished_parameter_sets(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
+    evaluate_pv = True
+    evaluate_ecg = False
+    evaluate_deformation = False
+    evaluate_fibrework = False
+    evaluate_strain = False
+    beat = 1
+    if evaluate_pv:
+        pv_post = calibration.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
+                                             analysis_type='sa')
+        # calibration.visualise_sa(beat=1, pv_post=pv_post, save_filename=simulation_dir + '/pv_post.png')
+        calibration.visualise_sa(beat=1, pv_post=pv_post)
+        qoi_names = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max', 'EDVR',
+                     'ESVR', 'PmaxR', 'SVR']
+        # slopes, intercepts, p_values, r_values, ranges, params, qois = calibration.analyse(
+        #     filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=False,
+        #     save_filename=simulation_dir + '/pv_scatter.png')
+        slopes, intercepts, p_values, r_values, ranges, params, qois = calibration.analyse(
+            filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=False)
+    elif evaluate_ecg:
+        ecg_post = calibration.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
+                                             analysis_type='sa')
+        calibration.visualise_sa(beat=1, pv_post=ecg_post, save_filename=simulation_dir + '/ecg_post.png')
+        qoi_names = ['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'jt_dur_mean']
+        slopes, intercepts, p_values, r_values, ranges, params, qois = calibration.analyse(
+            filename=simulation_dir + 'ecg_qois.csv', qois=qoi_names, show_healthy_ranges=False,
+            save_filename=simulation_dir + '/ecg_scatter.png')
+    elif evaluate_deformation:
+        deformation_post = calibration.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
+                                             analysis_type='sa')
+        calibration.visualise_sa(beat=1, pv_post=deformation_post, save_filename=simulation_dir + '/ecg_post.png')
+        qoi_names = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness']
+        slopes, intercepts, p_values, r_values, ranges, params, qois = calibration.analyse(
+            filename=simulation_dir + 'deformation_qois.csv', qois=qoi_names, show_healthy_ranges=False,
+            save_filename=simulation_dir + '/deformation_scatter.png')
+
+    elif evaluate_strain:
+        strain_post = calibration.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat,
+                                                     qoi_save_dir=simulation_dir,
+                                                     analysis_type='sa')
+        calibration.visualise_sa(beat=1, pv_post=strain_post, save_filename=simulation_dir + '/ecg_post.png')
+        qoi_names = ['max_mid_Ecc', 'min_mid_Ecc', 'max_mid_Err', 'min_mid_Err', 'max_four_chamber_Ell',
+                     'min_four_chamber_Ell']
+        slopes, intercepts, p_values, r_values, ranges, params, qois = calibration.analyse(
+            filename=simulation_dir + 'strain_qois.csv', qois=qoi_names, show_healthy_ranges=False,
+            save_filename=simulation_dir + '/strain_scatter.png')
+
+quit()
 ########################################################################################################################
 # Step 6: Validation experiments - volume perturbation
 validation_folder_name = 'volume_perturbation_validation_experiments'
 baseline_json_file = 'rodero_baseline_simulation_em.json'
 simulation_json_file = baseline_json_file
 simulation_dict = json.load(open(simulation_json_file, 'r'))
-perturbed_parameter_name = np.array(['end_diastole_p_lv'])
+perturbed_parameters_name = np.array(['end_diastole_p_lv'])
 baseline_parameter_values = np.array([simulation_dict['end_diastole_p'][0]])
 upper_bounds = baseline_parameter_values * 4.0
 lower_bounds = baseline_parameter_values * 0.8
@@ -249,9 +307,9 @@ elif system == 'heart':
 elif system == 'archer2':
     baseline_dir = simulation_root_dir + 'rodero_baseline_simulation_em_rodero_05_fine_mec_baseline/'
     simulation_dir = simulation_root_dir + validation_folder_name + '/'
-experiment = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 2, parameter_names=perturbed_parameter_name,
-          baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
-          simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+experiment = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 2, parameter_names=perturbed_parameters_name,
+                  baseline_parameter_values=baseline_parameter_values, baseline_json_file=baseline_json_file,
+                  simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
 if setup_validation_alya_simulations:
     experiment.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
 if run_alya_validation_simulations:

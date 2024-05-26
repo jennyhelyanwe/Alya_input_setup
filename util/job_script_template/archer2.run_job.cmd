@@ -5,7 +5,7 @@
 #SBATCH --nodes=<<computational_nodes>>
 #SBATCH --ntasks-per-node=128
 #SBATCH --cpus-per-task=1
-#SBATCH --qos=standard
+#SBATCH --qos=taskfarm
 #SBATCH --partition=standard
 #SBATCH --export=none
 

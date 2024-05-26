@@ -1,7 +1,8 @@
 BEATS <<cell_number_of_beats>>
 CYCLELENGTH <<cycle_length>>
 CELLTYPE <<cell_type_str>>
-STEADY_STATE <<cell_steady_state_type>> TOLERANCE <<cell_steady_state_tolerance>>
+$STEADY_STATE <<cell_steady_state_type>> TOLERANCE <<cell_steady_state_tolerance>>
+IGNORE_STEADY_STATE ENDO EPI MID
 MYOCYTE <<cell_model_modification_toggle>>
 CONDUCTANCES
 INAME HUMAN
