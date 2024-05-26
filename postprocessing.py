@@ -619,16 +619,24 @@ class PostProcessing(MeshStructure):
 
     def calculate_ecg_biomarkers_HolmesSmith(self, T, V, width=3, show=False):
         # Resample V and T to 1000 Hz
-        T_raw = T
+        T_raw = pymp.shared.array(T.shape, dtype=float)
+        T_raw[:] = T * 1000
         V_raw = V
         idx_end = int(np.floor(max(T)*1000))
-        T = []
-        V = []
-        for i in range(0, idx_end):
-            current_t = i/1000
-            T.append(current_t)
-            idx = np.where(abs(T_raw - current_t) == min(abs(T_raw - current_t)))[0][0]
-            V.append(V_raw[idx])
+        T = np.zeros(idx_end+1)
+        V = np.zeros(idx_end+1)
+        threadsNum = int(multiprocessing.cpu_count() * 0.7)
+        mapped_indexes = pymp.shared.array((T.shape[0]), dtype=int)
+        t_1Hz = pymp.shared.array((idx_end+1), dtype=float)
+        t_1Hz[:] = np.linspace(0, idx_end, idx_end+1)
+        with pymp.Parallel(min(threadsNum, idx_end)) as p1:
+            for conf_i in p1.range(T.shape[0]):
+                # current_t = i / 1000
+                # mapped_indexes[conf_i] = np.argmin(
+                #     np.linalg.norm(reference_points_xyz - points_to_map_xyz[conf_i, :], ord=2, axis=1)).astype(int)
+                mapped_indexes[conf_i] = np.argmin(abs(T_raw - t_1Hz[conf_i])).astype(int)
+        T = t_1Hz
+        V = V_raw[mapped_indexes]
         V = np.array(V)
         T = np.array(T) * 1000
         def get_window(signal, i, width):
@@ -637,7 +645,7 @@ class PostProcessing(MeshStructure):
 
         dV = np.gradient(V)
         ddV = np.gradient(dV)
-
+        
         T_ex = np.concatenate([[-3, -2, -1, 0, 1], T])
         V_ex = np.concatenate([[0, 0, 0], V])
         dV_ex = np.gradient(V_ex)
@@ -645,7 +653,6 @@ class PostProcessing(MeshStructure):
         dV_windowed = np.zeros(300)
         for i in range(width, 301):
             dV_windowed[i - width] = abs(get_window(dV_ex, i, width))
-
         QRS_start_tol = 0.01 * max(abs(V)) / 30
         QRS_end_tol_ddV = 0.1 * max(abs(V)) / (30 * width + 2)
         QRS_end_tol_dV = 0.07 * max(abs(dV_windowed))
@@ -660,19 +667,16 @@ class PostProcessing(MeshStructure):
             if (QRS_window > QRS_start_tol):
                 QRS_start_idx = i - width
                 break
-
         # # Determining QRS end time, and QRS duration
         QRS_window2 = np.zeros(501 - 30 - QRS_start_idx)
         for i in range(QRS_start_idx + 30, 501):
             QRS_window2[i - 30 - QRS_start_idx] = get_window(abs(ddV_ex), i, 2)
         QRS_end_idx_lst = QRS_start_idx + 30 + np.where(QRS_window2 < QRS_end_tol_ddV)[0] - 1
-
         for idx in QRS_end_idx_lst:
             dV_window = get_window(abs(dV), idx, width + 2)
             if (abs(dV_window) < QRS_end_tol_dV):
                 QRS_end_idx = idx - (width - 2)
                 break
-
         QRS_start_time = T[QRS_start_idx]
         QRS_end_time = T[QRS_end_idx]
         QRS_duration = QRS_end_time - QRS_start_time
@@ -695,7 +699,6 @@ class PostProcessing(MeshStructure):
                 t_wave_end_idx = i
                 break
         t_wave_end_time = T[t_wave_end_idx]
-
         # Find T-wave start point and calculate QT
         try:
             for i in range(t_peak_idx - 20, QRS_end_idx, -1):
@@ -734,7 +737,6 @@ class PostProcessing(MeshStructure):
                 [[T[QRS_start_idx], V[QRS_start_idx]], [T[QRS_end_idx], V[QRS_end_idx]],
                  [T[t_wave_start_idx], V[t_wave_start_idx]], [T[t_peak_idx], V[t_peak_idx]],
                  [T[t_wave_end_idx], V[t_wave_end_idx]]])
-
         return QRS_duration, QT_duration, QTpeak_duration, t_wave_duration, t_peak_end, t_start_peak, t_magnitude_true, JT_duration, landmarks
 
     def calculate_ecg_biomarkers(self, time, V, LAT=None, qrs_end_t=None):
