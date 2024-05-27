@@ -57,7 +57,6 @@ personalisation_data_dir = meta_data_dir + 'results/personalisation_data/rodero_
 alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
                   simulation_dir = simulation_root_dir, verbose=verbose, job_version=system)
-
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
 setup_simulations = False
@@ -108,8 +107,8 @@ simulation_dict = json.load(open(simulation_json_file, 'r'))
 ########################################################################################################################
 # Run simulations
 if setup_simulations or run_simulations:
-    for param in parameter_names:
-        print('Setting up One-at-a-time SA for parameter: ', param)
+    for param_i, param in enumerate(parameter_names):
+        print('Dealing with parameter: ', param)
         if 'sf_' in param:
             baseline_parameter_values = np.array([simulation_dict[param][0][0]])
         elif '_lv' in param:
@@ -144,6 +143,9 @@ if setup_simulations or run_simulations:
         elif system == 'archer2':
             baseline_dir = simulation_root_dir + 'rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
             simulation_dir = simulation_root_dir + sa_folder_root_name + '/'
+        elif system == 'archive':
+            baseline_dir = simulation_root_dir + 'rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
+            simulation_dir = simulation_root_dir + sa_folder_root_names[param_i] + '/'
         parameter_names = np.array([param])
         sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names, baseline_json_file=baseline_json_file,
                  simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
@@ -154,11 +156,11 @@ if setup_simulations or run_simulations:
 
 ########################################################################################################################
 # Evaluate QoIs and correlations
-evaluate_pv= False
+evaluate_pv= True
 evaluate_ecg = True
-evaluate_deformation = True
-evaluate_fibrework = True
-evaluate_strain = True
+evaluate_deformation = False
+evaluate_fibrework = False
+evaluate_strain = False
 if all_parameters_at_once:
     all_slopes = []
     all_intercepts = []

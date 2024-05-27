@@ -864,7 +864,7 @@ class PostProcessing(MeshStructure):
                     filename=self.alya_output_dir + variable_info[variable_info.field == read_field_name].iloc[0][
                         'filename'],
                     number_of_blocks=number_of_blocks, alya_id_type=alya_id_type)
-                threadsNum = int(multiprocessing.cpu_count()*0.7)
+                threadsNum = int(multiprocessing.cpu_count())
                 with pymp.Parallel(min(threadsNum, variable_info[variable_info.field == read_field_name].shape[0])) as p1:
                     for i in p1.range(variable_info[variable_info.field == read_field_name].shape[0]):
                 # for i in range(variable_info[variable_info.field == read_field_name].shape[0]):
@@ -883,7 +883,7 @@ class PostProcessing(MeshStructure):
                     (num_nodes, 3, variable_info[variable_info.field == read_field_name].shape[0]), dtype=float)
                 time = pymp.shared.array(variable_info[variable_info.field == read_field_name].shape[0],
                                          dtype=float)
-                threadsNum = int(multiprocessing.cpu_count()*0.7)
+                threadsNum = int(multiprocessing.cpu_count())
                 with pymp.Parallel(
                         min(threadsNum, variable_info[variable_info.field == read_field_name].shape[0])) as p1:
                     for i in p1.range(variable_info[variable_info.field == read_field_name].shape[0]):
