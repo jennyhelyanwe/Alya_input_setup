@@ -893,3 +893,16 @@ def map_indexes(points_to_map_xyz, reference_points_xyz):
             mapped_indexes[conf_i] = np.argmin(
                 np.linalg.norm(reference_points_xyz - points_to_map_xyz[conf_i, :], ord=2, axis=1)).astype(int)
     return mapped_indexes
+
+def calculate_tetrahedral_mesh_volume(nodes, elements):
+    D = nodes[elements[:, 3] , :]
+    AD = nodes[elements[:, 0], :] - D
+    BD = nodes[elements[:, 1], :] - D
+    CD = nodes[elements[:, 2], :] - D
+    D = None # Clear memory
+    tV = np.reshape(np.abs(np.matmul(np.moveaxis(AD[:, :, np.newaxis], 1, -1), (np.cross(BD, CD)[:, :, np.newaxis]))),
+                    elements.shape[0])
+    AD = None
+    BD = None
+    CD = None
+    return np.sum(tV) / 6.
