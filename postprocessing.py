@@ -14,6 +14,7 @@ from myformat import Fields
 import pandas as pd
 import healthy_qoi_ranges
 from scipy.signal import resample
+from meshpreprocessing import calculate_tetrahedral_mesh_volume
 
 class PostProcessing(MeshStructure):
     def __init__(self, alya, simulation_json_file, alya_output_dir, protocol, verbose):
@@ -227,6 +228,43 @@ class PostProcessing(MeshStructure):
         qoi['dpdt_max'] = dpdt_max
         self.qoi.update(qoi)
 
+
+    def evaluate_volume_biomarkers(self, beat):
+        self.volume_transients = {}
+        # self.read_csv_fields(read_field_name='DISPL', read_field_type='vector')
+        self.read_binary_outputs(read_field_name='DISPL', read_field_type='vector')
+        # Select time segment according to specified beat # TODO assuming CL is always 1.0 s
+        CL = 1.0
+        time_idx = []
+        volume_t = []
+        for time_i in range(self.post_nodefield.dict['time'].shape[0]):
+            if (self.post_nodefield.dict['time'][time_i] > (beat - 1) * CL) & (
+                    self.post_nodefield.dict['time'][time_i] < beat * CL):
+                volume_t.append(self.post_nodefield.dict['time'][time_i] - (beat - 1) * CL)
+                time_idx.append(time_i)
+        volume_t = np.array(volume_t)
+        time_idx = np.array(time_idx, dtype=int)
+        displacement_shared = pymp.shared.array(self.post_nodefield.dict['DISPL'].shape, dtype=float)
+        displacement_shared[:, :, :] = self.post_nodefield.dict['DISPL']
+        print('Evaluating volume transient...')
+        threadsNum = int(multiprocessing.cpu_count())
+        volume_transient = pymp.shared.array(time_idx.shape[0])
+        nodes_xyz = pymp.shared.array(self.geometry.nodes_xyz.shape, dtype=float)
+        nodes_xyz[:, :] = self.geometry.nodes_xyz
+        with pymp.Parallel(min(threadsNum, time_idx.shape[0])) as p1:
+            for time_i in p1.range(time_idx.shape[0]):
+                current_nodes = nodes_xyz + displacement_shared[:, :, time_i]
+                volume_transient[time_i] = calculate_tetrahedral_mesh_volume(current_nodes, self.geometry.tetrahedrons)
+        self.volume_transients['volume_t'] = volume_t
+        self.volume_transients['volume'] = volume_transient
+
+        qoi = {}
+        qoi['min_volume'] = np.amin(volume_transient)
+        qoi['max_volume'] = np.amax(volume_transient)
+        qoi['percentage_volume_change'] = (np.amax(volume_transient) - np.amin(volume_transient)) / np.amax(
+            volume_transient) * 100
+        self.qoi.update(qoi)
+
     def evaluate_deformation_biomarkers(self, beat):
         self.deformation_transients = {}
         # self.read_csv_fields(read_field_name='DISPL', read_field_type='vector')
@@ -263,7 +301,7 @@ class PostProcessing(MeshStructure):
         # self.post_nodefield.add_field(data=ab_delineation, data_name='ABDLN', field_type='postnodefield')
         # self.post_nodefield.save_to_ensight(output_dir=self.alya_output_dir, casename=self.name, geometry=self.geometry, fieldname='ABDLN', fieldtype='postnodefield')
         #
-        threadsNum = int(multiprocessing.cpu_count() * 0.7)
+        threadsNum = int(multiprocessing.cpu_count())
         with pymp.Parallel(min(threadsNum, time_idx.shape[0])) as p1:
             for time_i in p1.range(time_idx.shape[0]):
                 avpd[time_i] = np.mean(np.dot(displacement_shared[
@@ -301,12 +339,20 @@ class PostProcessing(MeshStructure):
                 rv_transmural_vector = rv_update_epi_coords - rv_update_endo_coords
                 rv_wall_thickness[time_i] = np.mean(np.linalg.norm(rv_transmural_vector, axis=1))
 
+        print('Evaluating volume transient...')
+        volume_transient = pymp.shared.array(time_idx.shape[0])
+        with pymp.Parallel(min(threadsNum, time_idx.shape[0])) as p1:
+            for time_i in p1.range(time_idx.shape[0]):
+                current_nodes = nodes_xyz + displacement_shared[:, :, time_i]
+                volume_transient[time_i] = calculate_tetrahedral_mesh_volume(current_nodes, self.geometry.tetrahedrons)
+
         # Save transients
         self.deformation_transients['deformation_t'] = deformation_t
         self.deformation_transients['avpd'] = avpd
         self.deformation_transients['apical_displacement'] = apical_displacement
         self.deformation_transients['lv_wall_thickness'] = lv_wall_thickness
         self.deformation_transients['rv_wall_thickness'] = rv_wall_thickness
+        self.deformation_transients['volume'] = volume_transient
         # Save QoIs
         qoi = {}
         qoi['peak_avpd'] = np.amax(avpd)
@@ -321,6 +367,9 @@ class PostProcessing(MeshStructure):
         qoi['min_rv_wall_thickness'] = np.amin(rv_wall_thickness)
         qoi['diff_lv_wall_thickness'] = np.amax(lv_wall_thickness) - np.amin(lv_wall_thickness)
         qoi['diff_rv_wall_thickness'] = np.amax(rv_wall_thickness) - np.amin(rv_wall_thickness)
+        qoi['min_volume'] = np.amin(volume_transient)
+        qoi['max_volume'] = np.amax(volume_transient)
+        qoi['percentage_volume_change'] = (np.amax(volume_transient) - np.amin(volume_transient))/np.amax(volume_transient) * 100
         self.qoi.update(qoi)
 
     def evaluate_cube_deformation_ta_biomarkers(self):

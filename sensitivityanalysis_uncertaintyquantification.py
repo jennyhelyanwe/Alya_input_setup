@@ -37,7 +37,6 @@ class SAUQ:
         self.generate_parameter_set( upper_bounds, lower_bounds)
         print('Number of samples/simulations to set up: ', str(self.parameter_set.shape[0]))
         print('Number of parameters included: ', str(self.parameter_set.shape[1]))
-        print('Parameter set is: ', self.parameter_set)
         input('Press Enter to continue...')
         self.generate_alya_simulation_json(self.baseline_json_file)
 
@@ -192,6 +191,13 @@ class SAUQ:
                 post.evaluate_deformation_biomarkers(beat=beat)
                 post.save_qoi(filename=qoi_save_dir + 'deformation_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
+            elif qoi_group_name == 'volume':
+                post = PostProcessing(alya=alya, simulation_json_file=json_file,
+                                      alya_output_dir=alya_output_dir, protocol='postprocess',
+                                      verbose=self.verbose)
+                post.evaluate_volume_biomarkers(beat=beat)
+                post.save_qoi(filename=qoi_save_dir + 'volume_qoi_' + str(simulation_i) + '.csv')
+                postp_objects.append(post)
             elif qoi_group_name == 'strain':
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
                                       alya_output_dir=alya_output_dir, protocol='postprocess',
@@ -235,6 +241,12 @@ class SAUQ:
                 qoi = json.load(open(filename, 'r'))
                 qois = pd.concat([qois, pd.DataFrame([qoi])])
             qois.to_csv(qoi_save_dir + 'deformation_qois.csv')
+        elif qoi_group_name == 'volume':
+            for simulation_i in range(len(self.finished_simulation_dirs)):
+                filename = qoi_save_dir + 'volume_qoi_' + str(simulation_i) + '.csv'
+                qoi = json.load(open(filename, 'r'))
+                qois = pd.concat([qois, pd.DataFrame([qoi])])
+            qois.to_csv(qoi_save_dir + 'volume_qois.csv')
         elif qoi_group_name == 'strain':
             for simulation_i in range(len(self.finished_simulation_dirs)):
                 filename = qoi_save_dir + 'strain_qoi_' + str(simulation_i) + '.csv'
@@ -390,7 +402,8 @@ class SAUQ:
 
 
     def visualise_sa(self, beat, ecg_post=None, pv_post=None, deformation_post=None,
-                     fibre_work_post=None, strain_post=None, cube_deformation_ta_post=None, labels=None, save_filename=None):
+                     fibre_work_post=None, strain_post=None, cube_deformation_ta_post=None, volume_post=None,
+                     labels=None, save_filename=None):
         if pv_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(2, 2)
@@ -517,6 +530,23 @@ class SAUQ:
                 ax_avpd.legend()
                 ax_apex.legend()
                 ax_wall.legend()
+        if volume_post:
+            fig = plt.figure(tight_layout=True, figsize=(18, 10))
+            gs = GridSpec(1, 1)
+            ax = fig.add_subplot(gs[0,0])
+            for simulation_i in range(len(volume_post)):
+                if labels:
+                    ax.plot(volume_post[simulation_i].volume_transients['volume_t'],
+                                 volume_post[simulation_i].volume_transients['volume'],
+                                 label=labels[simulation_i])
+                else:
+                    ax.plot(volume_post[simulation_i].volume_transients['volume_t'],
+                            volume_post[simulation_i].volume_transients['volume'])
+            ax.set_title('Volume transient')
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel('Mesh Volume')
+            if labels:
+                ax.legend()
         if fibre_work_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(1, 2)
@@ -802,6 +832,7 @@ class SAUQ:
             plt.show()
 
     def analyse(self, filename, qois, show_healthy_ranges=True, save_filename=None):
+        print('Analysing SA results for ', filename, ' and QoIs: ', qois)
         self.qois_db = pd.read_csv(filename, index_col=False)
         names = self.parameter_names
         # selected_qois = self.qois_db.columns.values.tolist() # All QoIs
@@ -923,6 +954,7 @@ class SAUQ:
                                    self.healthy_ranges['dpdt_max'][1], alpha=0.3,
                                    facecolor='green')
         if save_filename:
+            print('Saving scatter plots to ', save_filename)
             plt.savefig(save_filename)
             plt.close()
         else:
