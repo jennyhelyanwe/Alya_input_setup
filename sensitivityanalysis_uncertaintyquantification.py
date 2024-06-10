@@ -33,8 +33,8 @@ class SAUQ:
         self.baseline_json_file = baseline_json_file
         self.healthy_ranges = HealthyBiomarkerRanges().healthy_ranges
 
-    def setup(self, upper_bounds, lower_bounds):
-        self.generate_parameter_set( upper_bounds, lower_bounds)
+    def setup(self, upper_bounds, lower_bounds, input_parameter_set=None):
+        self.generate_parameter_set( upper_bounds, lower_bounds, input_parameter_set=input_parameter_set)
         print('Number of samples/simulations to set up: ', str(self.parameter_set.shape[0]))
         print('Number of parameters included: ', str(self.parameter_set.shape[1]))
         input('Press Enter to continue...')
@@ -63,7 +63,7 @@ class SAUQ:
             for i in range(len(self.all_simulation_dirs)):
                 f.write(self.all_simulation_dirs[i] + '\n')
 
-    def generate_parameter_set(self, upper_bounds, lower_bounds):
+    def generate_parameter_set(self, upper_bounds, lower_bounds, input_parameter_set=None):
         if self.sampling_method == 'lhs':
             sampler = scipy.stats.qms.LatinHypercube(d=self.number_of_parameters)
             sample = sampler.random(n=self.n)
@@ -97,6 +97,8 @@ class SAUQ:
             self.parameter_set[0, 0] = lower_bounds
             self.parameter_set[2, 0] = upper_bounds
             self.parameter_set[1, 0] = (lower_bounds + upper_bounds) / 2
+        elif self.sampling_method == 'input':
+            self.parameter_set = input_parameter_set
 
     def generate_alya_simulation_json(self, baseline_json_file):
         baseline_simulation_dict = json.load(open(baseline_json_file, 'r'))

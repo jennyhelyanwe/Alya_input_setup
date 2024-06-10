@@ -593,7 +593,7 @@ class PostProcessing(MeshStructure):
 
 
     def calculate_calibration_sa_parameter_ranges(self, ranked_qoi_names, oat_sa_slopes, oat_sa_intercepts,
-                                                  oat_sa_p_values, oat_sa_r_values, oat_sa_ranges, simulation_dict):
+                                                  oat_sa_p_values, oat_sa_r_values, oat_sa_ranges, simulation_dict, strategy, qoi_input=None):
         # Step 1: Identify QoIs that don't match target ranges
         print('Identify QoIs that do not match target ranges')
         outstanding_qois = self.evaluate_baseline_qoi_against_healthy_ranges(ranked_qoi_names=ranked_qoi_names)
@@ -605,7 +605,7 @@ class PostProcessing(MeshStructure):
         p_values = pd.read_csv(oat_sa_p_values, index_col=0)
         r_values = pd.read_csv(oat_sa_r_values, index_col=0)
         ranges = pd.read_csv(oat_sa_ranges, index_col=0)
-        # Get baseline parmaeters
+        # Get baseline parameters
         baseline_parameters = {}
         parameters = list(ranges.index)
         for param in parameters:
@@ -625,45 +625,147 @@ class PostProcessing(MeshStructure):
         sa_slopes = {}
         simulated_qois = self.qoi
         parameter_qoi_correspondence = {}
-        for qoi in outstanding_qois:
-            print('Evaluating scaling factor to achieve target for QoI: ', qoi)
-            print('Baseline QoI is: ', simulated_qois[qoi])
-            sorted_parameters = list(ranges.sort_values(by=[qoi], ascending=False)[qoi].index)
-            insignificant_regressions = list(p_values.loc[p_values[qoi] > 0.05].index)
-            nonlinear_regressions = list(r_values.loc[abs(r_values[qoi]) < 0.6].index)
-            ranked_parameters = [param for param in sorted_parameters if (param not in insignificant_regressions) and (param not in nonlinear_regressions)]
-            for param_i, param in enumerate(ranked_parameters):
-                print('Parameter name: ', param)
-                print('Baseline value for this parameter: ', baseline_parameters[param])
-                print('QoI/param ranges due to this parameter: ', ranges[qoi].loc[param])
-                print('Healthy ranges for the QoI: ', self.healthy_ranges[qoi])
-                sa_range_l = (self.healthy_ranges[qoi][0] - intercepts[qoi].loc[param])/slopes[qoi].loc[param]
-                sa_range_u = (self.healthy_ranges[qoi][1] - intercepts[qoi].loc[param])/slopes[qoi].loc[param]
-                sorted_sa_range = [sa_range_l, sa_range_u]
-                sorted_sa_range.sort()
-                print('SA exploration range for this parameter: ', sorted_sa_range)
-                if (sa_range_l < 0) or (sa_range_u < 0):
-                    # Cannot use this parameter since the new parameter ranges go negative.
-                    print('SA ranges went negative, try next one...')
-                    continue
-                if param in list(sa_ranges.keys()):
-                    if np.sign(slopes[qoi].loc[param]) == np.sign(sa_slopes[param]):
-                        sa_ranges[param] = [min([sorted_sa_range[0], sa_ranges[param][0]]), max([sorted_sa_range[1], sa_ranges[param][1]])] # Augment the ranges as necessary
-                        sa_slopes[param] = np.sign(sa_slopes[param])*max([abs(slopes[qoi].loc[param]), abs(sa_slopes[param])])
-                        # Scaling factor for this parameter is unchanged, the QoI with higher priority takes precedence
-                        parameter_qoi_correspondence[param] = parameter_qoi_correspondence[param] + ' and for: ' + qoi
-                        break
+        qoi_parameter_correspondence = {}
+        if strategy == 'one_qoi_at_a_time':
+            qoi = qoi_input
+            abs_r_values = abs(r_values)
+            combined_r_value_range = abs_r_values[qoi] * ranges[qoi]
+            sorted_r_value_range_parameters = list(combined_r_value_range.sort_values(ascending=False).index)
+            print(sorted_r_value_range_parameters)
+            param_i = 0
+            while len(sa_ranges) < 2:
+                param = sorted_r_value_range_parameters[param_i]
+                sa_range_l = (self.healthy_ranges[qoi][0] - intercepts[qoi].loc[param]) / \
+                             slopes[qoi].loc[param]
+                sa_range_u = (self.healthy_ranges[qoi][1] - intercepts[qoi].loc[param]) / \
+                             slopes[qoi].loc[param]
+
+                sa_range_l = min([sa_range_l, sa_range_u])
+                sa_range_u = max([sa_range_l, sa_range_u])
+                print(param)
+                print(sa_range_l, sa_range_u)
+                if 'sf_' in param:
+                    print('sf_ is in ', param)
+                    if (sa_range_u > 2) & (sa_range_l > 2):
+                        # Don't add parameter to SA, these conductances should not exceed 2 times
+                        param_i = param_i + 1
+                        continue
                     else:
+                        sa_range_u = min([sa_range_u, 2])
+                        sa_range_l = max([sa_range_l, 0.5])
+                if (sa_range_l < 0) & (sa_range_u < 0):
+                    # Set range to be a small value
+                    sa_range_l = baseline_parameters[param] * 0.01
+                    sa_range_u = baseline_parameters[param] * 0.1
+                elif sa_range_l < 0:
+                    sa_range_l = baseline_parameters[param] * 0.01
+                sa_ranges[param] = [sa_range_l, sa_range_u]
+                print(param)
+                print(sa_ranges[param])
+                param_i = param_i + 1
+            print(sa_ranges)
+
+        if strategy == 'all_qois_together':
+            for qoi in outstanding_qois:
+                print('Evaluating scaling factor to achieve target for QoI: ', qoi)
+                print('Baseline QoI is: ', simulated_qois[qoi])
+                sorted_parameters = list(ranges.sort_values(by=[qoi], ascending=False)[qoi].index)
+                insignificant_regressions = list(p_values.loc[p_values[qoi] > 0.05].index)
+                nonlinear_regressions = list(r_values.loc[abs(r_values[qoi]) < 0.85].index)
+                ranked_parameters = [param for param in sorted_parameters if (param not in insignificant_regressions) and (param not in nonlinear_regressions)]
+                print('Ranked parameters for QoI is: ', ranked_parameters)
+                for param_i, param in enumerate(ranked_parameters):
+                    print('Parameter name: ', param)
+                    print('Baseline value for this parameter: ', baseline_parameters[param])
+                    print('QoI/param ranges due to this parameter: ', ranges[qoi].loc[param])
+                    print('Healthy ranges for the QoI: ', self.healthy_ranges[qoi])
+                    sa_range_l = (self.healthy_ranges[qoi][0] - intercepts[qoi].loc[param])/slopes[qoi].loc[param]
+                    sa_range_u = (self.healthy_ranges[qoi][1] - intercepts[qoi].loc[param])/slopes[qoi].loc[param]
+                    sorted_sa_range = [sa_range_l, sa_range_u]
+                    sorted_sa_range.sort()
+                    print('SA exploration range for this parameter: ', sorted_sa_range)
+                    # if (sa_range_l < 0) or (sa_range_u < 0):
+                    #     # Cannot use this parameter since the new parameter ranges go negative.
+                    #     print('SA ranges went negative, try next one...')
+                    #     continue
+                    if param in list(sa_ranges.keys()):
+                        # if np.sign(slopes[qoi].loc[param]) == np.sign(sa_slopes[param]):
+                        #     sa_ranges[param] = [min([sorted_sa_range[0], sa_ranges[param][0]]), max([sorted_sa_range[1], sa_ranges[param][1]])] # Augment the ranges as necessary
+                        #     sa_slopes[param] = np.sign(sa_slopes[param])*max([abs(slopes[qoi].loc[param]), abs(sa_slopes[param])])
+                        #     # Scaling factor for this parameter is unchanged, the QoI with higher priority takes precedence
+                        #     parameter_qoi_correspondence[param] = parameter_qoi_correspondence[param] + ' and for: ' + qoi
+                        #     qoi_parameter_correspondence[qoi] = param
+                        #     break
+                        # else:
                         # Cannot use this parameter to achieve the desired QoI effect, try the next one.
                         continue
-                else:
-                    # Parameter has not yet been selected for SA, use the scaling factor just calculated.
-                    sa_ranges[param] = sorted_sa_range
-                    sa_slopes[param] = slopes[qoi].loc[param]
-                    parameter_qoi_correspondence[param] = 'for: '+ qoi
-                    break
+                    else:
+                        # Parameter has not yet been selected for SA, use the scaling factor just calculated.
+                        sa_ranges[param] = sorted_sa_range
+                        sa_slopes[param] = slopes[qoi].loc[param]
+                        parameter_qoi_correspondence[param] = 'for: '+ qoi
+                        qoi_parameter_correspondence[qoi] = param
+                        break
         json.dump(sa_ranges, open('calibration_sa_ranges.json', 'w'))
-        json.dump(parameter_qoi_correspondence, open('calibration_sa_param_qoi_correspondence', 'w'))
+        # json.dump(parameter_qoi_correspondence, open('calibration_sa_param_qoi_correspondence.json', 'w'))
+        # json.dump(qoi_parameter_correspondence, open('calibration_sa_qoi_parameter_correspondence.json', 'w'))
+        # print(qoi_parameter_correspondence)
+
+    def visualise_calibration_sa_parameter_ranges(self, simulation_root_dir, oat_sa_slopes, oat_sa_intercepts,
+                                                  oat_sa_p_values, oat_sa_r_values, oat_sa_ranges):
+        qoi_parameter_correspondence = json.load(open('calibration_sa_qoi_parameter_correspondence.json', 'r'))
+        sa_ranges= json.load(open('calibration_sa_ranges.json', 'r'))
+        print(qoi_parameter_correspondence)
+        outstanding_qois = list(qoi_parameter_correspondence.keys())
+        slopes = pd.read_csv(oat_sa_slopes, index_col=0)
+        intercepts = pd.read_csv(oat_sa_intercepts, index_col=0)
+        p_values = pd.read_csv(oat_sa_p_values, index_col=0)
+        r_values = pd.read_csv(oat_sa_r_values, index_col=0)
+        ranges = pd.read_csv(oat_sa_ranges, index_col=0)
+        # Do visual check that the new ranges make sense.
+        fig = plt.figure(tight_layout=True)
+        gs = GridSpec(1, len(outstanding_qois), )
+        pv_qois = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max', 'EDVR', 'ESVR',
+                   'PmaxR', 'SVR']
+        ecg_qois = ['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'jt_dur_mean']
+        for qoi_i, qoi in enumerate(outstanding_qois):
+            ax = fig.add_subplot(gs[0, qoi_i])
+            param = qoi_parameter_correspondence[qoi]
+            if '_lv' in param:
+                param_dir = param.split('_lv')[0]
+            elif '_rv' in param:
+                param_dir = param.split('_rv')[0]
+            elif '_myocardium' in param:
+                param_dir = param.split('_myocardium')[0]
+            elif '_valveplug' in param:
+                param_dir = param.split('_valveplug')[0]
+            else:
+                param_dir = param
+            # Find scatter plot for this parameter in the SA
+            all_dir = os.listdir(simulation_root_dir)
+            directory = simulation_root_dir + [d for d in all_dir if param in d][0]
+            print(directory)
+            print(param)
+            if qoi in pv_qois:
+                filename = directory + '/param_' + param + '_pv_qoi_outcomes.csv'
+                data = pd.read_csv(filename)
+            elif qoi in ecg_qois:
+                filename = directory + '/param_' + param + '_ecg_qoi_outcomes.csv'
+                data = pd.read_csv(filename)
+            y = data[qoi].values
+            x = np.loadtxt(directory +'/param_' + param + '_inputs.csv')
+            y_regression = intercepts[qoi].loc[param] + slopes[qoi].loc[param] * x
+            new_ranges = np.array(sa_ranges[param])
+            print(new_ranges)
+            projected_y = intercepts[qoi].loc[param] + slopes[qoi].loc[param] * new_ranges
+            ax.plot(x, y, 'k*')
+            ax.plot(x, y_regression, 'b-')
+            ax.plot(new_ranges, projected_y, 'g*')
+            ax.set_xlabel(param)
+            ax.set_ylabel(qoi)
+        plt.show()
+
+
 
 
     def calculate_ecg_biomarkers_HolmesSmith(self, T, V, width=3, show=False):

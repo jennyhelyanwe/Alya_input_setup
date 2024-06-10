@@ -19,6 +19,8 @@ elif 'cosma' in workdir:
     system = 'cosma'
 elif 'e769' in workdir:
     system = 'archer2'
+elif 'Expansion' in workdir:
+    system = 'archive'
 else:
     system = 'heart'
 
@@ -28,6 +30,8 @@ elif system == 'cosma':
     meta_data_dir = '/cosma8/data/dp287/dc-wang14/Alya_pipeline/meta_data/'
 elif system == 'archer2':
     meta_data_dir = '/work/e769/e769/jennywang/Alya_pipeline/meta_data/'
+elif system == 'archive':
+    meta_data_dir = '/run/media/jenang/Expansion/JURECA_COSMA_download_April2024/meta_data/'
 elif system == 'heart':
     meta_data_dir = '/data/Personalisation_projects/meta_data/'
 geometric_data_dir = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_fine/'
@@ -41,14 +45,14 @@ generate_fields_original_doste = False
 generate_fields_Green_fibres = False
 generate_fields_12090_fibres = False
 generate_fields_slices_and_local_bases = False
-setup_em_alya_literature_parameters_files = True
+setup_em_alya_literature_parameters_files = False
 setup_em_alya_files = False
 setup_ep_alya_files = False
-run_alya_baseline_simulation = True
+run_alya_baseline_simulation = False
 run_alya_baseline_postprocessing = False
-evaluate_simulated_biomarkers = False
-setup_calibration_alya_simulations = False
-run_alya_calibration_simulations = False
+decide_calibration_parameter_ranges = False
+setup_calibration_alya_simulations = True
+run_alya_calibration_simulations = True
 evaluate_calibration_sa = False
 setup_validation_alya_simulations = False
 run_alya_validation_simulations = False
@@ -133,13 +137,16 @@ elif system == 'heart':
     simulation_root_dir = './'
 elif system == 'archer2':
     simulation_root_dir = '/work/e769/e769/jennywang/Alya_pipeline/alya_simulations/'
+elif system == 'archive':
+    simulation_root_dir = '/run/media/jenang/Expansion/JURECA_COSMA_download_April2024/Alya_pipeline/alya_simulations/'
+
 alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
                   simulation_dir = simulation_root_dir, job_version=system, verbose=verbose)
 
 # Sanity check:
-if not system == 'jureca' and not system == 'cosma' and not system == 'archer2':
-    alya.visual_sanity_check(simulation_json_file=simulation_json_file)
+# if not system == 'jureca' and not system == 'cosma' and not system == 'archer2':
+#     alya.visual_sanity_check(simulation_json_file=simulation_json_file)
 if setup_em_alya_files:
     simulation_json_file = 'rodero_baseline_simulation_em.json'
     alya.do(simulation_json_file=simulation_json_file)
@@ -158,17 +165,17 @@ if run_alya_baseline_simulation:
     run_job(alya.output_dir)
 if run_alya_baseline_postprocessing:
     run_job_postprocess(alya.output_dir)
-quit()
+
 ########################################################################################################################
 # Step 6: Postprocess
-if evaluate_simulated_biomarkers:
+if decide_calibration_parameter_ranges:
     print('Evaluating simulated biomarkers')
     simulation_json_file = 'rodero_baseline_simulation_em.json'
     alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_literature_parameters_' + simulation_name + '/'
     # alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[
     #     0] + '_' + simulation_name + '_mec_baseline/'
     pp = PostProcessing(alya=alya, simulation_json_file=simulation_json_file,
-                        alya_output_dir=alya_output_dir, protocol='postprocess', verbose=verbose)
+                        alya_output_dir=alya_output_dir, protocol='', verbose=verbose)
     beat = 1
     pp.evaluate_pv_biomarkers(beat=beat)
     pp.evaluate_ecg_biomarkers(beat=beat, show_landmarks=False)
@@ -191,8 +198,13 @@ if evaluate_simulated_biomarkers:
                                                  oat_sa_r_values='SA_summary_OAT_r_values.csv',
                                                  oat_sa_ranges='SA_summary_OAT_ranges.csv',
                                                  oat_sa_intercepts='SA_summary_OAT_intercepts.csv',
-                                                 simulation_dict=simulation_dict)
-
+                                                 simulation_dict=simulation_dict, strategy='one_qoi_at_a_time', qoi_input='LVEF')
+    # pp.visualise_calibration_sa_parameter_ranges(oat_sa_slopes='SA_summary_OAT_slopes.csv',
+    #                                              oat_sa_p_values='SA_summary_OAT_p_values.csv',
+    #                                              oat_sa_r_values='SA_summary_OAT_r_values.csv',
+    #                                              oat_sa_ranges='SA_summary_OAT_ranges.csv',
+    #                                              oat_sa_intercepts='SA_summary_OAT_intercepts.csv',
+    #                                              simulation_root_dir=simulation_root_dir)
 
 
 ########################################################################################################################
@@ -221,13 +233,13 @@ lower_bounds = []
 for param in perturbed_parameters_name:
     lower_bounds.append(perturbed_parameters[param][0])
     upper_bounds.append(perturbed_parameters[param][1])
-calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 5, parameter_names=perturbed_parameters_name,
+calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 4, parameter_names=perturbed_parameters_name,
                    baseline_json_file=baseline_json_file, simulation_dir=simulation_dir, alya_format=alya,
                    baseline_dir=baseline_dir, verbose=verbose)
 if setup_calibration_alya_simulations:
     calibration.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
 if run_alya_calibration_simulations:
-    calibration.run_jobs(simulation_dir, start_id=128, end_id=256) # Maximum job submission in archer2 is 128 for QoS:taskfarm.
+    calibration.run_jobs(simulation_dir, start_id=0) # Maximum job submission in archer2 is 128 for QoS:taskfarm.
 
 # calibration.run_jobs(simulation_dir, start_id=0, end_id=128) # Maximum job submission in archer2 is 128 for QoS:taskfarm.
 if evaluate_calibration_sa:

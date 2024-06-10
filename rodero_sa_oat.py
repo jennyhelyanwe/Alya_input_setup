@@ -61,12 +61,12 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
 setup_simulations = False
-run_simulations = False
+run_simulations = True
 # Choose which groups of parameters to setup/run/evaluate
 passive_mechanics = True
-active_mechanics = True
-cellular = True
-haemodynamic = True
+active_mechanics = False
+cellular = False
+haemodynamic = False
 all_parameters_at_once = False
 
 # Choose which groups of QoI to evaluate
@@ -100,9 +100,6 @@ if passive_mechanics:
 if haemodynamic:
     parameter_names = parameter_names + haemo_params
     sa_folder_root_names = sa_folder_root_names + ['sensitivity_analyses_haemodynamics_parameters_oat']*len(haemo_params)
-else:
-    print('Turn on one of the SA types!')
-    quit()
 print('Parameters to evaluate: ', parameter_names)
 print('SA root folder names: ', sa_folder_root_names)
 ########################################################################################################################
@@ -128,11 +125,9 @@ if setup_simulations or run_simulations:
             baseline_parameter_values = np.array([simulation_dict[param]])
         upper_bounds = baseline_parameter_values * 2.0
         lower_bounds = baseline_parameter_values * 0.1
-        sampling_method = 'uniform'
         if passive_mechanics:
-            upper_bounds = baseline_parameter_values * 100.0
+            upper_bounds = baseline_parameter_values * 0.5
             lower_bounds = baseline_parameter_values * 0.01
-            sampling_method = ''
         baseline_json_file = 'rodero_baseline_simulation_em.json'
         simulation_dir = ''
         baseline_dir = ''
@@ -160,7 +155,7 @@ if setup_simulations or run_simulations:
             sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
         if run_simulations:
             sa.run_jobs(simulation_dir)
-
+    quit()
 ########################################################################################################################
 # Evaluate QoIs and correlations
 qoi_names = []
@@ -237,8 +232,10 @@ for param_i, param in enumerate(parameter_names):
                                        analysis_type='sa')
             sa.visualise_sa(beat=1, pv_post=pv_post, labels=labels, save_filename=simulation_dir+'/pv_post.png')
         qoi_names = pv_qois
+
         slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/pv_scatter.png')
+        print(ranges[3, 0])
         all_slopes.loc[param, qoi_names] = slopes[:, 0]
         all_intercepts.loc[param, qoi_names] = intercepts[:, 0]
         all_p_values.loc[param, qoi_names] = p_values[:, 0]
@@ -440,13 +437,13 @@ for param_i, param in enumerate(parameter_names):
 #######################################################################################################################
 # Concatenate all results into a single CSV file
 print('Showing slopes dataframe: ')
-print(all_slopes)
+print(all_ranges)
 print('Save all results into SA_summary_OAT files...')
 all_slopes.to_csv('SA_summary_OAT_slopes.csv')
 all_intercepts.to_csv('SA_summary_OAT_intercepts.csv')
 all_p_values.to_csv('SA_summary_OAT_p_values.csv')
 all_r_values.to_csv('SA_summary_OAT_r_values.csv')
-all_r_values.to_csv('SA_summary_OAT_ranges.csv')
+all_ranges.to_csv('SA_summary_OAT_ranges.csv')
 # print('Concatenate all results into SA_summary_OAT files...')
 # pd.concat(all_slopes, axis='columns').to_csv('SA_summary_OAT_slopes.csv')
 # pd.concat(all_intercepts, axis='columns').to_csv('SA_summary_OAT_intercepts.csv')
