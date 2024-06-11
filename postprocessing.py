@@ -1587,7 +1587,6 @@ class PostProcessing(MeshStructure):
         # Return any non-zero entries - QoIs that don't fall within healthy ranges
         return {x:y for x,y in self.baseline_qoi_differences.items() if y != 0}
 
-
     def shift_to_start_at_ED(self, t, trace):
         t_tol = 1e-3
         ed_idx = np.argmin(abs(t-self.simulation_dict['end_diastole_t'][0]))

@@ -51,7 +51,7 @@ setup_ep_alya_files = False
 run_alya_baseline_simulation = False
 run_alya_baseline_postprocessing = False
 decide_calibration_parameter_ranges = False
-setup_calibration_alya_simulations = True
+setup_calibration_alya_simulations = False
 run_alya_calibration_simulations = True
 evaluate_calibration_sa = False
 setup_validation_alya_simulations = False
@@ -205,15 +205,21 @@ if decide_calibration_parameter_ranges:
     #                                              oat_sa_ranges='SA_summary_OAT_ranges.csv',
     #                                              oat_sa_intercepts='SA_summary_OAT_intercepts.csv',
     #                                              simulation_root_dir=simulation_root_dir)
-
+    quit()
+# Using sfkws and Kct ranges of {"sfkws_myocardium": [2.6391168230682993, 4.0779357886520335], "Kct_myocardium": [500000.0, 5000000.0]}
+# Gave an averaged LVEF of ~30%, but an averaged peak LVP of ~22.5 kPa. The rational thing to do now is to reduce the resistance
+# to get within healthy ranges.
+# Compliance ranges:
+# upper_range = (143000 - 225000 -39524877.19 * 0.000150) / -39524877.19 = (-82000 -  5928)/-39524877.19 = 0.0022
+# lower_range = (153000 - 225000 - 5928 ) / -39524877.19 = 77928/  39524877.19 = 0.00197
 
 ########################################################################################################################
 # Step 7: Use OAT SA results and evaluation of biomarkers to assign new ranges for calibration SA
-calibration_folder_name = 'calibration_simulations'
+calibration_folder_name = 'calibration_simulations_second_iteration'
 baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
 simulation_json_file = baseline_json_file
 simulation_dict = json.load(open(simulation_json_file, 'r'))
-perturbed_parameters = json.load(open('calibration_sa_ranges.json', 'r'))
+perturbed_parameters = json.load(open('calibration_sa_ranges_second_iteration.json', 'r'))
 perturbed_parameters_name = np.array(list(perturbed_parameters.keys()))
 print(perturbed_parameters_name)
 if system == 'jureca':
@@ -260,8 +266,9 @@ if evaluate_calibration_sa:
                                              analysis_type='sa')
         # calibration.visualise_sa(beat=1, pv_post=pv_post, save_filename=simulation_dir + '/pv_post.png')
         calibration.visualise_sa(beat=1, pv_post=pv_post)
-        qoi_names = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max', 'EDVR',
-                     'ESVR', 'PmaxR', 'SVR']
+        # qoi_names = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max', 'EDVR',
+        #              'ESVR', 'PmaxR', 'SVR']
+        qoi_names = ['LVEF', 'ESVL', 'PmaxL', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max']
         # slopes, intercepts, p_values, r_values, ranges, params, qois = calibration.analyse(
         #     filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=False,
         #     save_filename=simulation_dir + '/pv_scatter.png')
