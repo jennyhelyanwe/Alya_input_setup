@@ -61,7 +61,7 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
 setup_simulations = False
-run_simulations = True
+run_simulations = False
 # Choose which groups of parameters to setup/run/evaluate
 passive_mechanics = True
 active_mechanics = True
@@ -76,7 +76,7 @@ evaluate_deformation = False
 evaluate_fibrework = False
 evaluate_strain = False
 evaluate_volume = False
-fresh_qoi_evaluation = False
+fresh_qoi_evaluation = True
 
 parameter_names = []
 sa_folder_root_names = []
@@ -162,7 +162,7 @@ if setup_simulations or run_simulations:
 qoi_names = []
 pv_qois = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max', 'EDVR', 'ESVR',
                      'PmaxR', 'SVR']
-ecg_qois = ['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'jt_dur_mean', 't_amp', 'st_deviation']
+ecg_qois = ['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'jt_dur_mean', 't_peak_mean', 'j_point_mean']
 deformation_qois = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness']
 fibrework_qois = ['peak_lambda', 'min_lambda', 'peak_ta', 'diastolic_ta']
 strain_qois = ['max_mid_Ecc', 'min_mid_Ecc', 'max_mid_Err', 'min_mid_Err', 'max_four_chamber_Ell', 'min_four_chamber_Ell']
@@ -242,23 +242,6 @@ for param_i, param in enumerate(parameter_names):
         all_p_values.loc[param, qoi_names] = p_values[:, 0]
         all_r_values.loc[param, qoi_names] = r_values[:, 0]
         all_ranges.loc[param, qoi_names] = ranges[:, 0]
-        # slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
-        # intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
-        # p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
-        # r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
-        # ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        # if all_parameters_at_once:
-        #     all_slopes.append(pd.DataFrame(slopes, index=[param]))
-        #     all_intercepts.append(pd.DataFrame(intercepts, index=[param]))
-        #     all_p_values.append(pd.DataFrame(p_values, index=[param]))
-        #     all_r_values.append(pd.DataFrame(r_values, index=[param]))
-        #     all_ranges.append(pd.DataFrame(ranges, index=[param]))
-        # pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/pv_slopes.csv')
-        # pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/pv_intercepts.csv')
-        # pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/pv_p_values.csv')
-        # pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/pv_r_values.csv')
-        # pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/pv_ranges.csv')
-        # pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/pv_ranges.csv')
         np.savetxt(simulation_dir + '/param_'+param+'_inputs.csv', params, delimiter=',')
         pd.DataFrame(qois, columns=qoi_names).to_csv(simulation_dir + '/param_' + param + '_pv_qoi_outcomes.csv')
 
@@ -279,22 +262,6 @@ for param_i, param in enumerate(parameter_names):
         all_p_values.loc[param, qoi_names] = p_values[:, 0]
         all_r_values.loc[param, qoi_names] = r_values[:, 0]
         all_ranges.loc[param, qoi_names] = ranges[:, 0]
-        # slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
-        # intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
-        # p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
-        # r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
-        # ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        # if all_parameters_at_once:
-        #     all_slopes.append(pd.DataFrame(slopes, index=[param]))
-        #     all_intercepts.append(pd.DataFrame(intercepts, index=[param]))
-        #     all_p_values.append(pd.DataFrame(p_values, index=[param]))
-        #     all_r_values.append(pd.DataFrame(r_values, index=[param]))
-        #     all_ranges.append(pd.DataFrame(ranges, index=[param]))
-        # pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/ecg_slopes.csv')
-        # pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/ecg_intercepts.csv')
-        # pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/ecg_p_values.csv')
-        # pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/ecg_r_values.csv')
-        # pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/ecg_ranges.csv')
         np.savetxt(simulation_dir + '/param_' + param + '_inputs.csv', params, delimiter=',')
         pd.DataFrame(qois, columns=qoi_names).to_csv(simulation_dir + '/param_' + param + '_ecg_qoi_outcomes.csv')
 
@@ -313,22 +280,6 @@ for param_i, param in enumerate(parameter_names):
         all_p_values.loc[param, qoi_names] = p_values[:, 0]
         all_r_values.loc[param, qoi_names] = r_values[:, 0]
         all_ranges.loc[param, qoi_names] = ranges[:, 0]
-        # slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
-        # intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
-        # p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
-        # r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
-        # ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        # if all_parameters_at_once:
-        #     all_slopes.append(pd.DataFrame(slopes, index=[param]))
-        #     all_intercepts.append(pd.DataFrame(intercepts, index=[param]))
-        #     all_p_values.append(pd.DataFrame(p_values, index=[param]))
-        #     all_r_values.append(pd.DataFrame(r_values, index=[param]))
-        #     all_ranges.append(pd.DataFrame(ranges, index=[param]))
-        # pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/deformation_slopes.csv')
-        # pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/deformation_intercepts.csv')
-        # pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/deformation_p_values.csv')
-        # pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/deformation_r_values.csv')
-        # pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/deformation_ranges.csv')
         np.savetxt(simulation_dir + '/param_' + param + '_inputs.csv', params, delimiter=',')
         pd.DataFrame(qois, columns=qoi_names).to_csv(simulation_dir + '/param_' + param + '_deformation_qoi_outcomes.csv')
 
@@ -346,22 +297,6 @@ for param_i, param in enumerate(parameter_names):
         all_p_values.loc[param, qoi_names] = p_values[:, 0]
         all_r_values.loc[param, qoi_names] = r_values[:, 0]
         all_ranges.loc[param, qoi_names] = ranges[:, 0]
-        # slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
-        # intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
-        # p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
-        # r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
-        # ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        # if all_parameters_at_once:
-        #     all_slopes.append(pd.DataFrame(slopes, index=[param]))
-        #     all_intercepts.append(pd.DataFrame(intercepts, index=[param]))
-        #     all_p_values.append(pd.DataFrame(p_values, index=[param]))
-        #     all_r_values.append(pd.DataFrame(r_values, index=[param]))
-        #     all_ranges.append(pd.DataFrame(ranges, index=[param]))
-        # pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/volume_slopes.csv')
-        # pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/volume_intercepts.csv')
-        # pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/volume_p_values.csv')
-        # pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/volume_r_values.csv')
-        # pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/volume_ranges.csv')
         np.savetxt(simulation_dir + '/param_' + param + '_inputs.csv', params, delimiter=',')
         pd.DataFrame(qois, columns=qoi_names).to_csv(simulation_dir + '/param_' + param + '_volume_qoi_outcomes.csv')
 
@@ -381,22 +316,6 @@ for param_i, param in enumerate(parameter_names):
         all_p_values.loc[param, qoi_names] = p_values[:, 0]
         all_r_values.loc[param, qoi_names] = r_values[:, 0]
         all_ranges.loc[param, qoi_names] = ranges[:, 0]
-        # slopes = dict(map(lambda i, j: (i, j), qoi_names, slopes[:, 0]))
-        # intercepts = dict(map(lambda i, j: (i, j), qoi_names, intercepts[:, 0]))
-        # p_values = dict(map(lambda i, j: (i, j), qoi_names, p_values[:, 0]))
-        # r_values = dict(map(lambda i, j: (i, j), qoi_names, r_values[:, 0]))
-        # ranges = dict(map(lambda i, j: (i, j), qoi_names, ranges[:, 0]))
-        # if all_parameters_at_once:
-        #     all_slopes.append(pd.DataFrame(slopes, index=[param]))
-        #     all_intercepts.append(pd.DataFrame(intercepts, index=[param]))
-        #     all_p_values.append(pd.DataFrame(p_values, index=[param]))
-        #     all_r_values.append(pd.DataFrame(r_values, index=[param]))
-        #     all_ranges.append(pd.DataFrame(ranges, index=[param]))
-        # pd.DataFrame(slopes, index=[param]).to_csv(simulation_dir + '/fibre_slopes.csv')
-        # pd.DataFrame(intercepts, index=[param]).to_csv(simulation_dir + '/fibre_intercepts.csv')
-        # pd.DataFrame(p_values, index=[param]).to_csv(simulation_dir + '/fibre_p_values.csv')
-        # pd.DataFrame(r_values, index=[param]).to_csv(simulation_dir + '/fibre_r_values.csv')
-        # pd.DataFrame(ranges, index=[param]).to_csv(simulation_dir + '/fibre_ranges.csv')
         np.savetxt(simulation_dir + '/param_' + param + '_inputs.csv', params, delimiter=',')
         pd.DataFrame(qois, columns=qoi_names).to_csv(simulation_dir + '/param_' + param + '_fibre_qoi_outcomes.csv')
 
@@ -439,12 +358,12 @@ for param_i, param in enumerate(parameter_names):
 # Concatenate all results into a single CSV file
 print('Showing slopes dataframe: ')
 print(all_ranges)
-print('Save all results into SA_summary_OAT files...')
-all_slopes.to_csv('SA_summary_OAT_slopes.csv')
-all_intercepts.to_csv('SA_summary_OAT_intercepts.csv')
-all_p_values.to_csv('SA_summary_OAT_p_values.csv')
-all_r_values.to_csv('SA_summary_OAT_r_values.csv')
-all_ranges.to_csv('SA_summary_OAT_ranges.csv')
+print('Save all results into ECG_SA_OAT files...')
+all_slopes.to_csv('ECG_SA_OAT_slopes.csv')
+all_intercepts.to_csv('ECG_SA_OAT_intercepts.csv')
+all_p_values.to_csv('ECG_SA_OAT_p_values.csv')
+all_r_values.to_csv('ECG_SA_OAT_r_values.csv')
+all_ranges.to_csv('ECG_SA_OAT_ranges.csv')
 # print('Concatenate all results into SA_summary_OAT files...')
 # pd.concat(all_slopes, axis='columns').to_csv('SA_summary_OAT_slopes.csv')
 # pd.concat(all_intercepts, axis='columns').to_csv('SA_summary_OAT_intercepts.csv')

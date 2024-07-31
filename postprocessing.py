@@ -130,6 +130,7 @@ class PostProcessing(MeshStructure):
         qtpeak_dur = np.zeros((len(lead_names)))
         t_dur = np.zeros((len(lead_names)))
         jt_dur = np.zeros((len(lead_names)))
+        j_point = np.zeros((len(lead_names)))
         if show_landmarks:
             fig = plt.figure(tight_layout=True, figsize=[11, 9])
             gs = GridSpec(3, 4)
@@ -145,12 +146,14 @@ class PostProcessing(MeshStructure):
             #         self.calculate_ecg_biomarkers(time=self.ecgs['ts'][beat-1], V=self.ecgs[lead_i][beat-1],
             #                                       qrs_end_t=0.1)
             # QRS_duration, QT_duration, QTpeak_duration, t_wave_duration, t_peak_end, t_start_peak, t_magnitude_true,  landmarks
-            qrs_dur[i], qt_dur[i], qtpeak_dur[i], t_dur[i], t_pe[i], t_op[i], t_peak[i], jt_dur[i], landmarks = \
+            qrs_dur[i], qt_dur[i], qtpeak_dur[i], t_dur[i], t_pe[i], t_op[i], t_peak[i], jt_dur[i], j_point[i], landmarks = \
                         self.calculate_ecg_biomarkers_HolmesSmith(T=self.ecgs['ts'][beat-1], V=self.ecgs[lead_i][beat-1], show=show_landmarks)
             if show_landmarks:
-                axes[i].plot(self.ecgs['ts'][beat-1]*1000, self.ecgs[lead_i][beat-1], 'k-', landmarks[0, 0], landmarks[0, 1], 'r*', landmarks[1, 0], landmarks[1, 1], 'b*',
-                         landmarks[2, 0], landmarks[2, 1], 'g*', landmarks[3, 0], landmarks[3, 1], 'm*', landmarks[4, 0],
-                         landmarks[4, 1], 'c*')
+                axes[i].plot(self.ecgs['ts'][beat-1]*1000, self.ecgs[lead_i][beat-1], 'k-')
+                for j in range(landmarks.shape[0]):
+                    axes[i].axvline(x=landmarks[j, 0]/1000, color='gray', alpha=0.3)
+                axes[i].axhline(y=j_point[i], color='gray', alpha=0.3)
+                axes[i].axhline(y=t_peak[i], color='gray', alpha=0.3)
                 axes[i].set_title(lead_i)
         if show_landmarks:
             plt.show()
@@ -164,6 +167,7 @@ class PostProcessing(MeshStructure):
         qoi['t_op_mean'] = np.mean(t_op)
         qoi['t_peak_mean'] = np.mean(t_peak)
         qoi['jt_dur_mean'] = np.mean(jt_dur)
+        qoi['j_point_mean'] = np.mean(j_point)
 
         qoi['qrs_dur_std'] = np.std(qrs_dur)
         qoi['qt_dur_std'] = np.std(qt_dur)
@@ -173,6 +177,7 @@ class PostProcessing(MeshStructure):
         qoi['t_op_std'] = np.std(t_op)
         qoi['t_peak_std'] = np.std(t_peak)
         qoi['jt_dur_std'] = np.std(jt_dur)
+        qoi['j_point_std'] = np.std(j_point)
         self.qoi.update(qoi)
 
     def evaluate_pv_biomarkers(self, beat):
@@ -805,14 +810,15 @@ class PostProcessing(MeshStructure):
         for i in range(width, 301):
             dV_windowed[i - width] = abs(get_window(dV_ex, i, width))
         QRS_start_tol = 0.01 * max(abs(V)) / 30
-        QRS_end_tol_ddV = 0.1 * max(abs(V)) / (30 * width + 2)
-        QRS_end_tol_dV = 0.07 * max(abs(dV_windowed))
+        QRS_end_tol_ddV = 0.01 * max(abs(V)) / (30 * width + 2)
+        QRS_end_tol_dV = 0.01 * max(abs(dV_windowed))
         T_start_tol = 0.12 * max(abs(V)) / 30
         T_end_tol = 0.01 * max(abs(V)) / 30
 
         # Determine QRS start time
         QRS_window_ = []
-        for i in range(width + 100, 500):
+        diastolic_offset = 150 # diastolic filling takes 150 from start of simulation.
+        for i in range(width + diastolic_offset, 500):
             QRS_window = abs(get_window(ddV_ex, i, width))
             QRS_window_.append(QRS_window)
             if (QRS_window > QRS_start_tol):
@@ -832,7 +838,8 @@ class PostProcessing(MeshStructure):
         QRS_end_time = T[QRS_end_idx]
         QRS_duration = QRS_end_time - QRS_start_time
 
-        QRS_end_idx = min(150, QRS_end_idx)
+        QRS_end_idx = min(diastolic_offset + 50, QRS_end_idx)
+        J_point = V[QRS_end_idx]
         segment = V[(QRS_end_idx + 100):1000]  # Assuming ~100 of ST segment
         t_magnitude = max(abs(segment))
         peak_idx = np.where(abs(segment) == t_magnitude)[-1][0]
@@ -888,7 +895,7 @@ class PostProcessing(MeshStructure):
                 [[T[QRS_start_idx], V[QRS_start_idx]], [T[QRS_end_idx], V[QRS_end_idx]],
                  [T[t_wave_start_idx], V[t_wave_start_idx]], [T[t_peak_idx], V[t_peak_idx]],
                  [T[t_wave_end_idx], V[t_wave_end_idx]]])
-        return QRS_duration, QT_duration, QTpeak_duration, t_wave_duration, t_peak_end, t_start_peak, t_magnitude_true, JT_duration, landmarks
+        return QRS_duration, QT_duration, QTpeak_duration, t_wave_duration, t_peak_end, t_start_peak, t_magnitude_true, JT_duration, J_point, landmarks
 
     def calculate_ecg_biomarkers(self, time, V, LAT=None, qrs_end_t=None):
         """This is not to be used with clinical data because it assumes that the signal returns to baseline after the end

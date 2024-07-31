@@ -1133,7 +1133,6 @@ class ECGPV_visualisation:
         return analysis
 
     def _plot_with_landmarks(self, t, max_all_leads, V, name, CL, ax=None):
-
     	# qrs_dur, t_dur, t_pe, t_op, t_amplitude, qt_dur, landmarks =self._measurements_with_qrs_dur(V, 0.0, CL, t, 2e-5, 0.01)
         qrs_dur, t_dur, t_pe, t_op, t_amplitude, qt_dur, landmarks = self._measurements_Holmes_Smith(V, t, width=3)
         if ax:
@@ -1144,7 +1143,7 @@ class ECGPV_visualisation:
             ax.set_ylim(-1,1)
             ax.set_xlabel('Time (s)')
             ax.set_ylabel('Normalised ECG')
-    	return qrs_dur, t_dur, t_pe, t_op, t_amplitude, qt_dur
+        return qrs_dur, t_dur, t_pe, t_op, t_amplitude, qt_dur
 
     def _measurements_Holmes_Smith(self, V, T, width=3):
         # Resample V and T to 1000 Hz

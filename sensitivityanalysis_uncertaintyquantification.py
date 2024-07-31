@@ -176,7 +176,7 @@ class SAUQ:
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
                                       alya_output_dir=alya_output_dir, protocol='raw',
                                       verbose=self.verbose)
-                post.evaluate_ecg_biomarkers(beat=beat, show_landmarks=False)
+                post.evaluate_ecg_biomarkers(beat=beat, show_landmarks=True)
                 post.save_qoi(filename=qoi_save_dir + 'ecg_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
             elif qoi_group_name == 'pv':
@@ -347,8 +347,12 @@ class SAUQ:
         elif tag== 'raw':
             for simulation_i in range(len(all_simulation_dirs)):
                 dir = self.simulation_dir + all_simulation_dirs[simulation_i].split('/')[-2]
-                if os.path.exists(dir+'/heart-cardiac-cycle.sld.res'):
-                    self.finished_simulation_dirs.append(dir + '/')
+                filename = dir+'/heart.exm.vin'
+                if os.path.exists(filename):
+                    with open(filename, 'r') as f:
+                        lines = f.readlines()
+                    if len(lines) > 98400:
+                        self.finished_simulation_dirs.append(dir + '/')
         elif tag == 'cube_postprocess':
             for simulation_i in range(len(all_simulation_dirs)):
                 dir = self.simulation_dir + all_simulation_dirs[simulation_i].split('/')[-2]
@@ -367,11 +371,12 @@ class SAUQ:
                         self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
         elif tag== 'raw':
             for simulation_i in range(len(all_simulation_dirs)):
-                filename = all_simulation_dirs[simulation_i].split()[0]+'/heart-cardiac-cycle.sld.res'
+                # filename = all_simulation_dirs[simulation_i].split()[0]+'/heart-cardiac-cycle.sld.res'
+                filename = all_simulation_dirs[simulation_i].split()[0] + '/heart.exm.vin'
                 if os.path.exists(filename):
                     with open(filename, 'r') as f:
                         lines = f.readlines()
-                        if len(lines) > 18:
+                        if len(lines) > 98400:
                             self.finished_simulation_dirs.append(all_simulation_dirs[simulation_i].split()[0])
         elif tag == 'cube_postprocess':
             for simulation_i in range(len(all_simulation_dirs)):
