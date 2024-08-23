@@ -71,26 +71,24 @@ all_parameters_at_once = False
 
 # Choose which groups of QoI to evaluate
 evaluate_pv= False
-evaluate_ecg = False
+evaluate_ecg = True
 evaluate_deformation = False
 evaluate_fibrework = False
-evaluate_strain = True
+evaluate_strain = False
 evaluate_volume = False
-fresh_qoi_evaluation = False
+fresh_qoi_evaluation = True
 
 parameter_names = []
 sa_folder_root_names = []
 cellular_params = ['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup']
 active_params = ['tref_scaling_myocardium', 'cal50_myocardium', 'sfkws_myocardium']
 passive_params = ['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'as_myocardium', 'afs_myocardium']
-# passive_params = ['af_myocardium', 'afs_myocardium']
 haemo_params = ['arterial_resistance_lv',
                 'arterial_compliance_lv',
                 'ejection_pressure_threshold_lv']
                                 # 'gain_error_relaxation_lv',
                                 # 'gain_derror_relaxation_lv',
                                 # ]
-# haemo_params = ['ejection_pressure_threshold_lv']
 if cellular:
     parameter_names = parameter_names + cellular_params
     sa_folder_root_names = sa_folder_root_names + ['sensitivity_analyses_cellular_parameters_oat']*len(cellular_params)
