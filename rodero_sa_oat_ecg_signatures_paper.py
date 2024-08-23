@@ -70,8 +70,8 @@ haemodynamic = True
 all_parameters_at_once = False
 
 # Choose which groups of QoI to evaluate
-evaluate_pv= False
-evaluate_ecg = True
+evaluate_pv= True
+evaluate_ecg = False
 evaluate_deformation = False
 evaluate_fibrework = False
 evaluate_strain = False
@@ -163,8 +163,8 @@ if setup_simulations or run_simulations:
 qoi_names = []
 pv_qois = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max', 'EDVR', 'ESVR',
                      'PmaxR', 'SVR']
-ecg_qois = ['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'jt_dur_mean', 't_peak_mean', 'st_deviation_mean', 'qrs_peak_v3']
-deformation_qois = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness', 'min_volume']
+ecg_qois = ['qrs_dur_mean', 'qrs_peak_v3', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'jt_dur_mean', 't_peak_mean', 'j_point_mean']
+deformation_qois = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness']
 fibrework_qois = ['peak_lambda', 'min_lambda', 'peak_ta', 'diastolic_ta']
 strain_qois = ['max_mid_Ecc', 'min_mid_Ecc', 'max_mid_Err', 'min_mid_Err', 'max_four_chamber_Ell', 'min_four_chamber_Ell']
 if evaluate_ecg:
