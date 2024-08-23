@@ -1,6 +1,7 @@
 import os, sys
 import numpy
 import matplotlib
+import numpy as np
 # matplotlib.use('tkagg')  # For use on CSCS daint
 from matplotlib import pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -882,10 +883,18 @@ class ECGPV_visualisation:
             # More sophisticated method of evaluating EDV and ESV making use of the phase information.
             ejection_vls = pvs['vls'][beat - 1][numpy.where(pvs['phasel'][beat-1] == 2)]
             ejection_vrs = pvs['vrs'][beat - 1][numpy.where(pvs['phaser'][beat - 1] == 2)]
-            ESVL = min(ejection_vls)
-            ESVR = min(ejection_vrs)
-            EDVL = max(ejection_vls)
-            EDVR = max(ejection_vrs)
+            if ejection_vls:
+                ESVL = min(ejection_vls)
+                EDVL = max(ejection_vls)
+            else:
+                ESVL = np.nan
+                EDVL = np.nan
+            if ejection_vrs:
+                ESVR = min(ejection_vrs)
+                EDVR = max(ejection_vrs)
+            else:
+                ESVR = np.nan
+                EDVR = np.nan
             # EDVL = max(pvs['vls'][beat-1])
             # EDVR = max(pvs['vrs'][beat-1])
             # ESVL = min(pvs['vls'][beat-1])
@@ -896,7 +905,6 @@ class ECGPV_visualisation:
             RVEF = (EDVR-ESVR)/EDVR*100
             SVL = EDVL - ESVL
             SVR = EDVR - ESVR
-
         else:
             LVEF = []
             RVEF = []
