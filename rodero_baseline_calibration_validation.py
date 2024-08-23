@@ -51,7 +51,7 @@ setup_ep_alya_files = False
 run_alya_baseline_simulation = False
 run_alya_baseline_postprocessing = False
 decide_calibration_parameter_ranges = False
-setup_calibration_alya_simulations = False
+setup_calibration_alya_simulations = True
 run_alya_calibration_simulations = True
 evaluate_calibration_sa = False
 setup_validation_alya_simulations = False
@@ -213,13 +213,21 @@ if decide_calibration_parameter_ranges:
 # upper_range = (143000 - 225000 -39524877.19 * 0.000150) / -39524877.19 = (-82000 -  5928)/-39524877.19 = 0.0022
 # lower_range = (153000 - 225000 - 5928 ) / -39524877.19 = 77928/  39524877.19 = 0.00197
 
+# Third iteration. LVEF now sitting at around 42 %, PmaxL around 13.2 kPa, which is a bit too low, and the ejection phase is too linear.
+# We need one more parameter to push the LVEF higher, and allow PmaxL to go back up.
+# The next parameter with highest range in LVEF is ICaL. So, time to ramp that up to the 1.8 to 2.0 range.
+# lower_range = 1.8
+# upper_range = 2.0
+# Adjust compliance:
+# [ 0.0016, 0.002]
+
 ########################################################################################################################
 # Step 7: Use OAT SA results and evaluation of biomarkers to assign new ranges for calibration SA
-calibration_folder_name = 'calibration_simulations_second_iteration'
+calibration_folder_name = 'calibration_simulations_third_iteration'
 baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
 simulation_json_file = baseline_json_file
 simulation_dict = json.load(open(simulation_json_file, 'r'))
-perturbed_parameters = json.load(open('calibration_sa_ranges_second_iteration.json', 'r'))
+perturbed_parameters = json.load(open('calibration_sa_ranges_third_iteration.json', 'r'))
 perturbed_parameters_name = np.array(list(perturbed_parameters.keys()))
 print(perturbed_parameters_name)
 if system == 'jureca':
@@ -239,14 +247,14 @@ lower_bounds = []
 for param in perturbed_parameters_name:
     lower_bounds.append(perturbed_parameters[param][0])
     upper_bounds.append(perturbed_parameters[param][1])
-calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 4, parameter_names=perturbed_parameters_name,
+calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 3, parameter_names=perturbed_parameters_name,
                    baseline_json_file=baseline_json_file, simulation_dir=simulation_dir, alya_format=alya,
                    baseline_dir=baseline_dir, verbose=verbose)
 if setup_calibration_alya_simulations:
     calibration.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
 if run_alya_calibration_simulations:
-    calibration.run_jobs(simulation_dir, start_id=0) # Maximum job submission in archer2 is 128 for QoS:taskfarm.
-
+    # calibration.run_jobs(simulation_dir, start_id=0) # Maximum job submission in archer2 is 128 for QoS:taskfarm.
+    calibration.run_jobs(simulation_dir, start_id=55)
 # calibration.run_jobs(simulation_dir, start_id=0, end_id=128) # Maximum job submission in archer2 is 128 for QoS:taskfarm.
 if evaluate_calibration_sa:
     if system == 'archive':
