@@ -181,7 +181,7 @@ class SAUQ:
                                   verbose=self.verbose)
             post.deformation_transients = {}
             post.read_binary_outputs(read_field_name='INTRA', read_field_type='scalar')
-            post.evaluate_ep_maps()
+            post.evaluate_ep_maps() # TODO: repolarisation map is wrong.
             # Write LAT on end diastolic geometry
             ed_t = post.simulation_dict['end_diastole_t'][0] + post.simulation_dict['exmedi_delay_time']
             ed_t_index = np.argmin(abs(post.post_nodefield.dict['time'] - ed_t))
@@ -191,7 +191,7 @@ class SAUQ:
             casename = 'sa_lat_' + str(simulation_i)
             print('Saving LAT map to ' + output_dir + '/' + casename)
             post.post_nodefield.save_to_ensight(output_dir=output_dir, casename=casename,
-                                                geometry=ed_geometry, fieldname='lat', fieldtype='postnodefield')
+                                                geometry=ed_geometry, fieldname='lat', fieldtype='postnodefield') # TODO: Geometry update isn't working
             # Get timing of end of phase 3
             post.read_ecg_pv()
             if np.amax(post.pvs['phasels'][beat - 1] > 3):
