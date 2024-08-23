@@ -64,7 +64,7 @@ setup_simulations = False
 run_simulations = False
 # Choose which groups of parameters to setup/run/evaluate
 passive_mechanics = True
-active_mechanics = True
+active_mechanics = False
 cellular = False
 haemodynamic = True
 all_parameters_at_once = False

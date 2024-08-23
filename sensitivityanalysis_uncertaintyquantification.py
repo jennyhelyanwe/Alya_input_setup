@@ -185,8 +185,6 @@ class SAUQ:
             # Write LAT on end diastolic geometry
             ed_t = post.simulation_dict['end_diastole_t'][0] + post.simulation_dict['exmedi_delay_time']
             ed_t_index = np.argmin(abs(post.post_nodefield.dict['time'] - ed_t))
-
-
             post.read_binary_outputs(read_field_name='DISPL', read_field_type='vector')
             ed_geometry = post.geometry
             ed_geometry.nodes_xyz = post.geometry.nodes_xyz + post.post_nodefield.dict['DISPL'][:, :, ed_t_index]
@@ -194,28 +192,28 @@ class SAUQ:
             print('Saving LAT map to ' + output_dir + '/' + casename)
             post.post_nodefield.save_to_ensight(output_dir=output_dir, casename=casename,
                                                 geometry=ed_geometry, fieldname='lat', fieldtype='postnodefield')
-            quit()
             # Get timing of end of phase 3
             post.read_ecg_pv()
             if np.amax(post.pvs['phasels'][beat - 1] > 3):
-                es_idx = np.where(post.pvs['phasels'][beat - 1] == 3)[-1]
+                es_idx = np.where(post.pvs['phasels'][beat - 1] == 3)[0][-1]
             else:
                 es_idx = np.argmin(post.pvs['vls'][beat - 1])
-            print(es_idx)
             es_t = post.pvs['ts'][beat - 1][es_idx]
             print(es_t)
-            plt.plot(post.pvs['ts'][0], post.pvs['vls'][0])
-            plt.axvline(x=es_t)
-            plt.show()
-            quit()
+            # if es_t < 0.3:
+            #     es_t = 0.3
+            # plt.plot(post.pvs['ts'][0], post.pvs['vls'][0], post.pvs['ts'][0], post.pvs['phasels'][0])
+            # plt.axvline(x=es_t)
+            # plt.show()
             es_t_index = np.argmin(abs(post.post_nodefield.dict['time'] - es_t))
-            print(es_t)
-            quit()
+            print(es_t_index)
             es_geometry = post.geometry
-            es_geometry = post.geometry.nodes_xyz + post.post_nodefield.dict['DISPL'][:, es_t_index, :]
-            post.post_nodefield.save_to_ensight(output_dir=output_dir, casename='sa_rt_' + str(simulation_i),
+            es_geometry.nodes_xyz = post.geometry.nodes_xyz + post.post_nodefield.dict['DISPL'][:, :, es_t_index]
+            casename = 'sa_rt_' + str(simulation_i)
+            print('Saving RT map to ' + output_dir + '/' + casename)
+            post.post_nodefield.save_to_ensight(output_dir=output_dir, casename=casename,
                                                 geometry=es_geometry, fieldname='rt', fieldtype='postnodefield')
-
+            quit()
 
 
 
