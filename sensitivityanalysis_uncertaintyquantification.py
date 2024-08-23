@@ -176,7 +176,7 @@ class SAUQ:
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
                                       alya_output_dir=alya_output_dir, protocol='raw',
                                       verbose=self.verbose)
-                post.evaluate_ecg_biomarkers(beat=beat, show_landmarks=True)
+                post.evaluate_ecg_biomarkers(beat=beat, show_landmarks=False)
                 post.save_qoi(filename=qoi_save_dir + 'ecg_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
             elif qoi_group_name == 'pv':
@@ -410,7 +410,7 @@ class SAUQ:
 
     def visualise_sa(self, beat, ecg_post=None, pv_post=None, deformation_post=None,
                      fibre_work_post=None, strain_post=None, cube_deformation_ta_post=None, volume_post=None,
-                     labels=None, save_filename=None):
+                     labels=None, save_filename=None, show=False):
         if pv_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(2, 2)
@@ -452,8 +452,16 @@ class SAUQ:
                 ax_pv.legend()
                 ax_vt.legend()
                 ax_pt.legend()
+            if save_filename:
+                plt.savefig(save_filename)
+            if show:
+                plt.show()
+            plt.close()
         if ecg_post:
-            fig = plt.figure(tight_layout=True, figsize=(18, 10))
+            fig = plt.figure(tight_layout=True, figsize=(12, 5))
+            fig2 = plt.figure(tight_layout=True, figsize=(12, 5))
+            fig3 = plt.figure(tight_layout=True, figsize=(12, 5))
+            fig4 = plt.figure()
             gs = GridSpec(1, 6)
             ax_V1 = fig.add_subplot(gs[0, 0])
             ax_V2 = fig.add_subplot(gs[0, 1])
@@ -461,25 +469,68 @@ class SAUQ:
             ax_V4 = fig.add_subplot(gs[0, 3])
             ax_V5 = fig.add_subplot(gs[0, 4])
             ax_V6 = fig.add_subplot(gs[0, 5])
+
+            ax_V1b = fig2.add_subplot(gs[0, 0])
+            ax_V2b = fig2.add_subplot(gs[0, 1])
+            ax_V3b = fig2.add_subplot(gs[0, 2])
+            ax_V4b = fig2.add_subplot(gs[0, 3])
+            ax_V5b = fig2.add_subplot(gs[0, 4])
+            ax_V6b = fig2.add_subplot(gs[0, 5])
+
+            ax_V1c = fig3.add_subplot(gs[0, 0])
+            ax_V2c = fig3.add_subplot(gs[0, 1])
+            ax_V3c = fig3.add_subplot(gs[0, 2])
+            ax_V4c = fig3.add_subplot(gs[0, 3])
+            ax_V5c = fig3.add_subplot(gs[0, 4])
+            ax_V6c = fig3.add_subplot(gs[0, 5])
             for simulation_i in range(len(ecg_post)):
                 if labels:
-                    ax_V1.plot(ecg_post[simulation_i].ecgs['ts'][beat-1],
-                               ecg_post[simulation_i].ecgs['V1s'][beat-1]/ecg_post[simulation_i].ecgs['max_all_leads'],
+                    lines = ax_V3.plot(ecg_post[simulation_i].ecgs['ts'][beat-1],
+                               ecg_post[simulation_i].ecgs['V3s'][beat-1]/ecg_post[simulation_i].ecgs['max_all_leads'],
                                label=labels[simulation_i])
                 else:
-                    ax_V1.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                               ecg_post[simulation_i].ecgs['V1s'][beat - 1] / ecg_post[simulation_i].ecgs[
+                    ax_V3.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                               ecg_post[simulation_i].ecgs['V3s'][beat - 1] / ecg_post[simulation_i].ecgs[
                                    'max_all_leads'])
+                ax_V3b.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                               ecg_post[simulation_i].ecgs['V3s'][beat - 1] / ecg_post[simulation_i].ecgs[
+                                   'max_all_leads'])
+                ax_V3c.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                                ecg_post[simulation_i].ecgs['V3s'][beat - 1] / ecg_post[simulation_i].ecgs[
+                                    'max_all_leads'])
+                ax_V1.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                           ecg_post[simulation_i].ecgs['V1s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
                 ax_V2.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
                            ecg_post[simulation_i].ecgs['V2s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
-                ax_V3.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                           ecg_post[simulation_i].ecgs['V3s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
                 ax_V4.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
                            ecg_post[simulation_i].ecgs['V4s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
                 ax_V5.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
                            ecg_post[simulation_i].ecgs['V5s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
                 ax_V6.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
                            ecg_post[simulation_i].ecgs['V6s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+
+                ax_V1b.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                           ecg_post[simulation_i].ecgs['V1s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                ax_V2b.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                           ecg_post[simulation_i].ecgs['V2s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                ax_V4b.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                           ecg_post[simulation_i].ecgs['V4s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                ax_V5b.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                           ecg_post[simulation_i].ecgs['V5s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                ax_V6b.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                           ecg_post[simulation_i].ecgs['V6s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+
+                ax_V1c.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                            ecg_post[simulation_i].ecgs['V1s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                ax_V2c.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                            ecg_post[simulation_i].ecgs['V2s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                ax_V4c.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                            ecg_post[simulation_i].ecgs['V4s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                ax_V5c.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                            ecg_post[simulation_i].ecgs['V5s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                ax_V6c.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
+                            ecg_post[simulation_i].ecgs['V6s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+
             ax_V1.set_xlabel('Time (s)')
             ax_V1.set_title('V1')
             ax_V1.set_ylim([-1, 1])
@@ -498,45 +549,122 @@ class SAUQ:
             ax_V6.set_xlabel('Time (s)')
             ax_V6.set_title('V6')
             ax_V6.set_ylim([-1, 1])
+            if save_filename:
+                fig.savefig(save_filename + '.png')
+
+            # Zoom in for T wave only
+            ax_V1b.set_xlabel('Time (s)')
+            ax_V1b.set_title('V1')
+            ax_V1b.set_xlim([0.25, 0.55])
+            ax_V1b.set_ylim([-0.25, 0.25])
+
+            ax_V2b.set_xlabel('Time (s)')
+            ax_V2b.set_title('V2')
+            ax_V2b.set_xlim([0.25, 0.55])
+            ax_V2b.set_ylim([-0.25, 0.25])
+
+            ax_V3b.set_xlabel('Time (s)')
+            ax_V3b.set_title('V3')
+            ax_V3b.set_xlim([0.25, 0.55])
+            ax_V3b.set_ylim([-0.25, 0.25])
+
+            ax_V4b.set_xlabel('Time (s)')
+            ax_V4b.set_title('V4')
+            ax_V4b.set_xlim([0.25, 0.55])
+            ax_V4b.set_ylim([-0.25, 0.25])
+
+            ax_V5b.set_xlabel('Time (s)')
+            ax_V5b.set_title('V5')
+            ax_V5b.set_xlim([0.25, 0.55])
+            ax_V5b.set_ylim([-0.25, 0.25])
+
+            ax_V6b.set_xlabel('Time (s)')
+            ax_V6b.set_title('V6')
+            ax_V6b.set_xlim([0.25, 0.55])
+            ax_V6b.set_ylim([-0.25, 0.25])
+            if save_filename:
+                fig2.savefig( save_filename + '_twave.png')
+
+            # Zoom in for T wave only
+            ax_V1c.set_xlabel('Time (s)')
+            ax_V1c.set_title('V1')
+            ax_V1c.set_xlim([0.1, 0.25])
+            ax_V1c.set_ylim([-1, 1])
+
+            ax_V2c.set_xlabel('Time (s)')
+            ax_V2c.set_title('V2')
+            ax_V2c.set_xlim([0.1, 0.25])
+            ax_V2c.set_ylim([-1, 1])
+
+            ax_V3c.set_xlabel('Time (s)')
+            ax_V3c.set_title('V3')
+            ax_V3c.set_xlim([0.1, 0.25])
+            ax_V3c.set_ylim([-1, 1])
+
+            ax_V4c.set_xlabel('Time (s)')
+            ax_V4c.set_title('V4')
+            ax_V4c.set_xlim([0.1, 0.25])
+            ax_V4c.set_ylim([-1, 1])
+
+            ax_V5c.set_xlabel('Time (s)')
+            ax_V5c.set_title('V5')
+            ax_V5c.set_xlim([0.1, 0.25])
+            ax_V5c.set_ylim([-1, 1])
+
+            ax_V6c.set_xlabel('Time (s)')
+            ax_V6c.set_title('V6')
+            ax_V6c.set_xlim([0.1, 0.25])
+            ax_V6c.set_ylim([-1, 1])
+            if save_filename:
+                fig3.savefig(save_filename + '_qrs.png')
             if labels:
-                ax_V1.legend()
+                fig4.legend(ax_V3.get_legend_handles_labels()[0], ax_V3.get_legend_handles_labels()[1])
+                fig4.savefig(save_filename + '_legend.png')
+            if show:
+                plt.show()
+            plt.close()
         if deformation_post:
-            fig = plt.figure(tight_layout=True, figsize=(18, 10))
-            gs = GridSpec(1, 3)
+            fig = plt.figure(tight_layout=True, figsize=(14, 6))
+            fig2 = plt.figure()
+            gs = GridSpec(1, 4)
             ax_avpd = fig.add_subplot(gs[0,0])
             ax_apex = fig.add_subplot(gs[0,1])
             ax_wall = fig.add_subplot(gs[0,2])
+            ax_volume = fig.add_subplot(gs[0,3])
             for simulation_i in range(len(deformation_post)):
                 if labels:
                     ax_avpd.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
                                  deformation_post[simulation_i].deformation_transients['avpd'],
                                  label=labels[simulation_i])
-                    ax_apex.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
-                                 deformation_post[simulation_i].deformation_transients['apical_displacement'],
-                                 label=labels[simulation_i])
-                    ax_wall.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
-                                 deformation_post[simulation_i].deformation_transients['lv_wall_thickness'],
-                                 label=labels[simulation_i])
                 else:
                     ax_avpd.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
                                  deformation_post[simulation_i].deformation_transients['avpd'])
-                    ax_apex.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
+                ax_apex.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
                                  deformation_post[simulation_i].deformation_transients['apical_displacement'])
-                    ax_apex.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
+                ax_wall.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
                                  deformation_post[simulation_i].deformation_transients['lv_wall_thickness'])
-            ax_avpd.set_title('AVPD')
+                ax_volume.plot(deformation_post[simulation_i].deformation_transients['deformation_t'],
+                                 deformation_post[simulation_i].deformation_transients['volume'])
+            # ax_avpd.set_title('AVPD')
             ax_avpd.set_xlabel('Time (s)')
             ax_avpd.set_ylabel('AVPD (cm)')
-            ax_apex.set_title('Apical displacement')
+            # ax_apex.set_title('Apical displacement')
             ax_apex.set_xlabel('Time (s)')
-            ax_apex.set_ylabel('(cm)')
-            ax_wall.set_title('Wall thickness')
+            ax_apex.set_ylabel('Apical displacement (cm)')
+            # ax_wall.set_title('Wall thickness')
             ax_wall.set_xlabel('Time (s)')
             ax_wall.set_ylabel('Wall thickness (cm)')
+            # ax_volume.set_title('Volume')
+            ax_volume.set_xlabel('Time (s)')
+            ax_volume.set_ylabel('Volume (mL)')
+            if save_filename:
+                fig.savefig(save_filename + '.png')
             if labels:
-                ax_avpd.legend()
-                ax_apex.legend()
-                ax_wall.legend()
+                fig2.legend(ax_avpd.get_legend_handles_labels()[0], ax_avpd.get_legend_handles_labels()[1])
+                fig2.savefig(save_filename + '_legend.png')
+            if show:
+                plt.show()
+            plt.close()
         if volume_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(1, 1)
@@ -554,6 +682,11 @@ class SAUQ:
             ax.set_ylabel('Mesh Volume')
             if labels:
                 ax.legend()
+            if save_filename:
+                plt.savefig(save_filename)
+            if show:
+                plt.show()
+            plt.close()
         if fibre_work_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(1, 2)
@@ -581,8 +714,14 @@ class SAUQ:
             if labels:
                 ax_lambda.legend()
                 ax_ta.legend()
+            if save_filename:
+                plt.savefig(save_filename)
+            if show:
+                plt.show()
+            plt.close()
         if strain_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
+            fig2 = plt.figure()
             gs = GridSpec(1, 3)
             ax_Err = fig.add_subplot(gs[0, 0])
             ax_Ecc = fig.add_subplot(gs[0, 1])
@@ -599,16 +738,20 @@ class SAUQ:
                     ax_Ecc.plot(strain_post[simulation_i].strain_transients['strain_t'], strain_post[simulation_i].strain_transients['mean_mid_E_cc'])
                     ax_Err.plot(strain_post[simulation_i].strain_transients['strain_t'], strain_post[simulation_i].strain_transients['mean_mid_E_rr'])
                     ax_Ell.plot(strain_post[simulation_i].strain_transients['strain_t'], strain_post[simulation_i].strain_transients['mean_four_chamber_E_ll'])
-            ax_Err.set_title('Mid-vent Err')
+            ax_Err.set_ylabel('Mid-vent Err')
             ax_Err.set_xlabel('Time (s)')
-            ax_Ecc.set_title('Mid-vent Ecc')
+            ax_Ecc.set_ylabel('Mid-vent Ecc')
             ax_Ecc.set_xlabel('Time (s)')
-            ax_Ell.set_title('Four chamber Ell')
+            ax_Ell.set_ylabel('Four chamber Ell')
             ax_Ell.set_xlabel('Time (s)')
             if labels:
-                ax_Ecc.legend()
-                ax_Err.legend()
-                ax_Ell.legend()
+                fig2.legend(ax_Err.get_legend_handles_labels()[0], ax_Err.get_legend_handles_labels()[1])
+                fig2.savefig(save_filename + '_legend.png')
+            if save_filename:
+                fig.savefig(save_filename)
+            if show:
+                plt.show()
+            plt.close()
         if cube_deformation_ta_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(1, 2)
@@ -636,11 +779,12 @@ class SAUQ:
             if labels:
                 ax_displ.legend()
                 ax_ta.legend()
-        if save_filename:
-            plt.savefig(save_filename)
+            if save_filename:
+                plt.savefig(save_filename)
+            if show:
+                plt.show()
             plt.close()
-        else:
-            plt.show()
+
 
 
     def visualise_uq(self, beat, parameter_name, ecg_post=None, pv_post=None, deformation_post=None, fibre_work_post=None):

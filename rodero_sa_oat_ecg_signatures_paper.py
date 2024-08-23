@@ -71,24 +71,26 @@ all_parameters_at_once = False
 
 # Choose which groups of QoI to evaluate
 evaluate_pv= False
-evaluate_ecg = True
+evaluate_ecg = False
 evaluate_deformation = False
 evaluate_fibrework = False
-evaluate_strain = False
+evaluate_strain = True
 evaluate_volume = False
-fresh_qoi_evaluation = True
+fresh_qoi_evaluation = False
 
 parameter_names = []
 sa_folder_root_names = []
 cellular_params = ['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup']
 active_params = ['tref_scaling_myocardium', 'cal50_myocardium', 'sfkws_myocardium']
 passive_params = ['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'as_myocardium', 'afs_myocardium']
+# passive_params = ['af_myocardium', 'afs_myocardium']
 haemo_params = ['arterial_resistance_lv',
                 'arterial_compliance_lv',
                 'ejection_pressure_threshold_lv']
                                 # 'gain_error_relaxation_lv',
                                 # 'gain_derror_relaxation_lv',
                                 # ]
+# haemo_params = ['ejection_pressure_threshold_lv']
 if cellular:
     parameter_names = parameter_names + cellular_params
     sa_folder_root_names = sa_folder_root_names + ['sensitivity_analyses_cellular_parameters_oat']*len(cellular_params)
@@ -104,7 +106,7 @@ if haemodynamic:
 print('Parameters to evaluate: ', parameter_names)
 print('SA root folder names: ', sa_folder_root_names)
 ########################################################################################################################
-baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
+baseline_json_file = 'rodero_baseline_simulation_em.json' # this has had some calibration already, so that the deformations and PVs don't look too bad.
 simulation_json_file = baseline_json_file
 simulation_dict = json.load(open(simulation_json_file, 'r'))
 ########################################################################################################################
@@ -124,12 +126,13 @@ if setup_simulations or run_simulations:
             baseline_parameter_values = np.array([simulation_dict[param.split('_valveplug')[0]][1]])
         else:
             baseline_parameter_values = np.array([simulation_dict[param]])
-        upper_bounds = baseline_parameter_values * 2.0
-        lower_bounds = baseline_parameter_values * 0.1
-        if passive_mechanics:
-            upper_bounds = baseline_parameter_values * 0.5
-            lower_bounds = baseline_parameter_values * 0.01
-        baseline_json_file = 'rodero_baseline_simulation_em.json'
+        if (param in passive_params) | (param in haemo_params):
+            upper_bounds = baseline_parameter_values * 10.0
+            lower_bounds = baseline_parameter_values * 0.1
+        elif (param in active_params) | (param in cellular_params):
+            upper_bounds = baseline_parameter_values * 2.0
+            lower_bounds = baseline_parameter_values * 0.5
+        baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
         simulation_dir = ''
         baseline_dir = ''
         if system == 'jureca':
@@ -145,10 +148,10 @@ if setup_simulations or run_simulations:
             simulation_dir = sa_folder_root_names[param_i] + '_' + param + '/'
         elif system == 'archer2':
             baseline_dir = simulation_root_dir + 'rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
-            simulation_dir = simulation_root_dir + sa_folder_root_names[param_i] + '/'
+            simulation_dir = simulation_root_dir + sa_folder_root_names[param_i] + '_' + param + '/'
         elif system == 'archive':
             baseline_dir = simulation_root_dir + 'rodero_baseline_simulation_em_literature_parameters_rodero_05_fine/'
-            simulation_dir = simulation_root_dir + sa_folder_root_names[param_i] + '/'
+            simulation_dir = simulation_root_dir + sa_folder_root_names[param_i] + '_' + param + '/'
         parameter_names = np.array([param])
         sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names, baseline_json_file=baseline_json_file,
                  simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
@@ -162,8 +165,8 @@ if setup_simulations or run_simulations:
 qoi_names = []
 pv_qois = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max', 'EDVR', 'ESVR',
                      'PmaxR', 'SVR']
-ecg_qois = ['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'jt_dur_mean', 't_peak_mean', 'j_point_mean']
-deformation_qois = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness']
+ecg_qois = ['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'jt_dur_mean', 't_peak_mean', 'st_deviation_mean', 'qrs_peak_v3']
+deformation_qois = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness', 'min_volume']
 fibrework_qois = ['peak_lambda', 'min_lambda', 'peak_ta', 'diastolic_ta']
 strain_qois = ['max_mid_Ecc', 'min_mid_Ecc', 'max_mid_Err', 'min_mid_Err', 'max_four_chamber_Ell', 'min_four_chamber_Ell']
 if evaluate_ecg:
@@ -212,6 +215,12 @@ for param_i, param in enumerate(parameter_names):
         baseline_parameter_values = np.array([simulation_dict[param]])
     upper_bounds = baseline_parameter_values * 2.0
     lower_bounds = baseline_parameter_values * 0.1
+    if (param in passive_params) | (param in haemo_params):
+        upper_bounds = baseline_parameter_values * 10.0
+        lower_bounds = baseline_parameter_values * 0.1
+    elif (param in active_params) | (param in cellular_params):
+        upper_bounds = baseline_parameter_values * 2.0
+        lower_bounds = baseline_parameter_values * 0.5
     parameter_names = np.array([param])  # Dummy
     baseline_dir = ''  # Dummy
     sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names, baseline_json_file=baseline_json_file,
@@ -228,7 +237,7 @@ for param_i, param in enumerate(parameter_names):
     print('Number of finished simulations: ', len(sa.finished_simulation_dirs))
     if evaluate_pv:
         # Pressure volume information
-        if fresh_qoi_evaluation:
+        if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'pv_qois.csv'):
             pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                        analysis_type='sa')
             sa.visualise_sa(beat=1, pv_post=pv_post, labels=labels, save_filename=simulation_dir+'/pv_post.png')
@@ -247,13 +256,13 @@ for param_i, param in enumerate(parameter_names):
 
     # ECG information
     if evaluate_ecg:
-        if fresh_qoi_evaluation:
+        if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'ecg_qois.csv'):
             ecg_post = sa.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                         analysis_type='sa')
             if not ecg_post:
                 print('ERROR: ECG postprocessing did not happen for some reason')
                 quit()
-            sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post.png')
+            sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post', show=False)
         qoi_names = ecg_qois
         slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'ecg_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/ecg_scatter.png')
@@ -267,11 +276,14 @@ for param_i, param in enumerate(parameter_names):
 
     # Deformation
     if evaluate_deformation:
-        if fresh_qoi_evaluation:
+        if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'deformation_qois.csv'):
             deformation_post = sa.evaluate_qois(qoi_group_name='deformation', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                                 analysis_type='sa')
+            if not deformation_post:
+                print('ERROR: Deformation postprocessing did not happen for some reason')
+                quit()
             sa.visualise_sa(beat=1, deformation_post=deformation_post, labels=labels,
-                            save_filename=simulation_dir + '/deformation_post.png')
+                            save_filename=simulation_dir + '/deformation_post', show=True)
         qoi_names = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness']
         slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'deformation_qois.csv', qois=qoi_names,
                                    show_healthy_ranges=False, save_filename=simulation_dir + '/deformation_scatter.png')
@@ -284,7 +296,7 @@ for param_i, param in enumerate(parameter_names):
         pd.DataFrame(qois, columns=qoi_names).to_csv(simulation_dir + '/param_' + param + '_deformation_qoi_outcomes.csv')
 
     if evaluate_volume:
-        if fresh_qoi_evaluation:
+        if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'volume_qois.csv'):
             volume_post = sa.evaluate_qois(qoi_group_name='volume', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                                 analysis_type='sa')
             sa.visualise_sa(beat=1, volume_post=volume_post, labels=labels)
@@ -303,7 +315,7 @@ for param_i, param in enumerate(parameter_names):
 
     # Fibre strain and Ta
     if evaluate_fibrework:
-        if fresh_qoi_evaluation:
+        if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'fibrework_qois.csv'):
             fibre_work_post = sa.evaluate_qois(qoi_group_name='fibre_work', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                                analysis_type='sa')
             sa.visualise_sa(beat=1, fibre_work_post=fibre_work_post, labels=labels,
@@ -321,11 +333,11 @@ for param_i, param in enumerate(parameter_names):
 
     # Strain information
     if evaluate_strain:
-        if fresh_qoi_evaluation:
+        if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'strain_qois.csv'):
             strain_post = sa.evaluate_qois(qoi_group_name='strain', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                            analysis_type='sa')
             sa.visualise_sa(beat=1, strain_post=strain_post, labels=labels,
-                            save_filename=simulation_dir + '/strain_post.png')
+                            save_filename=simulation_dir + '/strain_post', show=False)
         qoi_names = ['max_mid_Ecc', 'min_mid_Ecc', 'max_mid_Err', 'min_mid_Err', 'max_four_chamber_Ell', 'min_four_chamber_Ell']
         slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'strain_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/strain_scatter.png')
@@ -358,12 +370,20 @@ for param_i, param in enumerate(parameter_names):
 # Concatenate all results into a single CSV file
 print('Showing slopes dataframe: ')
 print(all_ranges)
-print('Save all results into ECG_SA_OAT files...')
-all_slopes.to_csv('ECG_SA_OAT_slopes.csv')
-all_intercepts.to_csv('ECG_SA_OAT_intercepts.csv')
-all_p_values.to_csv('ECG_SA_OAT_p_values.csv')
-all_r_values.to_csv('ECG_SA_OAT_r_values.csv')
-all_ranges.to_csv('ECG_SA_OAT_ranges.csv')
+if evaluate_ecg:
+    print('Save all results into ECG_SA_OAT files...')
+    all_slopes.to_csv('ECG_SA_OAT_slopes.csv')
+    all_intercepts.to_csv('ECG_SA_OAT_intercepts.csv')
+    all_p_values.to_csv('ECG_SA_OAT_p_values.csv')
+    all_r_values.to_csv('ECG_SA_OAT_r_values.csv')
+    all_ranges.to_csv('ECG_SA_OAT_ranges.csv')
+elif evaluate_deformation:
+    print('Save all results into DEF_SA_OAT files...')
+    all_slopes.to_csv('DEF_SA_OAT_slopes.csv')
+    all_intercepts.to_csv('DEF_SA_OAT_intercepts.csv')
+    all_p_values.to_csv('DEF_SA_OAT_p_values.csv')
+    all_r_values.to_csv('DEF_SA_OAT_r_values.csv')
+    all_ranges.to_csv('DEF_SA_OAT_ranges.csv')
 # print('Concatenate all results into SA_summary_OAT files...')
 # pd.concat(all_slopes, axis='columns').to_csv('SA_summary_OAT_slopes.csv')
 # pd.concat(all_intercepts, axis='columns').to_csv('SA_summary_OAT_intercepts.csv')

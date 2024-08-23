@@ -8,23 +8,23 @@ from matplotlib.gridspec import GridSpec
 from healthy_qoi_ranges import HealthyBiomarkerRanges
 
 ########################################################################################################################
-slopes = pd.read_csv('SA_summary_OAT_slopes.csv').values[:, 1:]
-p_values = pd.read_csv('SA_summary_OAT_p_values.csv').values[:, 1:]
-r_values = pd.read_csv('SA_summary_OAT_r_values.csv').values[:, 1:]
-data = pd.read_csv('SA_summary_OAT_ranges.csv').values
+slopes = pd.read_csv('ECG_SA_OAT_slopes.csv').values[:, 1:]
+p_values = pd.read_csv('ECG_SA_OAT_p_values.csv').values[:, 1:]
+r_values = pd.read_csv('ECG_SA_OAT_r_values.csv').values[:, 1:]
+data = pd.read_csv('ECG_SA_OAT_ranges.csv').values
 ranges_matrix = data[:, 1:]
 ranges_matrix_normalised = ranges_matrix
 maxima = np.nanmax(abs(ranges_matrix), axis=0)
 ranges_matrix_normalised[:, np.nonzero(maxima)] = ranges_matrix[:, np.nonzero(maxima)] / maxima[np.nonzero(maxima)]
-qoi_names = pd.read_csv('SA_summary_OAT_ranges.csv').columns.values[1:]
-qoi_names = qoi_names[0:4]
+qoi_names = pd.read_csv('ECG_SA_OAT_ranges.csv').columns.values[1:]
+# qoi_names = qoi_names[0:4]
 qoi = {}
 qoi_ticks = []
 for i in range(len(qoi_names)):
     qoi[qoi_names[i]] = len(qoi_names) - i
     qoi_ticks.append(len(qoi_names)-i)
-
-param_names = data[5:-3, 0] # Only cross bridge cycline, mechanics, and haemo parameters.
+param_names = data[:, 0]
+# param_names = data[5:-3, 0] # Only cross bridge cycline, mechanics, and haemo parameters.
 param = {}
 param_ticks = []
 for i in range(len(param_names)):
@@ -58,8 +58,8 @@ secax.set_ylim(0, max(len(qoi_names), len(param_names)))
 secax.set_yticks(qoi_ticks)
 secax.set_yticklabels(qoi_names)
 plt.tight_layout()
+plt.savefig('ECG_OAT_SA_ALL_QOIS.png')
 plt.show()
-plt.savefig('OAT_SA_ALL_QOIS.png')
 quit()
 ########################################################################################################################
 # # Highlight separate groups of parameters
