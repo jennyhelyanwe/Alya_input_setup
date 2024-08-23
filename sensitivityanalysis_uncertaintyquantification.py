@@ -11,7 +11,7 @@ import matplotlib
 from matplotlib.gridspec import GridSpec
 from matplotlib import pyplot as plt
 import seaborn as sns
-from postprocessing import PostProcessing, mapIndices
+from postprocessing import PostProcessing, mapIndices, evaluate_rt, evaluate_lat
 import pandas as pd
 from healthy_qoi_ranges import HealthyBiomarkerRanges
 class SAUQ:
@@ -166,6 +166,59 @@ class SAUQ:
         #         self.alya_format.do(simulation_json_file=self.simulation_dir + self.name + '_' + str(sample_i) + '.json', parallel_flag=True)
         #         print('finished alya do! ')
         #         all_simulation_dirs[sample_i] = self.alya_format.output_dir
+
+
+    def evaluate_maps(self, alya, beat, analysis_type, simulation_dir):
+        output_dir = simulation_dir + 'maps_ensight'
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
+        for simulation_i in range(len(self.finished_simulation_dirs)):
+            # Evaluate LAT and RT
+            alya_output_dir = self.finished_simulation_dirs[simulation_i]
+            json_file = self.simulation_dir + analysis_type + '_' + str(simulation_i) + '.json'
+            post = PostProcessing(alya=alya, simulation_json_file=json_file,
+                                  alya_output_dir=alya_output_dir, protocol='postprocess',
+                                  verbose=self.verbose)
+            post.deformation_transients = {}
+            post.read_binary_outputs(read_field_name='INTRA', read_field_type='scalar')
+            post.evaluate_ep_maps()
+            # Write LAT on end diastolic geometry
+            ed_t = post.simulation_dict['end_diastole_t'][0] + post.simulation_dict['exmedi_delay_time']
+            ed_t_index = np.argmin(abs(post.post_nodefield.dict['time'] - ed_t))
+
+
+            post.read_binary_outputs(read_field_name='DISPL', read_field_type='vector')
+            ed_geometry = post.geometry
+            ed_geometry.nodes_xyz = post.geometry.nodes_xyz + post.post_nodefield.dict['DISPL'][:, :, ed_t_index]
+            casename = 'sa_lat_' + str(simulation_i)
+            print('Saving LAT map to ' + output_dir + '/' + casename)
+            post.post_nodefield.save_to_ensight(output_dir=output_dir, casename=casename,
+                                                geometry=ed_geometry, fieldname='lat', fieldtype='postnodefield')
+            quit()
+            # Get timing of end of phase 3
+            post.read_ecg_pv()
+            if np.amax(post.pvs['phasels'][beat - 1] > 3):
+                es_idx = np.where(post.pvs['phasels'][beat - 1] == 3)[-1]
+            else:
+                es_idx = np.argmin(post.pvs['vls'][beat - 1])
+            print(es_idx)
+            es_t = post.pvs['ts'][beat - 1][es_idx]
+            print(es_t)
+            plt.plot(post.pvs['ts'][0], post.pvs['vls'][0])
+            plt.axvline(x=es_t)
+            plt.show()
+            quit()
+            es_t_index = np.argmin(abs(post.post_nodefield.dict['time'] - es_t))
+            print(es_t)
+            quit()
+            es_geometry = post.geometry
+            es_geometry = post.geometry.nodes_xyz + post.post_nodefield.dict['DISPL'][:, es_t_index, :]
+            post.post_nodefield.save_to_ensight(output_dir=output_dir, casename='sa_rt_' + str(simulation_i),
+                                                geometry=es_geometry, fieldname='rt', fieldtype='postnodefield')
+
+
+
+
 
     def evaluate_qois(self, qoi_group_name, alya, beat, qoi_save_dir, analysis_type):
         postp_objects = []

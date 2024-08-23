@@ -1160,11 +1160,12 @@ class PostProcessing(MeshStructure):
 
     def evaluate_ep_maps(self):
         print('Evaluating LAT and RT')
+        print(np.amax(self.post_nodefield.dict['time']))
         lat = evaluate_lat(time=self.post_nodefield.dict['time'], vm=self.post_nodefield.dict['INTRA'], percentage=0.7,
-                           time_window=[float(self.simulation_dict['exmedi_delay_time']),
+                           time_window=[float(self.simulation_dict['exmedi_delay_time']) + float(self.simulation_dict['end_diastole_t'][0]),
                                         float(self.simulation_dict['cycle_length'])])
         rt = evaluate_rt(time=self.post_nodefield.dict['time'], vm=self.post_nodefield.dict['INTRA'], percentage=0.9,
-                         time_window=[float(self.simulation_dict['exmedi_delay_time']),
+                         time_window=[float(self.simulation_dict['exmedi_delay_time']) + float(self.simulation_dict['end_diastole_t'][0]),
                                       float(self.simulation_dict['cycle_length'])])
         rt[self.node_fields.dict['tv'] == -10] = np.nan
         lat[self.node_fields.dict['tv'] == -10] = np.nan
@@ -2204,7 +2205,7 @@ def evaluate_lat(time, vm, percentage, time_window):
     activation_map = pymp.shared.array(vm.shape[0])
     time_shared = pymp.shared.array(time.shape)
     time_shared[:] = time
-    threadsNum = int(multiprocessing.cpu_count()*0.7)
+    threadsNum = int(multiprocessing.cpu_count()*0.7) # don't use all cores available
     with pymp.Parallel(min(threadsNum, vm.shape[0])) as p1:
         for node_i in p1.range(vm.shape[0]):
             local_vm = vm[node_i, :]

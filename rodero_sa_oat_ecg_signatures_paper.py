@@ -71,11 +71,12 @@ all_parameters_at_once = False
 
 # Choose which groups of QoI to evaluate
 evaluate_pv= False
-evaluate_ecg = True
+evaluate_ecg = False
 evaluate_deformation = False
 evaluate_fibrework = False
 evaluate_strain = False
 evaluate_volume = False
+evaluate_maps = True
 fresh_qoi_evaluation = True
 
 parameter_names = []
@@ -381,6 +382,10 @@ for param_i, param in enumerate(parameter_names):
         np.savetxt(simulation_dir + '/param_' + param + '_inputs.csv', params, delimiter=',')
         pd.DataFrame(qois, columns=qoi_names).to_csv(
             simulation_dir + '/param_' + param + '_strain_qoi_outcomes.csv')
+
+    if evaluate_maps:
+        if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'maps_ensight/heart_sa_0.ensi.case'):
+            sa.evaluate_maps(alya=alya, beat=beat, analysis_type='sa', simulation_dir=simulation_dir)
 
 #######################################################################################################################
 # Concatenate all results into a single CSV file
