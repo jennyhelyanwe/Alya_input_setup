@@ -70,8 +70,8 @@ haemodynamic = True
 all_parameters_at_once = False
 
 # Choose which groups of QoI to evaluate
-evaluate_pv= True
-evaluate_ecg = False
+evaluate_pv= False
+evaluate_ecg = True
 evaluate_deformation = False
 evaluate_fibrework = False
 evaluate_strain = False
@@ -223,7 +223,25 @@ for param_i, param in enumerate(parameter_names):
     baseline_dir = ''  # Dummy
     sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names, baseline_json_file=baseline_json_file,
               simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
-    labels = [param +'=' + s for s in ["%.1f" % x for x in np.linspace(lower_bounds, upper_bounds, 8)]]
+    # labels = [param +'=' + s for s in ["%.1f" % x for x in np.linspace(lower_bounds, upper_bounds, 8)]]
+    # Get actual parameter values from .json files
+    labels = []
+    for param_i in range(8):
+        filename = simulation_dir + 'sa_' + str(param_i) + '.json'
+        simulation_dict = json.load(open(filename, 'r'))
+        if 'sf_' in param:
+            labels.append(param + '=' + str(simulation_dict[param][0][0]))
+        elif '_lv' in param:
+            labels.append(param + '=' + str(simulation_dict[param.split('_lv')[0]][0]))
+        elif '_rv' in param:
+            labels.append(param + '=' + str(simulation_dict[param.split('_rv')[0]][1]))
+        elif '_myocardium' in param:
+            labels.append(param + '=' + str(simulation_dict[param.split('_myocardium')[0]][0]))
+        elif '_valveplug' in param:
+            labels.append(param + '=' + str(simulation_dict[param.split('_valveplug')[0]][1]))
+        else:
+            labels.append(param + '=' + str(simulation_dict[param]))
+    print(labels)
     beat = 1
     ####################################################################################################################
     # Can be done as the simulations are running, using raw outputs.
