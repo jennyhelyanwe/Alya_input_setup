@@ -60,8 +60,8 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   simulation_dir = simulation_root_dir, verbose=verbose, job_version=system)
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
-setup_simulations = True
-run_simulations = True
+setup_simulations = False
+run_simulations = False
 # Choose which groups of parameters to setup/run/evaluate
 passive_mechanics = True
 active_mechanics = True
@@ -70,20 +70,21 @@ haemodynamic = True
 all_parameters_at_once = False
 
 # Choose which groups of QoI to evaluate
-evaluate_pv= False
-evaluate_ecg = False
+evaluate_pv= True
+evaluate_ecg = True
 evaluate_deformation = False
 evaluate_fibrework = False
 evaluate_strain = False
 evaluate_volume = False
 evaluate_maps = False
-fresh_qoi_evaluation = False
+fresh_qoi_evaluation = True
 
 parameter_names = []
 sa_folder_root_names = []
 cellular_params = ['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup']
 active_params = ['tref_scaling_myocardium', 'cal50_myocardium', 'sfkws_myocardium'] # Exclude Tref, because it doesn't have a direct biophysical meaning.
 passive_params = ['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'as_myocardium', 'afs_myocardium']
+# passive_params = ['as_myocardium', 'afs_myocardium']
 haemo_params = ['arterial_resistance_lv',
                 'arterial_compliance_lv',
                 'ejection_pressure_threshold_lv']
@@ -276,7 +277,7 @@ for param_i, param in enumerate(parameter_names):
             if not ecg_post:
                 print('ERROR: ECG postprocessing did not happen for some reason')
                 quit()
-            sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post', show=False)
+            sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post', show=True)
         qoi_names = ecg_qois
         slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'ecg_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/ecg_scatter.png')
