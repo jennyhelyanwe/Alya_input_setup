@@ -51,9 +51,9 @@ setup_ep_alya_files = False
 run_alya_baseline_simulation = False
 run_alya_baseline_postprocessing = False
 decide_calibration_parameter_ranges = False
-setup_calibration_alya_simulations = False
-run_alya_calibration_simulations = False
-evaluate_calibration_sa = True 
+setup_calibration_alya_simulations = True
+run_alya_calibration_simulations = True
+evaluate_calibration_sa = False
 setup_validation_alya_simulations = False
 run_alya_validation_simulations = False
 run_alya_validation_postprocessing = False
@@ -250,18 +250,18 @@ if decide_calibration_parameter_ranges:
 # Set: 5, set cal50: 0.5, set Kct: 450,000, ejection threshold: 7 kPa, C: 0.00010
 # Search: R_LV: [400, 700]
 
-
-
+# Ninth iteration: Even with really low RV_LV: 450, the peak pressure is still too high (20 kPa). So, I'll now leave RV_LV at 500, and
+# do a calibration of sf_kws down from 5 to 1, and see if we can get a higher LVEF...
 
 ########################################################################################################################
 # Step 7: Use OAT SA results and evaluation of biomarkers to assign new ranges for calibration SA
 # calibration_folder_name = 'calibration_simulations_third_iteration'
-calibration_folder_name = 'calibration_simulations_eighth_iteration'
-baseline_json_file = 'rodero_baseline_simulation_baseline_eighth_iteration.json'
+calibration_folder_name = 'calibration_simulations_ninth_iteration'
+baseline_json_file = 'rodero_baseline_simulation_baseline_ninth_iteration.json'
 simulation_json_file = baseline_json_file
 simulation_dict = json.load(open(simulation_json_file, 'r'))
 # perturbed_parameters = json.load(open('calibration_sa_ranges_third_iteration.json', 'r'))
-perturbed_parameters = json.load(open('calibration_sa_ranges_eighth_iteration.json', 'r'))
+perturbed_parameters = json.load(open('calibration_sa_ranges_ninth_iteration.json', 'r'))
 perturbed_parameters_name = np.array(list(perturbed_parameters.keys()))
 print(perturbed_parameters_name)
 if system == 'jureca':
@@ -281,7 +281,7 @@ lower_bounds = []
 for param in perturbed_parameters_name:
     lower_bounds.append(perturbed_parameters[param][0])
     upper_bounds.append(perturbed_parameters[param][1])
-calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 3 , parameter_names=perturbed_parameters_name,
+calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 1 , parameter_names=perturbed_parameters_name,
                    baseline_json_file=baseline_json_file, simulation_dir=simulation_dir, alya_format=alya,
                    baseline_dir=baseline_dir, verbose=verbose)
 if setup_calibration_alya_simulations:
