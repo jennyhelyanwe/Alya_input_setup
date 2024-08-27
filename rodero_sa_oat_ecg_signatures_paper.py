@@ -60,11 +60,11 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   simulation_dir = simulation_root_dir, verbose=verbose, job_version=system)
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
-setup_simulations = False
-run_simulations = False
+setup_simulations = True
+run_simulations = True
 # Choose which groups of parameters to setup/run/evaluate
 passive_mechanics = True
-active_mechanics = False
+active_mechanics = True
 cellular = False
 haemodynamic = True
 all_parameters_at_once = False
@@ -76,13 +76,13 @@ evaluate_deformation = False
 evaluate_fibrework = False
 evaluate_strain = False
 evaluate_volume = False
-evaluate_maps = True
-fresh_qoi_evaluation = True
+evaluate_maps = False
+fresh_qoi_evaluation = False
 
 parameter_names = []
 sa_folder_root_names = []
 cellular_params = ['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup']
-active_params = ['tref_scaling_myocardium', 'cal50_myocardium', 'sfkws_myocardium']
+active_params = ['tref_scaling_myocardium', 'cal50_myocardium', 'sfkws_myocardium'] # Exclude Tref, because it doesn't have a direct biophysical meaning.
 passive_params = ['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'as_myocardium', 'afs_myocardium']
 haemo_params = ['arterial_resistance_lv',
                 'arterial_compliance_lv',
@@ -111,26 +111,23 @@ simulation_dict = json.load(open(simulation_json_file, 'r'))
 ########################################################################################################################
 # Run simulations
 if setup_simulations or run_simulations:
+    parameter_bounds = json.load(open('parameter_bounds.json', 'r'))
     for param_i, param in enumerate(parameter_names):
         print('Dealing with parameter: ', param)
-        if 'sf_' in param:
-            baseline_parameter_values = np.array([simulation_dict[param][0][0]])
-        elif '_lv' in param:
-            baseline_parameter_values = np.array([simulation_dict[param.split('_lv')[0]][0]])
-        elif '_rv' in param:
-           baseline_parameter_values = np.array([simulation_dict[param.split('_rv')[0]][1]])
-        elif '_myocardium' in param:
-            baseline_parameter_values = np.array([simulation_dict[param.split('_myocardium')[0]][0]])
-        elif '_valveplug' in param:
-            baseline_parameter_values = np.array([simulation_dict[param.split('_valveplug')[0]][1]])
-        else:
-            baseline_parameter_values = np.array([simulation_dict[param]])
-        if (param in passive_params) | (param in haemo_params):
-            upper_bounds = baseline_parameter_values * 10.0
-            lower_bounds = baseline_parameter_values * 0.1
-        elif (param in active_params) | (param in cellular_params):
-            upper_bounds = baseline_parameter_values * 2.0
-            lower_bounds = baseline_parameter_values * 0.5
+        # if 'sf_' in param:
+        #     baseline_parameter_values = np.array([simulation_dict[param][0][0]])
+        # elif '_lv' in param:
+        #     baseline_parameter_values = np.array([simulation_dict[param.split('_lv')[0]][0]])
+        # elif '_rv' in param:
+        #    baseline_parameter_values = np.array([simulation_dict[param.split('_rv')[0]][1]])
+        # elif '_myocardium' in param:
+        #     baseline_parameter_values = np.array([simulation_dict[param.split('_myocardium')[0]][0]])
+        # elif '_valveplug' in param:
+        #     baseline_parameter_values = np.array([simulation_dict[param.split('_valveplug')[0]][1]])
+        # else:
+        #     baseline_parameter_values = np.array([simulation_dict[param]])
+        lower_bounds =  np.array([parameter_bounds[param][0]])
+        upper_bounds =  np.array([parameter_bounds[param][1]])
         baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
         simulation_dir = ''
         baseline_dir = ''

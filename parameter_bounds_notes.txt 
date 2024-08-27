@@ -1,0 +1,21 @@
+tref_scaling_myocardium: based on experience in ventricular simulations
+cal50_myocardium: in the Land paper, the cellular value is 2.5 uM, the ventricular value is 0.805 um. This means there
+is a lot of wriggle room for this parameter. The smaller the cal50 value, the higher the LVEF, hence, I've reduced the
+lower bound to 0.3
+sfkws_myocardium: in the Land paper, kws was increased by 3-fold in ventricular simulations, while kuw is increased by
+7-fold. Again, this means there is a lot of wriggle room for this parameter. From experience, we know that higher kws
+gives better LVEF, so I'm allowing this to go up to 7-fold.
+pericardial_stiffness: 20 kPa/cm was quoted in reference #49 in manuscript, hence lower bound, then 500 kPa/cm is referenced
+in #50 in another paper.
+Kct_myocardium: Francesc's paper had lower bound at 10 kPa, but my cube simulations show that 5000 kPa is necessary for
+getting good stress-strain curves. Hence, the range of search. From experience, the lower Kct, the higher the LVEF.
+a, af, as, afs: Lower bounds come from dog shear experiments, while upper bound comes from human data. From experience, these
+paramaeters don't have great effects on the LVEF.
+R_LV: 750 mmHg ms/mL to 852 mmHg ms/mL are quoted from two papers. But I've widened this range, because our circulation
+model is not super detailed. So I've allowed it to go from half to the baseline value. Smaller the R, larger the LVEF.
+C_LV: Same rationale as R, because the circulatory model is not very sophisticated, I'm allowing the value to range from
+half to the baseline value (0.00015 mL/Barye)
+ejection threshold: 9.7 kPa to 10.3 kPa is the literature range, however, again, this is not a lot of range to explore.
+From experience, the lower this value is, the higher the LVEF. So, I'm giving this also 0.5 to baseline.
+
+It ran up to the 'as' parameter.

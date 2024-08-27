@@ -1,0 +1,12 @@
+{"tref_scaling_myocardium":  [10, 20],
+"cal50_myocardium":  [0.3, 2.5],
+"sfkws_myocardium":  [3, 7],
+"pericardial_stiffness":  [200000, 5000000],
+"Kct_myocardium":  [100000, 5000000],
+"a_myocardium": [570, 6100],
+"af_myocardium":  [15600, 215000],
+"as_myocardium":  [7000, 68410],
+"afs_myocardium":  [2160, 4600],
+"arterial_resistance_lv":  [500, 999],
+"arterial_compliance_lv":  [0.000075, 0.00015],
+"ejection_pressure_threshold_lv": [50000, 100000]}

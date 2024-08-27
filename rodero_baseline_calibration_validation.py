@@ -51,7 +51,7 @@ setup_ep_alya_files = False
 run_alya_baseline_simulation = False
 run_alya_baseline_postprocessing = False
 decide_calibration_parameter_ranges = False
-setup_calibration_alya_simulations = True
+setup_calibration_alya_simulations = False
 run_alya_calibration_simulations = True
 evaluate_calibration_sa = False
 setup_validation_alya_simulations = False
@@ -221,13 +221,37 @@ if decide_calibration_parameter_ranges:
 # Adjust compliance:
 # [ 0.0016, 0.002]
 
+# Fifth iteration:
+# "sfkws_myocardium": [4, 7], "cal50_myocardium": [0.5, 0.7], "Kct_myocardium": [50000.0,  500000.0], "arterial_resistance_lv":  [600, 999]}
+# Max LVEF: 46.37
+# Parameters:
+# sfkws: 4.468
+# cal50: 0.518
+# Kct: 429687.5
+# R_LV: 712.218
+
+# Sixth iteration:
+# Set: sfkws: 4.5
+# Set: cal50: 0.52
+# Set: Kct: 450,000
+# Search: R_LV: [600, 999], ejection_threshold: [7, 10] kPa
+#
+
+# Max LVEF: 42%,
+# Seventh iteration: add compliance
+# Set: sfkws: 5, set cal50: 0.5, set Kct: 450,000 - use same baseline as the sixth iteration
+# Search: R_LV: [700, 999], ejection threshold: [7, 10], C_LV: [0.000065, 0.00015]
+
+
 ########################################################################################################################
 # Step 7: Use OAT SA results and evaluation of biomarkers to assign new ranges for calibration SA
-calibration_folder_name = 'calibration_simulations_third_iteration'
-baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
+# calibration_folder_name = 'calibration_simulations_third_iteration'
+calibration_folder_name = 'calibration_simulations_seventh_iteration'
+baseline_json_file = 'rodero_baseline_simulation_baseline_sixth_iteration.json'
 simulation_json_file = baseline_json_file
 simulation_dict = json.load(open(simulation_json_file, 'r'))
-perturbed_parameters = json.load(open('calibration_sa_ranges_third_iteration.json', 'r'))
+# perturbed_parameters = json.load(open('calibration_sa_ranges_third_iteration.json', 'r'))
+perturbed_parameters = json.load(open('calibration_sa_ranges_seventh_iteration.json', 'r'))
 perturbed_parameters_name = np.array(list(perturbed_parameters.keys()))
 print(perturbed_parameters_name)
 if system == 'jureca':
@@ -247,7 +271,7 @@ lower_bounds = []
 for param in perturbed_parameters_name:
     lower_bounds.append(perturbed_parameters[param][0])
     upper_bounds.append(perturbed_parameters[param][1])
-calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 3, parameter_names=perturbed_parameters_name,
+calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 4 , parameter_names=perturbed_parameters_name,
                    baseline_json_file=baseline_json_file, simulation_dir=simulation_dir, alya_format=alya,
                    baseline_dir=baseline_dir, verbose=verbose)
 if setup_calibration_alya_simulations:
@@ -262,7 +286,7 @@ if evaluate_calibration_sa:
     else:
         calibration.sort_simulations(
             tag='raw')  # Collate list of finished simulations by checking the existence of particular files.
-    calibration.visualise_finished_parameter_sets(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
+    # calibration.visualise_finished_parameter_sets(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
     evaluate_pv = True
     evaluate_ecg = False
     evaluate_deformation = False
@@ -272,8 +296,8 @@ if evaluate_calibration_sa:
     if evaluate_pv:
         pv_post = calibration.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                              analysis_type='sa')
-        # calibration.visualise_sa(beat=1, pv_post=pv_post, save_filename=simulation_dir + '/pv_post.png')
-        calibration.visualise_sa(beat=1, pv_post=pv_post)
+        calibration.visualise_sa(beat=1, pv_post=pv_post, save_filename=simulation_dir + '/pv_post.png', show=True)
+        # calibration.visualise_sa(beat=1, pv_post=pv_post, show=True)
         # qoi_names = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max', 'EDVR',
         #              'ESVR', 'PmaxR', 'SVR']
         qoi_names = ['LVEF', 'ESVL', 'PmaxL', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max']

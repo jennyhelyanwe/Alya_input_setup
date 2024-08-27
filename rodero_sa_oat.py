@@ -110,6 +110,7 @@ simulation_dict = json.load(open(simulation_json_file, 'r'))
 ########################################################################################################################
 # Run simulations
 if setup_simulations or run_simulations:
+    parameter_bounds = json.load(open('parameter_bounds.json', 'r'))
     for param_i, param in enumerate(parameter_names):
         print('Dealing with parameter: ', param)
         if 'sf_' in param:

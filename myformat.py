@@ -99,7 +99,7 @@ class Fields:
         if output_dir[-1] != '/':
             output_dir = output_dir + '/'
         if not os.path.exists(output_dir + geometry.name + '.ensi.geo'):
-            save_ensight_geometry(directory=output_dir, name=self.name, nodes_xyz=geometry.nodes_xyz,
+            save_ensight_geometry(directory=output_dir, name=geometry.name, nodes_xyz=geometry.nodes_xyz,
                                   tetrahedrons=geometry.tetrahedrons)
         list_fields = list(self.dict.keys())
         field_dimensions = []
@@ -109,7 +109,7 @@ class Fields:
             if fieldtype == 'nodefield' or fieldtype == 'boundarynodefield' or \
                     fieldtype == 'postnodefield':
                 if self.dict[varname].shape[0] == geometry.number_of_nodes:
-                    save_ensight_node(directory=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
+                    save_ensight_node(directory=output_dir, name=geometry.name, field_name=varname, var=self.dict[varname])
                     list_fields_output.append(varname)
                     if len(self.dict[varname].shape) == 1:
                         field_dimensions.append(1)
@@ -118,7 +118,7 @@ class Fields:
             elif fieldtype == 'elementfield' or fieldtype == 'material' or \
                     fieldtype == 'boundaryelementfield' or fieldtype == 'postelementfield':
                 if self.dict[varname].shape[0] == geometry.number_of_elements:
-                    save_ensight_element(directory=output_dir, name=self.name, field_name=varname,
+                    save_ensight_element(directory=output_dir, name=geometry.name, field_name=varname,
                                          var=self.dict[varname])
                     list_fields_output.append(varname)
                     if len(self.dict[varname].shape) == 1:
@@ -134,7 +134,7 @@ class Fields:
                 if self.field_type == 'nodefield' or self.field_type == 'boundarynodefield' or \
                         self.field_type == 'postnodefield':
                     if self.dict[varname].shape[0] == geometry.number_of_nodes:
-                        save_ensight_node(directory=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
+                        save_ensight_node(directory=output_dir, name=geometry.name, field_name=varname, var=self.dict[varname])
                         list_fields_output.append(varname)
                         if len(self.dict[varname].shape) == 1:
                             field_dimensions.append(1)
@@ -143,7 +143,7 @@ class Fields:
                 elif self.field_type == 'elementfield' or self.field_type == 'material' or \
                         self.field_type == 'boundaryelementfield' or self.field_type == 'postelementfield':
                     if self.dict[varname].shape[0] == geometry.number_of_elements:
-                        save_ensight_element(directory=output_dir, name=self.name, field_name=varname,
+                        save_ensight_element(directory=output_dir, name=geometry.name, field_name=varname,
                                              var=self.dict[varname])
                         list_fields_output.append(varname)
                         if len(self.dict[varname].shape) == 1:

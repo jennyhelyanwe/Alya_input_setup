@@ -188,10 +188,11 @@ class SAUQ:
             post.read_binary_outputs(read_field_name='DISPL', read_field_type='vector')
             ed_geometry = post.geometry
             ed_geometry.nodes_xyz = post.geometry.nodes_xyz + post.post_nodefield.dict['DISPL'][:, :, ed_t_index]
+            ed_geometry.name = 'ed_geometry_c' + str(simulation_i)
             casename = 'sa_lat_' + str(simulation_i)
             print('Saving LAT map to ' + output_dir + '/' + casename)
             post.post_nodefield.save_to_ensight(output_dir=output_dir, casename=casename,
-                                                geometry=ed_geometry, fieldname='lat', fieldtype='postnodefield') # TODO: Geometry update isn't working
+                                                geometry=ed_geometry, fieldname='lat', fieldtype='postnodefield')
             # Get timing of end of phase 3
             post.read_ecg_pv()
             if np.amax(post.pvs['phasels'][beat - 1] > 3):
@@ -199,24 +200,19 @@ class SAUQ:
             else:
                 es_idx = np.argmin(post.pvs['vls'][beat - 1])
             es_t = post.pvs['ts'][beat - 1][es_idx]
-            print(es_t)
             # if es_t < 0.3:
             #     es_t = 0.3
             # plt.plot(post.pvs['ts'][0], post.pvs['vls'][0], post.pvs['ts'][0], post.pvs['phasels'][0])
             # plt.axvline(x=es_t)
             # plt.show()
             es_t_index = np.argmin(abs(post.post_nodefield.dict['time'] - es_t))
-            print(es_t_index)
             es_geometry = post.geometry
+            es_geometry.name = 'es_geometry_sa_' + str(simulation_i)
             es_geometry.nodes_xyz = post.geometry.nodes_xyz + post.post_nodefield.dict['DISPL'][:, :, es_t_index]
             casename = 'sa_rt_' + str(simulation_i)
             print('Saving RT map to ' + output_dir + '/' + casename)
             post.post_nodefield.save_to_ensight(output_dir=output_dir, casename=casename,
                                                 geometry=es_geometry, fieldname='rt', fieldtype='postnodefield')
-            quit()
-
-
-
 
     def evaluate_qois(self, qoi_group_name, alya, beat, qoi_save_dir, analysis_type):
         postp_objects = []
@@ -468,7 +464,9 @@ class SAUQ:
             ax_pv = fig.add_subplot(gs[0:2, 0])
             ax_vt = fig.add_subplot(gs[0, 1])
             ax_pt = fig.add_subplot(gs[1, 1])
+            lvefs = []
             for simulation_i in range(len(pv_post)):
+                lvefs.append((np.amax(pv_post[simulation_i].pvs['vls'][beat-1]) - np.amin(pv_post[simulation_i].pvs['vls'][beat-1]))/np.amax(pv_post[simulation_i].pvs['vls'][beat-1]) * 100)
                 if labels:
                     ax_pv.plot(pv_post[simulation_i].pvs['vls'][beat - 1],
                                pv_post[simulation_i].pvs['pls'][beat - 1] / 10000, color='C0', label=labels[simulation_i])
@@ -493,6 +491,14 @@ class SAUQ:
                                color='C0', label='LV')
                 ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['prs'][beat - 1]/10000,
                            color='C1')
+            max_idx = np.argmax(lvefs)
+            print('Simulation ID with largest LVEF: ', str(max_idx), ' with LVEF of: ', str(np.amax(lvefs)))
+            ax_pv.plot(pv_post[max_idx].pvs['vls'][beat-1], pv_post[max_idx].pvs['pls'][beat-1]/10000, color='r')
+            ax_pt.plot(pv_post[max_idx].pvs['ts'][beat - 1],
+                               pv_post[max_idx].pvs['pls'][beat - 1] / 10000,
+                               color='r')
+            ax_vt.plot(pv_post[max_idx].pvs['ts'][beat - 1], pv_post[max_idx].pvs['vls'][beat - 1],
+                           color='r')
             ax_pv.set_xlabel('Volume (mL)')
             ax_pv.set_ylabel('Pressure (kPa)')
             ax_vt.set_xlabel('Time (s)')

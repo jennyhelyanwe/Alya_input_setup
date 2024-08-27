@@ -1165,8 +1165,8 @@ class PostProcessing(MeshStructure):
                                         float(self.simulation_dict['cycle_length'])])
                            # time_window=[float(self.simulation_dict['exmedi_delay_time']) + float(self.simulation_dict['end_diastole_t'][0]),
                            #              float(self.simulation_dict['cycle_length'])])
-        rt = evaluate_rt(time=self.post_nodefield.dict['time'], vm=self.post_nodefield.dict['INTRA'], percentage=0.1,
-                         time_window=[float(self.simulation_dict['exmedi_delay_time']) + float(self.simulation_dict['end_diastole_t'][0]),
+        rt = evaluate_rt(time=self.post_nodefield.dict['time'], vm=self.post_nodefield.dict['INTRA'], percentage=90,
+                         time_window=[float(self.simulation_dict['end_diastole_t'][0]),
                                       float(self.simulation_dict['cycle_length'])])
         rt[self.node_fields.dict['tv'] == -10] = np.nan
         lat[self.node_fields.dict['tv'] == -10] = np.nan
@@ -2227,26 +2227,33 @@ def evaluate_rt(time, vm, percentage, time_window):
     window_idx = np.nonzero((time > time_window[0]) & (time < time_window[1]))[0]
     vm = vm[:, window_idx]
     time = time[window_idx] - time_window[0]  # Offset by beginning of time window.
-    repolarisation_map = np.ones(vm.shape[0])
     vm_range = np.amax(vm, axis=1) - np.amin(vm, axis=1)
-    vm_threshold = vm_range * (1.0 - percentage / 100.0) + np.amin(vm, axis=1)
+    dvm = vm_range * (1.0 - percentage / 100.0)
+    vm_threshold = dvm + np.amin(vm, axis=1)
+    vm_threshold_overall = np.median(vm_threshold)
     vm_max_idx = np.argmax(vm, axis=1)
-    for node_i in range(vm.shape[0]):  # Loop through every node in mesh
-        local_vm = vm[node_i, vm_max_idx[node_i]:]
-        local_vm_fliped = np.flip(local_vm)
-        fliped_index = np.searchsorted(local_vm_fliped, vm_threshold[node_i])
-        if fliped_index == 0:
-            repolarisation_map[node_i] = np.nan # Has not found repolarisation within the time window.
-        else:
-            index_temp = local_vm.shape[0] - fliped_index - 1
-            index = index_temp + vm_max_idx[node_i]
-            # Use linear interpolation to get activation time
-            prev_time = time[index - 1]
-            cur_time = time[index]
-            prev_v = local_vm[index - 1]
-            cur_v = local_vm[index]
-            repolarisation_map[node_i] = (vm_threshold[node_i] - prev_v) * (cur_time - prev_time) / (cur_v - prev_v) + prev_time
-            # repolarisation_map[node_i] = time[index + vm_max_idx[node_i]]
+    threadsNum = int(multiprocessing.cpu_count() * 0.7)
+    vm_shared = pymp.shared.array(vm.shape)
+    vm_shared[:] = vm
+    repolarisation_map = pymp.shared.array(vm.shape[0])
+    with pymp.Parallel(min(threadsNum, vm_shared.shape[0])) as p1:
+        for node_i in p1.range(vm_shared.shape[0]):
+    # for node_i in range(vm.shape[0]):  # Loop through every node in mesh
+            local_vm = vm_shared[node_i, vm_max_idx[node_i]:]
+            local_vm_fliped = np.flip(local_vm)
+            fliped_index = np.searchsorted(local_vm_fliped, vm_threshold_overall)
+            if fliped_index == 0:
+                repolarisation_map[node_i] = np.nan # Has not found repolarisation within the time window.
+            else:
+                index_temp = local_vm.shape[0] - fliped_index - 1
+                index = index_temp + vm_max_idx[node_i]
+                # Use linear interpolation to get activation time
+                next_time = time[index + 1]
+                cur_time = time[index]
+                next_v = vm[node_i, index + 1]
+                cur_v = vm[node_i, index]
+                repolarisation_map[node_i] = next_time - (next_v - vm_threshold_overall) * (next_time - cur_time) / (next_v - cur_v)
+                # repolarisation_map[node_i] = time[index + vm_max_idx[node_i]]
     return repolarisation_map
 
 

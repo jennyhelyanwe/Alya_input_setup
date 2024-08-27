@@ -881,20 +881,22 @@ class ECGPV_visualisation:
     def analysis_PV(self, pvs, beat=0):
         if beat > 0:
             # More sophisticated method of evaluating EDV and ESV making use of the phase information.
-            ejection_vls = pvs['vls'][beat - 1][numpy.where(pvs['phasel'][beat-1] == 2)]
-            ejection_vrs = pvs['vrs'][beat - 1][numpy.where(pvs['phaser'][beat - 1] == 2)]
-            if ejection_vls:
+            ejection_vls = pvs['vls'][beat - 1][numpy.where(pvs['phasels'][beat-1] == 2)]
+            ejection_vrs = pvs['vrs'][beat - 1][numpy.where(pvs['phasers'][beat - 1] == 2)]
+            if len(ejection_vls) > 0:
                 ESVL = min(ejection_vls)
                 EDVL = max(ejection_vls)
             else:
                 ESVL = np.nan
-                EDVL = np.nan
-            if ejection_vrs:
+                EDVL = max(pvs['vls'][beat-1])
+                plt.plot(pvs['ts'][beat-1], pvs['phasels'][beat-1], pvs['ts'][beat-1], pvs['vls'][beat-1])
+                plt.show()
+            if len(ejection_vrs) > 0 :
                 ESVR = min(ejection_vrs)
                 EDVR = max(ejection_vrs)
             else:
                 ESVR = np.nan
-                EDVR = np.nan
+                EDVR = max(pvs['vrs'][beat - 1])
             # EDVL = max(pvs['vls'][beat-1])
             # EDVR = max(pvs['vrs'][beat-1])
             # ESVL = min(pvs['vls'][beat-1])
