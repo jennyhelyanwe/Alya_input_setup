@@ -269,7 +269,9 @@ if evaluate_calibrated_baseline:
 # Then, next step, I will need to tune the PFR and PERs. PER is strongly dependent on R, so we may need a separate way of
 # getting good LVEF while having slow PERs... This will be tricky.
 
-
+# 12th iteration: So, the current problem is that PER is too high, and PFR is too low.
+# Decreasing sf_kws will decrease PER, but it comes at the expense of decreasing LVEF and also decreasing peak pressure.
+# The
 
 ########################################################################################################################
 # Step 7: Use OAT SA results and evaluation of biomarkers to assign new ranges for calibration SA
