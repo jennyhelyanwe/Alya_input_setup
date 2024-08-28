@@ -7,7 +7,7 @@ import numpy as np
 import os
 import json
 from sensitivityanalysis_uncertaintyquantification import SAUQ
-
+from ECGPV_visualisation import ECGPV_visualisation
 ########################################################################################################################
 # Global Settings
 mesh_number = '05'
@@ -50,9 +50,9 @@ setup_em_alya_files = False
 setup_ep_alya_files = False
 run_alya_baseline_simulation = False
 run_alya_baseline_postprocessing = False
-decide_calibration_parameter_ranges = False
-setup_calibration_alya_simulations = True
-run_alya_calibration_simulations = True
+evaluate_calibrated_baseline = True
+setup_calibration_alya_simulations = False
+run_alya_calibration_simulations = False
 evaluate_calibration_sa = False
 setup_validation_alya_simulations = False
 run_alya_validation_simulations = False
@@ -148,7 +148,7 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 # if not system == 'jureca' and not system == 'cosma' and not system == 'archer2':
 #     alya.visual_sanity_check(simulation_json_file=simulation_json_file)
 if setup_em_alya_files:
-    simulation_json_file = 'rodero_baseline_simulation_em.json'
+    simulation_json_file = 'rodero_baseline_simulation_baseline_11th_iteration.json'
     alya.do(simulation_json_file=simulation_json_file)
 if setup_ep_alya_files:
     simulation_json_file = 'rodero_baseline_simulation_ep.json'
@@ -168,43 +168,47 @@ if run_alya_baseline_postprocessing:
 
 ########################################################################################################################
 # Step 6: Postprocess
-if decide_calibration_parameter_ranges:
+if evaluate_calibrated_baseline:
     print('Evaluating simulated biomarkers')
-    simulation_json_file = 'rodero_baseline_simulation_em.json'
-    alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_literature_parameters_' + simulation_name + '/'
+    simulation_json_file = 'rodero_baseline_simulation_baseline_11th_iteration.json'
+    alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + simulation_name + '/'
+    # simulation_json_file = 'rodero_baseline_simulation_em.json'
+    # alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_literature_parameters_' + simulation_name + '/'
     # alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[
     #     0] + '_' + simulation_name + '_mec_baseline/'
     pp = PostProcessing(alya=alya, simulation_json_file=simulation_json_file,
-                        alya_output_dir=alya_output_dir, protocol='', verbose=verbose)
+                        alya_output_dir=alya_output_dir, protocol='raw', verbose=verbose)
     beat = 1
-    pp.evaluate_pv_biomarkers(beat=beat)
-    pp.evaluate_ecg_biomarkers(beat=beat, show_landmarks=False)
-    # pp.evaluate_deformation_biomarkers(beat=beat)
+    pp.read_ecg_pv()
+    # pp.evaluate_pv_biomarkers(beat=beat)
+    # pp.evaluate_ecg_biomarkers(beat=beat, show_landmarks=False)
+    pp.evaluate_deformation_biomarkers(beat=beat)
     # pp.evaluate_fibre_work_biomarkers(beat=beat)
     # pp.evaluate_strain_biomarkers(beat=beat)
+    pp.visualise_calibration_comparisons_global(beat=1, save_filename=alya_output_dir + '/calibration_result_global.png')
     # pp.visualise_qoi_comparisons(qoi_names = ['qrs_dur_mean', 'qt_dur_mean', 't_pe_mean', 'EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection',
     #                  'dvdt_filling', 'dpdt_max'], save_figure=alya_output_dir+'/qoi_evaluation.png')
     # Rank QoIs according to importance for matching - based on ??
 
-    # Use OAT SA results and evaluation of biomarkers to assign new ranges for calibration SA
-    ranked_qoi_names = ['LVEF', 'PmaxL', 'SVL', 'EDVL', 'ESVL', 'dpdt_max',
-                        'dvdt_ejection', 'dvdt_filling']
-    baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
-    simulation_json_file = baseline_json_file
-    simulation_dict = json.load(open(simulation_json_file, 'r'))
-    pp.calculate_calibration_sa_parameter_ranges(ranked_qoi_names=ranked_qoi_names,
-                                                 oat_sa_slopes='SA_summary_OAT_slopes.csv',
-                                                 oat_sa_p_values='SA_summary_OAT_p_values.csv',
-                                                 oat_sa_r_values='SA_summary_OAT_r_values.csv',
-                                                 oat_sa_ranges='SA_summary_OAT_ranges.csv',
-                                                 oat_sa_intercepts='SA_summary_OAT_intercepts.csv',
-                                                 simulation_dict=simulation_dict, strategy='one_qoi_at_a_time', qoi_input='LVEF')
-    # pp.visualise_calibration_sa_parameter_ranges(oat_sa_slopes='SA_summary_OAT_slopes.csv',
+    # # Use OAT SA results and evaluation of biomarkers to assign new ranges for calibration SA
+    # ranked_qoi_names = ['LVEF', 'PmaxL', 'SVL', 'EDVL', 'ESVL', 'dpdt_max',
+    #                     'dvdt_ejection', 'dvdt_filling']
+    # baseline_json_file = 'rodero_baseline_simulation_em_literature_parameters.json'
+    # simulation_json_file = baseline_json_file
+    # simulation_dict = json.load(open(simulation_json_file, 'r'))
+    # pp.calculate_calibration_sa_parameter_ranges(ranked_qoi_names=ranked_qoi_names,
+    #                                              oat_sa_slopes='SA_summary_OAT_slopes.csv',
     #                                              oat_sa_p_values='SA_summary_OAT_p_values.csv',
     #                                              oat_sa_r_values='SA_summary_OAT_r_values.csv',
     #                                              oat_sa_ranges='SA_summary_OAT_ranges.csv',
     #                                              oat_sa_intercepts='SA_summary_OAT_intercepts.csv',
-    #                                              simulation_root_dir=simulation_root_dir)
+    #                                              simulation_dict=simulation_dict, strategy='one_qoi_at_a_time', qoi_input='LVEF')
+    # # pp.visualise_calibration_sa_parameter_ranges(oat_sa_slopes='SA_summary_OAT_slopes.csv',
+    # #                                              oat_sa_p_values='SA_summary_OAT_p_values.csv',
+    # #                                              oat_sa_r_values='SA_summary_OAT_r_values.csv',
+    # #                                              oat_sa_ranges='SA_summary_OAT_ranges.csv',
+    # #                                              oat_sa_intercepts='SA_summary_OAT_intercepts.csv',
+    # #                                              simulation_root_dir=simulation_root_dir)
     quit()
 # Using sfkws and Kct ranges of {"sfkws_myocardium": [2.6391168230682993, 4.0779357886520335], "Kct_myocardium": [500000.0, 5000000.0]}
 # Gave an averaged LVEF of ~30%, but an averaged peak LVP of ~22.5 kPa. The rational thing to do now is to reduce the resistance
@@ -221,6 +225,10 @@ if decide_calibration_parameter_ranges:
 # Adjust compliance:
 # [ 0.0016, 0.002]
 
+# Fourth iteration: instead of adjusting ICaL, which could bring on arrhythmic effects, it's better to alter the cross bridge cycling
+# dynamics and compressibility.
+# {"sfkws_myocardium": [4, 7], "Kct_myocardium": [100000.0,  1000000.0]}
+
 # Fifth iteration:
 # "sfkws_myocardium": [4, 7], "cal50_myocardium": [0.5, 0.7], "Kct_myocardium": [50000.0,  500000.0], "arterial_resistance_lv":  [600, 999]}
 # Max LVEF: 46.37
@@ -235,9 +243,8 @@ if decide_calibration_parameter_ranges:
 # Set: cal50: 0.52
 # Set: Kct: 450,000
 # Search: R_LV: [600, 999], ejection_threshold: [7, 10] kPa
-#
-
 # Max LVEF: 42%,
+
 # Seventh iteration: add compliance
 # Set: sfkws: 5, set cal50: 0.5, set Kct: 450,000
 # Search: R_LV: [700, 999], ejection threshold: [7, 10], C_LV: [0.000065, 0.00015]
@@ -253,15 +260,28 @@ if decide_calibration_parameter_ranges:
 # Ninth iteration: Even with really low RV_LV: 450, the peak pressure is still too high (20 kPa). So, I'll now leave RV_LV at 500, and
 # do a calibration of sf_kws down from 5 to 1, and see if we can get a higher LVEF...
 
+# Tenth iteration: Sf_kws doesn't do much to reduce the peak pressure...
+# Going to just drastically reduce the R... this could be justified because the Windkessel model is the least realistic model
+# out of all the options that we can change to alter LVEF.
+
+# 11th iteration: Lowering the R is working. Based on the linear regression for the LVEF scatter plots, R= 200 is going to
+# give LVEF: 52%, and ESP of 14.2 kPa, which would fall perfectly in range. I'll run this now as a single simulation.
+# Then, next step, I will need to tune the PFR and PERs. PER is strongly dependent on R, so we may need a separate way of
+# getting good LVEF while having slow PERs... This will be tricky.
+
+# 12th iteration: So, the current problem is that PER is too high, and PFR is too low.
+# Decreasing sf_kws will decrease PER, but it comes at the expense of decreasing LVEF and also decreasing peak pressure.
+# The
+
 ########################################################################################################################
 # Step 7: Use OAT SA results and evaluation of biomarkers to assign new ranges for calibration SA
 # calibration_folder_name = 'calibration_simulations_third_iteration'
-calibration_folder_name = 'calibration_simulations_ninth_iteration'
-baseline_json_file = 'rodero_baseline_simulation_baseline_ninth_iteration.json'
+calibration_folder_name = 'calibration_simulations_11th_iteration'
+baseline_json_file = 'rodero_baseline_simulation_baseline_11th_iteration.json'
 simulation_json_file = baseline_json_file
 simulation_dict = json.load(open(simulation_json_file, 'r'))
 # perturbed_parameters = json.load(open('calibration_sa_ranges_third_iteration.json', 'r'))
-perturbed_parameters = json.load(open('calibration_sa_ranges_ninth_iteration.json', 'r'))
+perturbed_parameters = json.load(open('calibration_sa_ranges_11th_iteration.json', 'r'))
 perturbed_parameters_name = np.array(list(perturbed_parameters.keys()))
 print(perturbed_parameters_name)
 if system == 'jureca':
@@ -281,7 +301,10 @@ lower_bounds = []
 for param in perturbed_parameters_name:
     lower_bounds.append(perturbed_parameters[param][0])
     upper_bounds.append(perturbed_parameters[param][1])
-calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 1 , parameter_names=perturbed_parameters_name,
+# calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 1 , parameter_names=perturbed_parameters_name,
+#                    baseline_json_file=baseline_json_file, simulation_dir=simulation_dir, alya_format=alya,
+#                    baseline_dir=baseline_dir, verbose=verbose)
+calibration = SAUQ(name='sa', sampling_method='uniform', n=8 , parameter_names=perturbed_parameters_name,
                    baseline_json_file=baseline_json_file, simulation_dir=simulation_dir, alya_format=alya,
                    baseline_dir=baseline_dir, verbose=verbose)
 if setup_calibration_alya_simulations:
@@ -303,10 +326,29 @@ if evaluate_calibration_sa:
     evaluate_fibrework = False
     evaluate_strain = False
     beat = 1
+    labels = []
+    if len(perturbed_parameters_name) == 1:
+        param = perturbed_parameters_name[0]
+        for param_i in range(8):
+            filename = simulation_dir + 'sa_' + str(param_i) + '.json'
+            simulation_dict = json.load(open(filename, 'r'))
+            if 'sf_' in param:
+                labels.append(param + '=' + str(simulation_dict[param][0][0]))
+            elif '_lv' in param:
+                labels.append(param + '=' + str(simulation_dict[param.split('_lv')[0]][0]))
+            elif '_rv' in param:
+                labels.append(param + '=' + str(simulation_dict[param.split('_rv')[0]][1]))
+            elif '_myocardium' in param:
+                labels.append(param + '=' + str(simulation_dict[param.split('_myocardium')[0]][0]))
+            elif '_valveplug' in param:
+                labels.append(param + '=' + str(simulation_dict[param.split('_valveplug')[0]][1]))
+            else:
+                labels.append(param + '=' + str(simulation_dict[param]))
+        print(labels)
     if evaluate_pv:
         pv_post = calibration.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                              analysis_type='sa')
-        calibration.visualise_sa(beat=1, pv_post=pv_post, save_filename=simulation_dir + '/pv_post.png', show=True)
+        calibration.visualise_sa(beat=1, pv_post=pv_post, save_filename=simulation_dir + '/pv_post', labels=labels, show=True, highlight_max_lvef=True)
         # calibration.visualise_sa(beat=1, pv_post=pv_post, show=True)
         # qoi_names = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max', 'EDVR',
         #              'ESVR', 'PmaxR', 'SVR']
@@ -319,7 +361,7 @@ if evaluate_calibration_sa:
     elif evaluate_ecg:
         ecg_post = calibration.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                              analysis_type='sa')
-        calibration.visualise_sa(beat=1, pv_post=ecg_post, save_filename=simulation_dir + '/ecg_post.png')
+        calibration.visualise_sa(beat=1, pv_post=ecg_post, save_filename=simulation_dir + '/ecg_post')
         qoi_names = ['qrs_dur_mean', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'jt_dur_mean']
         slopes, intercepts, p_values, r_values, ranges, params, qois = calibration.analyse(
             filename=simulation_dir + 'ecg_qois.csv', qois=qoi_names, show_healthy_ranges=False,
@@ -327,8 +369,8 @@ if evaluate_calibration_sa:
     elif evaluate_deformation:
         deformation_post = calibration.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                              analysis_type='sa')
-        calibration.visualise_sa(beat=1, pv_post=deformation_post, save_filename=simulation_dir + '/ecg_post.png')
-        qoi_names = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness']
+        calibration.visualise_sa(beat=1, pv_post=deformation_post, save_filename=simulation_dir + '/deformation_post')
+        qoi_names = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness', 'percentage_volume_change']
         slopes, intercepts, p_values, r_values, ranges, params, qois = calibration.analyse(
             filename=simulation_dir + 'deformation_qois.csv', qois=qoi_names, show_healthy_ranges=False,
             save_filename=simulation_dir + '/deformation_scatter.png')
@@ -337,7 +379,7 @@ if evaluate_calibration_sa:
         strain_post = calibration.evaluate_qois(qoi_group_name='ecg', alya=alya, beat=beat,
                                                      qoi_save_dir=simulation_dir,
                                                      analysis_type='sa')
-        calibration.visualise_sa(beat=1, pv_post=strain_post, save_filename=simulation_dir + '/ecg_post.png')
+        calibration.visualise_sa(beat=1, pv_post=strain_post, save_filename=simulation_dir + '/strain_post')
         qoi_names = ['max_mid_Ecc', 'min_mid_Ecc', 'max_mid_Err', 'min_mid_Err', 'max_four_chamber_Ell',
                      'min_four_chamber_Ell']
         slopes, intercepts, p_values, r_values, ranges, params, qois = calibration.analyse(
