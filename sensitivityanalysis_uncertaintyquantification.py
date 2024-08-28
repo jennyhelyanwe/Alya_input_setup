@@ -457,7 +457,7 @@ class SAUQ:
 
     def visualise_sa(self, beat, ecg_post=None, pv_post=None, deformation_post=None,
                      fibre_work_post=None, strain_post=None, cube_deformation_ta_post=None, volume_post=None,
-                     labels=None, save_filename=None, show=False):
+                     labels=None, save_filename=None, show=False, highlight_max_lvef=False):
         if pv_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
             gs = GridSpec(2, 2)
@@ -469,36 +469,33 @@ class SAUQ:
                 lvefs.append((np.amax(pv_post[simulation_i].pvs['vls'][beat-1]) - np.amin(pv_post[simulation_i].pvs['vls'][beat-1]))/np.amax(pv_post[simulation_i].pvs['vls'][beat-1]) * 100)
                 if labels:
                     ax_pv.plot(pv_post[simulation_i].pvs['vls'][beat - 1],
-                               pv_post[simulation_i].pvs['pls'][beat - 1] / 10000, color='C0', label=labels[simulation_i])
+                               pv_post[simulation_i].pvs['pls'][beat - 1] / 10000, label=labels[simulation_i])
                 else:
-                    ax_pv.plot(pv_post[simulation_i].pvs['vls'][beat-1], pv_post[simulation_i].pvs['pls'][beat-1]/10000, color='C0', label='LV')
-                ax_pv.plot(pv_post[simulation_i].pvs['vrs'][beat - 1], pv_post[simulation_i].pvs['prs'][beat - 1]/10000,
-                           color='C1')
+                    ax_pv.plot(pv_post[simulation_i].pvs['vls'][beat-1], pv_post[simulation_i].pvs['pls'][beat-1]/10000, label='LV')
+                # ax_pv.plot(pv_post[simulation_i].pvs['vrs'][beat - 1], pv_post[simulation_i].pvs['prs'][beat - 1]/10000)
                 if labels:
-                    ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['vls'][beat - 1],
-                               color='C0', label=labels[simulation_i])
+                    ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['vls'][beat - 1], label=labels[simulation_i])
                 else:
-                    ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat-1], pv_post[simulation_i].pvs['vls'][beat-1], color='C0', label='LV')
-                ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['vrs'][beat - 1],
-                           color='C1')
+                    ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat-1], pv_post[simulation_i].pvs['vls'][beat-1], label='LV')
+                # ax_vt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['vrs'][beat - 1])
 
                 if labels:
                     ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1],
                                pv_post[simulation_i].pvs['pls'][beat - 1] / 10000,
-                               color='C0', label=labels[simulation_i])
+                               label=labels[simulation_i])
                 else:
                     ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['pls'][beat - 1]/10000,
-                               color='C0', label='LV')
-                ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['prs'][beat - 1]/10000,
-                           color='C1')
-            max_idx = np.argmax(lvefs)
-            print('Simulation ID with largest LVEF: ', str(max_idx), ' with LVEF of: ', str(np.amax(lvefs)))
-            ax_pv.plot(pv_post[max_idx].pvs['vls'][beat-1], pv_post[max_idx].pvs['pls'][beat-1]/10000, color='r')
-            ax_pt.plot(pv_post[max_idx].pvs['ts'][beat - 1],
-                               pv_post[max_idx].pvs['pls'][beat - 1] / 10000,
+                               label='LV')
+                # ax_pt.plot(pv_post[simulation_i].pvs['ts'][beat - 1], pv_post[simulation_i].pvs['prs'][beat - 1]/10000)
+            if highlight_max_lvef:
+                max_idx = np.argmax(lvefs)
+                print('Simulation ID with largest LVEF: ', str(max_idx), ' with LVEF of: ', str(np.amax(lvefs)))
+                ax_pv.plot(pv_post[max_idx].pvs['vls'][beat-1], pv_post[max_idx].pvs['pls'][beat-1]/10000, color='r')
+                ax_pt.plot(pv_post[max_idx].pvs['ts'][beat - 1],
+                                   pv_post[max_idx].pvs['pls'][beat - 1] / 10000,
+                                   color='r')
+                ax_vt.plot(pv_post[max_idx].pvs['ts'][beat - 1], pv_post[max_idx].pvs['vls'][beat - 1],
                                color='r')
-            ax_vt.plot(pv_post[max_idx].pvs['ts'][beat - 1], pv_post[max_idx].pvs['vls'][beat - 1],
-                           color='r')
             ax_pv.set_xlabel('Volume (mL)')
             ax_pv.set_ylabel('Pressure (kPa)')
             ax_vt.set_xlabel('Time (s)')
