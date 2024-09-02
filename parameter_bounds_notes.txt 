@@ -17,5 +17,6 @@ C_LV: Same rationale as R, because the circulatory model is not very sophisticat
 half to the baseline value (0.00015 mL/Barye)
 ejection threshold: 9.7 kPa to 10.3 kPa is the literature range, however, again, this is not a lot of range to explore.
 From experience, the lower this value is, the higher the LVEF. So, I'm giving this also 0.5 to baseline.
-
-It ran up to the 'as' parameter.
+gain values: halfed and doubled to check whether it changes the dPdt and the dVdt.
+sigma values: 0.8 and 1.2 fold, to check whether it changes the dPdt by changing the amount of synchronously contracting
+muscle. This was only perturbed by a small amount here, because these values change the conduction velocity by a lot.

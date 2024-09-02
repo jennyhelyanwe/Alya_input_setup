@@ -112,6 +112,15 @@ class SAUQ:
                         sample_i, variable_i]
                     sample_simulation_dict[self.parameter_names[variable_i]][0][2] = self.parameter_set[
                         sample_i, variable_i]
+                elif 'sigma_f' in self.parameter_names[variable_i]:
+                    sample_simulation_dict['sigma'][0][0] = self.parameter_set[
+                        sample_i, variable_i]
+                elif 'sigma_s' in self.parameter_names[variable_i]:
+                    sample_simulation_dict['sigma'][0][1] = self.parameter_set[
+                        sample_i, variable_i]
+                elif 'sigma_n' in self.parameter_names[variable_i]:
+                    sample_simulation_dict['sigma'][0][2] = self.parameter_set[
+                        sample_i, variable_i]
                 elif '_lv' in self.parameter_names[variable_i]:
                     variable_name = self.parameter_names[variable_i].split('_lv')[0]
                     sample_simulation_dict[variable_name][0] = self.parameter_set[sample_i, variable_i]
@@ -460,6 +469,7 @@ class SAUQ:
                      labels=None, save_filename=None, show=False, highlight_max_lvef=False):
         if pv_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
+            fig2 = plt.figure()
             gs = GridSpec(2, 2)
             ax_pv = fig.add_subplot(gs[0:2, 0])
             ax_vt = fig.add_subplot(gs[0, 1])
@@ -502,12 +512,11 @@ class SAUQ:
             ax_vt.set_ylabel('Volume (mL)')
             ax_pt.set_xlabel('Time (s)')
             ax_pt.set_ylabel('Pressure (kPa)')
-            if labels:
-                ax_pv.legend()
-                ax_vt.legend()
-                ax_pt.legend()
             if save_filename:
-                plt.savefig(save_filename)
+                fig.savefig(save_filename)
+            if labels:
+                fig2.legend(ax_pv.get_legend_handles_labels()[0], ax_pv.get_legend_handles_labels()[1])
+                fig2.savefig(save_filename + '_legend.png')
             if show:
                 plt.show()
             plt.close()
@@ -1057,6 +1066,12 @@ class SAUQ:
             for param_i in range(len(names)):
                 if 'sf_' in names[param_i]:
                     X[simulation_i,param_i] = dict[names[param_i]][0][0]
+                elif 'sigma_f' in names[param_i]:
+                    X[simulation_i,param_i] = dict['sigma'][0][0]
+                elif 'sigma_s' in names[param_i]:
+                    X[simulation_i, param_i] = dict['sigma'][0][1]
+                elif 'sigma_n' in names[param_i]:
+                    X[simulation_i, param_i] = dict['sigma'][0][2]
                 elif '_lv' in names[param_i]:
                     X[simulation_i,param_i] = dict[names[param_i].split('_lv')[0]][0]
                 elif '_rv' in names[param_i]:

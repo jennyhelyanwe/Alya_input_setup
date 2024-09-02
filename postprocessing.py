@@ -217,7 +217,7 @@ class PostProcessing(MeshStructure):
         end_systole_idx = np.argmax(y)
         dpdt = self.get_first_derivative(t=t, y=y)
         if end_systole_idx > 10:
-            dpdt_max = abs(np.amax(dvdt[10:end_systole_idx]))
+            dpdt_max = abs(np.amax(dpdt[10:end_systole_idx]))
         else:
             dpdt_max = np.nan
 
@@ -1816,7 +1816,7 @@ class PostProcessing(MeshStructure):
 
         # Volume transients
         # Diastolic fill
-        finished=False
+        finished=True
         if finished:
             end_systole_idx = np.argmin(self.pvs['vls'][beat-1])
             ldvdt = self.get_first_derivative(t=self.pvs['ts'][beat-1], y=self.pvs['vls'][beat-1])
@@ -1858,27 +1858,27 @@ class PostProcessing(MeshStructure):
             ax_vt.set_xlim(0, 1)
 
         # Displacements
-        avpd = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['avpd'])
+        # avpd = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['avpd'])
         apical_displacement = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'],
                                          self.deformation_transients['apical_displacement'])
-        ax_avpd.plot(self.deformation_transients['deformation_t'], avpd, label='AVPD',
+        ax_avpd.plot(self.deformation_transients['deformation_t'], self.deformation_transients['avpd'], label='AVPD',
                      color='C0')
         # ax_avpd.plot(self.deformation_transients['deformation_t'], apical_displacement, label='Apex displacement', color='C0')
-        ax_avpd.axhspan(np.amax(avpd)-self.healthy_ranges['es_ed_avpd'][0],np.amax(avpd)-self.healthy_ranges['es_ed_avpd'][1], alpha=0.3, color='C0')
+        ax_avpd.axhspan(np.amax(self.deformation_transients['avpd'])-self.healthy_ranges['es_ed_avpd'][0],np.amax(self.deformation_transients['avpd'])-self.healthy_ranges['es_ed_avpd'][1], alpha=0.3, color='C0')
         # ax_avpd.axhspan(self.healthy_ranges['apical_displacement'][0],
         #                 self.healthy_ranges['apical_displacement'][1], alpha=0.3,
         #                 color='C0')
 
-        thickness = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['lv_wall_thickness'])
-        ax_thickness.plot(self.deformation_transients['deformation_t'], thickness, label='AVPD',
+        # thickness = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['lv_wall_thickness'])
+        ax_thickness.plot(self.deformation_transients['deformation_t'], self.deformation_transients['lv_wall_thickness'], label='AVPD',
                      color='C0')
         ax_thickness.axhspan(self.healthy_ranges['ED_wall_thickness'][0], self.healthy_ranges['ED_wall_thickness'][1],
                              alpha=0.3, color='green')
         ax_thickness.axhspan(self.healthy_ranges['ES_wall_thickness'][0], self.healthy_ranges['ES_wall_thickness'][1],
                              alpha=0.3, color='green')
-        volume = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['volume'])
-        ax_volume.plot(self.deformation_transients['deformation_t'], volume, label='Volume', color='C0')
-        ax_volume.axhline(y=0.87 * np.amax(volume), color='green', alpha=0.3) # 13% systolic change in myocardial volume.
+        # volume = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['volume'])
+        ax_volume.plot(self.deformation_transients['deformation_t'], self.deformation_transients['volume'], label='Volume', color='C0')
+        ax_volume.axhline(y=0.87 * np.amax(self.deformation_transients['volume']), color='green', alpha=0.3) # 13% systolic change in myocardial volume.
 
         # # strain_transients
         # ell_median = self.shift_to_start_at_ED(self.strain_transients['strain_t'], self.strain_transients['four_chamber_E_ll_median'])

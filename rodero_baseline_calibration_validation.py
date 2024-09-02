@@ -50,9 +50,9 @@ setup_em_alya_files = False
 setup_ep_alya_files = False
 run_alya_baseline_simulation = False
 run_alya_baseline_postprocessing = False
-evaluate_calibrated_baseline = True
-setup_calibration_alya_simulations = False
-run_alya_calibration_simulations = False
+evaluate_calibrated_baseline = False
+setup_calibration_alya_simulations = True
+run_alya_calibration_simulations = True
 evaluate_calibration_sa = False
 setup_validation_alya_simulations = False
 run_alya_validation_simulations = False
@@ -148,7 +148,7 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 # if not system == 'jureca' and not system == 'cosma' and not system == 'archer2':
 #     alya.visual_sanity_check(simulation_json_file=simulation_json_file)
 if setup_em_alya_files:
-    simulation_json_file = 'rodero_baseline_simulation_baseline_11th_iteration.json'
+    simulation_json_file = 'rodero_baseline_simulation_baseline_13th_iteration.json'
     alya.do(simulation_json_file=simulation_json_file)
 if setup_ep_alya_files:
     simulation_json_file = 'rodero_baseline_simulation_ep.json'
@@ -170,7 +170,7 @@ if run_alya_baseline_postprocessing:
 # Step 6: Postprocess
 if evaluate_calibrated_baseline:
     print('Evaluating simulated biomarkers')
-    simulation_json_file = 'rodero_baseline_simulation_baseline_11th_iteration.json'
+    simulation_json_file = 'rodero_baseline_simulation_baseline_12th_iteration.json'
     alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + simulation_name + '/'
     # simulation_json_file = 'rodero_baseline_simulation_em.json'
     # alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_literature_parameters_' + simulation_name + '/'
@@ -271,17 +271,48 @@ if evaluate_calibrated_baseline:
 
 # 12th iteration: So, the current problem is that PER is too high, and PFR is too low.
 # Decreasing sf_kws will decrease PER, but it comes at the expense of decreasing LVEF and also decreasing peak pressure.
-# The
+# turns out, gain contraction has no effect on the PER or dPdt. Investigating the effect of conduction velocity on this...
+
+# 13th iteration: tune gain relaxation to get higher PFR. Bearing in mind that this may need to be retuned when we get
+# slower ejection speed...
+# {"gain_error_relaxation_lv":  [0.005, 0.05]}
+# gain_error_relaxation_lv=0.035 is going to give a dVdt filling of roughly 300, which will sit right in the middle of the
+# healthy range.
+
+# 14th iteration: Here comes the delicate balance. What we want is:
+# LVEF, ESP, dPdt, dvdt ejection, dvdt filling
+# currently, dVdt ejection, dPdt max, and percentage volume change are all too high.
+# The parameters that affect dPdt are: skws, Tref, and cal50, GCaL. Of these, sf_kws has the strongest effect, and is most promising.
+# The parameters that affect dVdt ejection: Tref, cal50, sf_kws, Kct (higher it is, slower the ejection), GCaL. The dVdt ejection is
+# strongly correlated with ESV.
+# The set of parameter that increases LVEF or decreases ESV: Tref, cal50, sf_kws, Kct, R_LV, GCaL, Jup (the only parameter that can decrease ESV without changing the dVdt is Jup).
+# The parameters that strongly affect peak pressure are: Tref, sf_kws, pericardial stiffness, Kct, af, R_LV, C_LV (affects peak pressure without changing anything else),
+# ejection threshold, GCaL, Jup
+
+# So, to decrease dPdt and dVdt ejection, I will decrease sf_Kws to below 1.0. This is going to cause a decrease in peak pressure and LVEF.
+# To get the LVEF back up, I will decrease Jup to 0.5 and increase GCaL to 2, and potentially change C_LV to get peak pressure back up.
+
+# So, 14th iteration:
+# Set: sf_jup: 0.5, sf_gcal: 2, gain_error_relaxation_lv: 0.035
+# Search: sf_kws: [0.2, 1.0] to get good dPdt and dVdt ejection.
+
+# So that didn't work. sf)gcal at 2 and sf_jup at 0.5 is too much, the diastolic phase is stunted and the mechanics
+# fails before contraction happens.
+
+# Perhaps better to do a SA for this and search within the sf_gcal and sf_jup space
+# 15th iteration:
+# search: sf_kws: [0.2, 1.0], sf_jup: [0.5, 1.0]
+iteration = '15th'
 
 ########################################################################################################################
 # Step 7: Use OAT SA results and evaluation of biomarkers to assign new ranges for calibration SA
 # calibration_folder_name = 'calibration_simulations_third_iteration'
-calibration_folder_name = 'calibration_simulations_11th_iteration'
-baseline_json_file = 'rodero_baseline_simulation_baseline_11th_iteration.json'
+calibration_folder_name = 'calibration_simulations_' + iteration + '_iteration'
+baseline_json_file = 'rodero_baseline_simulation_baseline_' + iteration + '_iteration.json'
 simulation_json_file = baseline_json_file
 simulation_dict = json.load(open(simulation_json_file, 'r'))
 # perturbed_parameters = json.load(open('calibration_sa_ranges_third_iteration.json', 'r'))
-perturbed_parameters = json.load(open('calibration_sa_ranges_11th_iteration.json', 'r'))
+perturbed_parameters = json.load(open('calibration_sa_ranges_' + iteration + '_iteration.json', 'r'))
 perturbed_parameters_name = np.array(list(perturbed_parameters.keys()))
 print(perturbed_parameters_name)
 if system == 'jureca':
@@ -301,12 +332,12 @@ lower_bounds = []
 for param in perturbed_parameters_name:
     lower_bounds.append(perturbed_parameters[param][0])
     upper_bounds.append(perturbed_parameters[param][1])
-# calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 1 , parameter_names=perturbed_parameters_name,
-#                    baseline_json_file=baseline_json_file, simulation_dir=simulation_dir, alya_format=alya,
-#                    baseline_dir=baseline_dir, verbose=verbose)
-calibration = SAUQ(name='sa', sampling_method='uniform', n=8 , parameter_names=perturbed_parameters_name,
+calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 3 , parameter_names=perturbed_parameters_name,
                    baseline_json_file=baseline_json_file, simulation_dir=simulation_dir, alya_format=alya,
                    baseline_dir=baseline_dir, verbose=verbose)
+# calibration = SAUQ(name='sa', sampling_method='uniform', n=8 , parameter_names=perturbed_parameters_name,
+#                    baseline_json_file=baseline_json_file, simulation_dir=simulation_dir, alya_format=alya,
+#                    baseline_dir=baseline_dir, verbose=verbose)
 if setup_calibration_alya_simulations:
     calibration.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
 if run_alya_calibration_simulations:

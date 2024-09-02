@@ -9,4 +9,11 @@
 "afs_myocardium":  [2160, 4600],
 "arterial_resistance_lv":  [500, 999],
 "arterial_compliance_lv":  [0.000075, 0.00015],
-"ejection_pressure_threshold_lv": [50000, 100000]}
+"ejection_pressure_threshold_lv": [50000, 100000],
+"gain_error_contraction_lv":  [0.5, 2],
+"gain_derror_contraction_lv": [5, 20],
+"gain_error_relaxation_lv":[0.05, 0.2],
+"gain_derror_relaxation_lv":  [0.15, 0.6],
+"sigma_f":  [0.0012728, 0.0019092],
+"sigma_s":  [0.0008304, 0.0012456],
+"sigma_n":  [0.001032, 0.001548]}
