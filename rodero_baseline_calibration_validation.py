@@ -50,14 +50,16 @@ setup_em_alya_files = False
 setup_ep_alya_files = False
 run_alya_baseline_simulation = False
 run_alya_baseline_postprocessing = False
-evaluate_calibrated_baseline = False
-setup_calibration_alya_simulations = True
-run_alya_calibration_simulations = True
+evaluate_calibrated_baseline = True
+setup_calibration_alya_simulations = False
+run_alya_calibration_simulations = False
 evaluate_calibration_sa = False
 setup_validation_alya_simulations = False
 run_alya_validation_simulations = False
 run_alya_validation_postprocessing = False
 evaluate_validation_biomarkers = False
+
+iteration = '17th'
 
 #######################################################################################################################
 # Step 1: Save input mesh into CSV format, as prescribed in myformat.py
@@ -148,7 +150,7 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 # if not system == 'jureca' and not system == 'cosma' and not system == 'archer2':
 #     alya.visual_sanity_check(simulation_json_file=simulation_json_file)
 if setup_em_alya_files:
-    simulation_json_file = 'rodero_baseline_simulation_baseline_13th_iteration.json'
+    simulation_json_file = 'rodero_baseline_simulation_baseline_' + iteration + '_iteration.json'
     alya.do(simulation_json_file=simulation_json_file)
 if setup_ep_alya_files:
     simulation_json_file = 'rodero_baseline_simulation_ep.json'
@@ -170,7 +172,7 @@ if run_alya_baseline_postprocessing:
 # Step 6: Postprocess
 if evaluate_calibrated_baseline:
     print('Evaluating simulated biomarkers')
-    simulation_json_file = 'rodero_baseline_simulation_baseline_12th_iteration.json'
+    simulation_json_file = 'rodero_baseline_simulation_baseline_' + iteration + '_iteration.json'
     alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + simulation_name + '/'
     # simulation_json_file = 'rodero_baseline_simulation_em.json'
     # alya_output_dir = simulation_root_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_literature_parameters_' + simulation_name + '/'
@@ -302,7 +304,7 @@ if evaluate_calibrated_baseline:
 # Perhaps better to do a SA for this and search within the sf_gcal and sf_jup space
 # 15th iteration:
 # search: sf_kws: [0.2, 1.0], sf_jup: [0.5, 1.0]
-iteration = '15th'
+
 
 ########################################################################################################################
 # Step 7: Use OAT SA results and evaluation of biomarkers to assign new ranges for calibration SA
@@ -332,12 +334,12 @@ lower_bounds = []
 for param in perturbed_parameters_name:
     lower_bounds.append(perturbed_parameters[param][0])
     upper_bounds.append(perturbed_parameters[param][1])
-calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 3 , parameter_names=perturbed_parameters_name,
-                   baseline_json_file=baseline_json_file, simulation_dir=simulation_dir, alya_format=alya,
-                   baseline_dir=baseline_dir, verbose=verbose)
-# calibration = SAUQ(name='sa', sampling_method='uniform', n=8 , parameter_names=perturbed_parameters_name,
+# calibration = SAUQ(name='sa', sampling_method='saltelli', n=2 ** 3 , parameter_names=perturbed_parameters_name,
 #                    baseline_json_file=baseline_json_file, simulation_dir=simulation_dir, alya_format=alya,
 #                    baseline_dir=baseline_dir, verbose=verbose)
+calibration = SAUQ(name='sa', sampling_method='uniform', n=8 , parameter_names=perturbed_parameters_name,
+                   baseline_json_file=baseline_json_file, simulation_dir=simulation_dir, alya_format=alya,
+                   baseline_dir=baseline_dir, verbose=verbose)
 if setup_calibration_alya_simulations:
     calibration.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
 if run_alya_calibration_simulations:

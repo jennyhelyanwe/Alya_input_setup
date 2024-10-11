@@ -196,8 +196,8 @@ class SAUQ:
             ed_t_index = np.argmin(abs(post.post_nodefield.dict['time'] - ed_t))
             post.read_binary_outputs(read_field_name='DISPL', read_field_type='vector')
             ed_geometry = post.geometry
-            ed_geometry.nodes_xyz = post.geometry.nodes_xyz + post.post_nodefield.dict['DISPL'][:, :, ed_t_index]
-            ed_geometry.name = 'ed_geometry_c' + str(simulation_i)
+            ed_geometry.nodes_xyz[:,:] = post.geometry.nodes_xyz[:,:] + post.post_nodefield.dict['DISPL'][:, :, ed_t_index]
+            ed_geometry.name = 'ed_geometry_sa_' + str(simulation_i)
             casename = 'sa_lat_' + str(simulation_i)
             print('Saving LAT map to ' + output_dir + '/' + casename)
             post.post_nodefield.save_to_ensight(output_dir=output_dir, casename=casename,
@@ -525,6 +525,7 @@ class SAUQ:
             fig2 = plt.figure(tight_layout=True, figsize=(12, 5))
             fig3 = plt.figure(tight_layout=True, figsize=(12, 5))
             fig4 = plt.figure()
+            width = 0.5
             gs = GridSpec(1, 6)
             ax_V1 = fig.add_subplot(gs[0, 0])
             ax_V2 = fig.add_subplot(gs[0, 1])
@@ -550,49 +551,49 @@ class SAUQ:
                 if labels:
                     lines = ax_V3.plot(ecg_post[simulation_i].ecgs['ts'][beat-1],
                                ecg_post[simulation_i].ecgs['V3s'][beat-1]/ecg_post[simulation_i].ecgs['max_all_leads'],
-                               label=labels[simulation_i])
+                               label=labels[simulation_i], linewidth=width)
                 else:
                     ax_V3.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
                                ecg_post[simulation_i].ecgs['V3s'][beat - 1] / ecg_post[simulation_i].ecgs[
-                                   'max_all_leads'])
+                                   'max_all_leads'], linewidth=width)
                 ax_V3b.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
                                ecg_post[simulation_i].ecgs['V3s'][beat - 1] / ecg_post[simulation_i].ecgs[
-                                   'max_all_leads'])
+                                   'max_all_leads'], linewidth=width)
                 ax_V3c.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
                                 ecg_post[simulation_i].ecgs['V3s'][beat - 1] / ecg_post[simulation_i].ecgs[
-                                    'max_all_leads'])
+                                    'max_all_leads'], linewidth=width)
                 ax_V1.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                           ecg_post[simulation_i].ecgs['V1s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                           ecg_post[simulation_i].ecgs['V1s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
                 ax_V2.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                           ecg_post[simulation_i].ecgs['V2s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                           ecg_post[simulation_i].ecgs['V2s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
                 ax_V4.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                           ecg_post[simulation_i].ecgs['V4s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                           ecg_post[simulation_i].ecgs['V4s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
                 ax_V5.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                           ecg_post[simulation_i].ecgs['V5s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                           ecg_post[simulation_i].ecgs['V5s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
                 ax_V6.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                           ecg_post[simulation_i].ecgs['V6s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                           ecg_post[simulation_i].ecgs['V6s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
 
                 ax_V1b.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                           ecg_post[simulation_i].ecgs['V1s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                           ecg_post[simulation_i].ecgs['V1s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
                 ax_V2b.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                           ecg_post[simulation_i].ecgs['V2s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                           ecg_post[simulation_i].ecgs['V2s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
                 ax_V4b.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                           ecg_post[simulation_i].ecgs['V4s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                           ecg_post[simulation_i].ecgs['V4s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
                 ax_V5b.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                           ecg_post[simulation_i].ecgs['V5s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                           ecg_post[simulation_i].ecgs['V5s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
                 ax_V6b.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                           ecg_post[simulation_i].ecgs['V6s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                           ecg_post[simulation_i].ecgs['V6s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
 
                 ax_V1c.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                            ecg_post[simulation_i].ecgs['V1s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                            ecg_post[simulation_i].ecgs['V1s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
                 ax_V2c.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                            ecg_post[simulation_i].ecgs['V2s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                            ecg_post[simulation_i].ecgs['V2s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
                 ax_V4c.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                            ecg_post[simulation_i].ecgs['V4s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                            ecg_post[simulation_i].ecgs['V4s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
                 ax_V5c.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                            ecg_post[simulation_i].ecgs['V5s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                            ecg_post[simulation_i].ecgs['V5s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
                 ax_V6c.plot(ecg_post[simulation_i].ecgs['ts'][beat - 1],
-                            ecg_post[simulation_i].ecgs['V6s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'])
+                            ecg_post[simulation_i].ecgs['V6s'][beat - 1] / ecg_post[simulation_i].ecgs['max_all_leads'], linewidth=width)
 
             ax_V1.set_xlabel('Time (s)')
             ax_V1.set_title('V1')

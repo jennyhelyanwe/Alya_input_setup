@@ -62,22 +62,23 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 # CHANGE THIS FOR DIFFERENT SAs!!!
 setup_simulations = False
 run_simulations = False
+postprocess = False
 # Choose which groups of parameters to setup/run/evaluate
-passive_mechanics = False
-active_mechanics = False
-cellular = False
-haemodynamic = False
-conduction = True
+passive_mechanics = True
+active_mechanics = True
+cellular = True
+haemodynamic = True
+conduction = False
 all_parameters_at_once = False
 
 # Choose which groups of QoI to evaluate
 evaluate_pv= False
-evaluate_ecg = True
+evaluate_ecg = False
 evaluate_deformation = False
 evaluate_fibrework = False
 evaluate_strain = False
 evaluate_volume = False
-evaluate_maps = False
+evaluate_maps = True
 fresh_qoi_evaluation = True
 
 parameter_names = []
@@ -266,6 +267,9 @@ for param_i, param in enumerate(parameter_names):
         sa.sort_simulations(
             tag='raw')  # Collate list of finished simulations by checking the existence of particular files.
     print('Number of finished simulations: ', len(sa.finished_simulation_dirs))
+    if postprocess:
+        print('Submitting postprocessing for: ', simulation_dir)
+        sa.run_jobs_postprocess(simulation_dir)
     if evaluate_pv:
         # Pressure volume information
         if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'pv_qois.csv'):
@@ -293,7 +297,7 @@ for param_i, param in enumerate(parameter_names):
             if not ecg_post:
                 print('ERROR: ECG postprocessing did not happen for some reason')
                 quit()
-            sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post', show=True)
+            sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post', show=False)
         qoi_names = ecg_qois
         slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'ecg_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/ecg_scatter.png')
