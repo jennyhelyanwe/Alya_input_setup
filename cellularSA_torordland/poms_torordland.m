@@ -57,7 +57,7 @@ CaTmax = zeros(size(params));
 CaTmin = zeros(size(params));
 
 tic
-parfor i = 1:length(params)
+for i = 1:length(params)
 %     celltype = 'endo';
     X0 = getStartingState_ToRORdLand(['m_',celltype]); % starting state - can be also m_mid or m_epi for midmyocardial or epicardial cells respectively.
     
@@ -149,4 +149,8 @@ T = table(apd40', apd50', apd90', CTD50', CTD90', CaTmax', CaTmin', Tamax', ...
           {'APD40', 'APD50', 'APD90', 'CTD50', 'CTD90', 'CaTmax', 'CaTmin', ...
           'Tamax', 'Tamin', 'TaD50', 'TaD90', 'dTadtmax'});
 writetable(T,[outputdir celltype '_output.txt'],'WriteRowNames',true, 'WriteVariableNames', true)
+save([outputdir 'V.mat'], 'V');
+save([outputdir 'cai.mat'], 'cai');
+save([outputdir 'Ta.mat'], 'Ta');
+save([outputdir 'time.mat'], 'time');
 end

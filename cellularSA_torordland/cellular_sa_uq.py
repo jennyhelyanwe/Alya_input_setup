@@ -10,7 +10,7 @@ import os
 import pandas as pd
 import scipy
 
-protocol = 'SA'
+protocol = 'UQ'
 if protocol == 'SA':
     flag = 'sample'
     parameter_names = ['INa', 'INaL', 'Ito', 'IKr', 'IKs', 'IK1', 'INCX', 'INaK', 'ICaL', 'Jrel', 'Jup', 'ca50', 'kuw', 'kws', 'Istim']
@@ -139,8 +139,10 @@ if protocol == 'SA':
     #sp.plot()
     # sp.plot()
     # plt.savefig('Overall_plot.png')
-
-elif protocol == 'UQ':
+run = False
+visualise = True
+style = '8_traces' # '8_traces' or 'min_max'
+if protocol == 'UQ':
     ########################################################################################################################
     # Uncertainty quantification - using 0.5 and 2 fold as ranges
     print('Propagating prescribed uncertainty of the following parameters and quantifying effect on QoIs')
@@ -148,42 +150,68 @@ elif protocol == 'UQ':
     parameter_names = ['INa', 'INaL', 'Ito', 'IKr', 'IKs', 'IK1', 'INCX', 'INaK', 'ICaL', 'Jrel', 'Jup', 'ca50', 'kuw', 'kws',
              'Istim']
     for uq_param in uncertain_parameters:
-        print ('Uncertainty propagation for ', uq_param)
-        param_values = np.ones((3, len(parameter_names)))
-        param_values[0, parameter_names.index(uq_param)] = 0.5
-        param_values[1, parameter_names.index(uq_param)] = 1.0
-        param_values[2, parameter_names.index(uq_param)] = 2.0
-        output_dir = 'uq_cell_em_' + uq_param + '/'
-        np.savetxt('uq_param_values.txt', param_values, delimiter=',')
-        with open('uq_output_dir.txt', 'w') as f:
-            f.write(output_dir)
-        # Run simulations in MATLAB
-        # os.system('matlab -nodisplay -r "evaluateUQ"')
+        if style == 'min_max':
+            print('Uncertainty propagation for ', uq_param)
+            param_values = np.ones((3, len(parameter_names)))
+            param_values[0, parameter_names.index(uq_param)] = 0.5
+            param_values[1, parameter_names.index(uq_param)] = 1.0
+            param_values[2, parameter_names.index(uq_param)] = 2.0
+        elif style == '8_traces':
+            print('Uncertainty propagation for ', uq_param)
+            param_values = np.ones((8, len(parameter_names)))
+            for i in range(8):
+                param_values[i, parameter_names.index(uq_param)] = np.linspace(0.5, 2, 8)[i]
+        output_dir = 'uq_cell_em_' + style + '_' + uq_param + '/'
+        if run:
+            np.savetxt('uq_param_values.txt', param_values, delimiter=',')
+            with open('uq_output_dir.txt', 'w') as f:
+                f.write(output_dir)
+            # Run simulations in MATLAB
+            os.system('matlab -nodisplay -r "evaluateUQ"')
+        if visualise:
+            if style == 'min_max':
+                # Load outputs
+                V = scipy.io.loadmat(output_dir + 'V.mat')['V'][0]
+                cai = scipy.io.loadmat(output_dir + 'cai.mat')['cai'][0]
+                Ta = scipy.io.loadmat(output_dir + 'Ta.mat')['Ta'][0]
+                time = scipy.io.loadmat(output_dir + 'time.mat')['time'][0]
+                fig = plt.figure(tight_layout=True, figsize=(15, 6))
+                gs = GridSpec(1, 3)
+                ax_V = fig.add_subplot(gs[0, 0])
+                ax_V.plot(time[1][0], V[1][0], 'k')
+                ax_V.plot(time[0][0], V[0][0], 'b')
+                ax_V.plot(time[2][0], V[2][0], 'r')
+                ax_V.fill(np.append(time[0][0], time[2][0][::-1]), np.append(V[0][0], V[2][0][::-1]), alpha=0.3, edgecolor=None, color='k')
 
-        # Load outputs
-        V = scipy.io.loadmat(output_dir + 'V.mat')['V'][0]
-        cai = scipy.io.loadmat(output_dir + 'cai.mat')['cai'][0]
-        Ta = scipy.io.loadmat(output_dir + 'Ta.mat')['Ta'][0]
-        time = scipy.io.loadmat(output_dir + 'time.mat')['time'][0]
-        fig = plt.figure(tight_layout=True, figsize=(15, 6))
-        gs = GridSpec(1, 3)
-        ax_V = fig.add_subplot(gs[0, 0])
-        ax_V.plot(time[1][0], V[1][0], 'k')
-        ax_V.plot(time[0][0], V[0][0], 'b')
-        ax_V.plot(time[2][0], V[2][0], 'r')
-        ax_V.fill(np.append(time[0][0], time[2][0][::-1]), np.append(V[0][0], V[2][0][::-1]), alpha=0.3, edgecolor=None, color='k')
+                ax_cai = fig.add_subplot(gs[0, 1])
+                ax_cai.plot(time[1][0], cai[1][0], 'k')
+                ax_cai.plot(time[0][0], cai[0][0], 'b')
+                ax_cai.plot(time[2][0], cai[2][0], 'r')
+                ax_cai.fill(np.append(time[0][0], time[2][0][::-1]),
+                          np.append(cai[0][0], cai[2][0][::-1]), alpha=0.3, edgecolor=None, color='k')
 
-        ax_cai = fig.add_subplot(gs[0, 1])
-        ax_cai.plot(time[1][0], cai[1][0], 'k')
-        ax_cai.plot(time[0][0], cai[0][0], 'b')
-        ax_cai.plot(time[2][0], cai[2][0], 'r')
-        ax_cai.fill(np.append(time[0][0], time[2][0][::-1]),
-                  np.append(cai[0][0], cai[2][0][::-1]), alpha=0.3, edgecolor=None, color='k')
-
-        ax_ta = fig.add_subplot(gs[0, 2])
-        ax_ta.plot(time[1][0], Ta[1][0], 'k')
-        ax_ta.plot(time[0][0], Ta[0][0], 'b')
-        ax_ta.plot(time[2][0], Ta[2][0], 'r')
-        ax_ta.fill(np.append(time[0][0], time[2][0][::-1]),
-                  np.append(Ta[0][0], Ta[2][0][::-1]), alpha=0.3, edgecolor=None, color='k')
-        plt.savefig(output_dir + 'uq_' + uq_param + '_V_cai_Ta_ranges.png')
+                ax_ta = fig.add_subplot(gs[0, 2])
+                ax_ta.plot(time[1][0], Ta[1][0], 'k')
+                ax_ta.plot(time[0][0], Ta[0][0], 'b')
+                ax_ta.plot(time[2][0], Ta[2][0], 'r')
+                ax_ta.fill(np.append(time[0][0], time[2][0][::-1]),
+                          np.append(Ta[0][0], Ta[2][0][::-1]), alpha=0.3, edgecolor=None, color='k')
+                plt.savefig(output_dir + 'uq_' + uq_param + '_V_cai_Ta_ranges_fill.png')
+            elif style == '8_traces':
+                # Load outputs
+                V = scipy.io.loadmat(output_dir + 'V.mat')['V'][0]
+                cai = scipy.io.loadmat(output_dir + 'cai.mat')['cai'][0]
+                Ta = scipy.io.loadmat(output_dir + 'Ta.mat')['Ta'][0]
+                time = scipy.io.loadmat(output_dir + 'time.mat')['time'][0]
+                fig = plt.figure(tight_layout=True, figsize=(15, 6))
+                gs = GridSpec(1, 3)
+                ax_V = fig.add_subplot(gs[0, 0])
+                for i in range(8):
+                    ax_V.plot(time[i][0], V[i][0])
+                ax_cai = fig.add_subplot(gs[0, 1])
+                for i in range(8):
+                    ax_cai.plot(time[i][0], cai[i][0])
+                ax_Ta = fig.add_subplot(gs[0, 2])
+                for i in range(8):
+                    ax_Ta.plot(time[i][0], Ta[i][0])
+                plt.savefig(output_dir + 'uq_' + uq_param + '_V_cai_Ta_8_traces.png')
