@@ -8,6 +8,7 @@ from alyaformat import AlyaFormat
 import pymp, multiprocessing
 import matplotlib
 # matplotlib.use('tkagg')
+from myformat import Fields
 from matplotlib.gridspec import GridSpec
 from matplotlib import pyplot as plt
 import seaborn as sns
@@ -182,6 +183,8 @@ class SAUQ:
         if not os.path.exists(output_dir):
             os.mkdir(output_dir)
         for simulation_i in range(len(self.finished_simulation_dirs)):
+            # Create new output post nodefield to write out LAT, RT, and displacements at ED and ES in a single casefile
+            maps_post = Fields(self.name, field_type='postnodefield', verbose=False)
             # Evaluate LAT and RT
             alya_output_dir = self.finished_simulation_dirs[simulation_i]
             json_file = self.simulation_dir + analysis_type + '_' + str(simulation_i) + '.json'
@@ -191,18 +194,22 @@ class SAUQ:
             post.deformation_transients = {}
             post.read_binary_outputs(read_field_name='INTRA', read_field_type='scalar')
             post.evaluate_ep_maps() # TODO: repolarisation map is wrong.
+            maps_post.add_field(data=post.post_nodefield.dict['lat'], data_name='lat_' + str(simulation_i), field_type='postnodefield')
+            maps_post.add_field(data=post.post_nodefield.dict['rt'], data_name='rt_' + str(simulation_i), field_type='postnodefield')
             # Write LAT on end diastolic geometry
             ed_t = post.simulation_dict['end_diastole_t'][0] + post.simulation_dict['exmedi_delay_time']
             ed_t_index = np.argmin(abs(post.post_nodefield.dict['time'] - ed_t))
             post.read_binary_outputs(read_field_name='DISPL', read_field_type='vector')
-            ed_geometry = post.geometry
-            ed_geometry.nodes_xyz[:,:] = post.geometry.nodes_xyz[:,:] + post.post_nodefield.dict['DISPL'][:, :, ed_t_index]
-            ed_geometry.name = 'ed_geometry_sa_' + str(simulation_i)
-            casename = 'sa_lat_' + str(simulation_i)
-            print('Saving LAT map to ' + output_dir + '/' + casename)
-            post.post_nodefield.save_to_ensight(output_dir=output_dir, casename=casename,
-                                                geometry=ed_geometry, fieldname='lat', fieldtype='postnodefield')
+            # ed_geometry = post.geometry
+            ed_displacement = post.post_nodefield.dict['DISPL'][:,:, ed_t_index]
+            maps_post.add_field(data=ed_displacement, data_name='ed_displacement_' + str(simulation_i), field_type='postnodefield')
+            # ed_geometry.nodes_xyz[:,:] = post.geometry.nodes_xyz[:,:] + post.post_nodefield.dict['DISPL'][:, :, ed_t_index]
+            # ed_geometry.name = 'ed_geometry_sa_' + str(simulation_i)
+            # casename = 'sa_lat_' + str(simulation_i)
+            # post.post_nodefield.save_to_ensight(output_dir=output_dir, casename=casename,
+            #                                     geometry=ed_geometry, fieldname='lat', fieldtype='postnodefield')
             # Get timing of end of phase 3
+            print('Reading PV to get timing of the end of systole...')
             post.read_ecg_pv()
             if np.amax(post.pvs['phasels'][beat - 1] > 3):
                 es_idx = np.where(post.pvs['phasels'][beat - 1] == 3)[0][-1]
@@ -215,13 +222,14 @@ class SAUQ:
             # plt.axvline(x=es_t)
             # plt.show()
             es_t_index = np.argmin(abs(post.post_nodefield.dict['time'] - es_t))
-            es_geometry = post.geometry
-            es_geometry.name = 'es_geometry_sa_' + str(simulation_i)
-            es_geometry.nodes_xyz = post.geometry.nodes_xyz + post.post_nodefield.dict['DISPL'][:, :, es_t_index]
-            casename = 'sa_rt_' + str(simulation_i)
-            print('Saving RT map to ' + output_dir + '/' + casename)
-            post.post_nodefield.save_to_ensight(output_dir=output_dir, casename=casename,
-                                                geometry=es_geometry, fieldname='rt', fieldtype='postnodefield')
+            es_displacement = post.post_nodefield.dict['DISPL'][:, :, es_t_index]
+            maps_post.add_field(data=es_displacement, data_name='es_displacement_' + str(simulation_i), field_type='postnodefield')
+            # es_geometry = post.geometry
+            # es_geometry.name = 'es_geometry_sa_' + str(simulation_i)
+            # es_geometry.nodes_xyz[:,:] = post.geometry.nodes_xyz[:,:] + post.post_nodefield.dict['DISPL'][:, :, es_t_index]
+            casename = 'sa_lat_rt_ed_es_' + str(simulation_i)
+            print('Saving LAT and RT maps with ED and ES displacements to ' + output_dir + '/' + casename)
+            maps_post.save_to_ensight(output_dir=output_dir, casename=casename, geometry=post.geometry)
 
     def evaluate_qois(self, qoi_group_name, alya, beat, qoi_save_dir, analysis_type):
         postp_objects = []

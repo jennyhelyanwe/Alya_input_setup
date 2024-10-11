@@ -64,10 +64,10 @@ setup_simulations = False
 run_simulations = False
 postprocess = False
 # Choose which groups of parameters to setup/run/evaluate
-passive_mechanics = True
-active_mechanics = True
+passive_mechanics = False
+active_mechanics = False
 cellular = True
-haemodynamic = True
+haemodynamic = False
 conduction = False
 all_parameters_at_once = False
 
@@ -83,7 +83,7 @@ fresh_qoi_evaluation = True
 
 parameter_names = []
 sa_folder_root_names = []
-cellular_params = ['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup']
+cellular_params = ['sf_gcal'] # ['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup']
 active_params = ['tref_scaling_myocardium', 'cal50_myocardium', 'sfkws_myocardium'] # Exclude Tref, because it doesn't have a direct biophysical meaning.
 # active_params = ['sfkws_myocardium']
 passive_params = ['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'as_myocardium', 'afs_myocardium']
@@ -276,6 +276,8 @@ for param_i, param in enumerate(parameter_names):
             pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                        analysis_type='sa')
             sa.visualise_sa(beat=1, pv_post=pv_post, labels=labels, save_filename=simulation_dir+'/pv_post', show=False)
+        else:
+            print('Not evaluating QoIs afresh!')
         qoi_names = pv_qois
 
         slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=False,
@@ -298,6 +300,8 @@ for param_i, param in enumerate(parameter_names):
                 print('ERROR: ECG postprocessing did not happen for some reason')
                 quit()
             sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post', show=False)
+        else:
+            print('Not evaluating QoIs afresh!')
         qoi_names = ecg_qois
         slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'ecg_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/ecg_scatter.png')
@@ -319,6 +323,8 @@ for param_i, param in enumerate(parameter_names):
                 quit()
             sa.visualise_sa(beat=1, deformation_post=deformation_post, labels=labels,
                             save_filename=simulation_dir + '/deformation_post', show=False)
+        else:
+            print('Not evaluating QoIs afresh!')
         qoi_names = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness', 'percentage_volume_change']
         slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'deformation_qois.csv', qois=qoi_names,
                                    show_healthy_ranges=False, save_filename=simulation_dir + '/deformation_scatter.png')
@@ -336,6 +342,8 @@ for param_i, param in enumerate(parameter_names):
                                                 analysis_type='sa')
             sa.visualise_sa(beat=1, volume_post=volume_post, labels=labels)
                             # save_filename=simulation_dir + '/volume_post.png')
+        else:
+            print('Not evaluating QoIs afresh!')
         qoi_names = ['percentage_volume_change']
         slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'volume_qois.csv', qois=qoi_names,
                                    show_healthy_ranges=False, save_filename=simulation_dir + '/volume_scatter.png')
@@ -355,6 +363,8 @@ for param_i, param in enumerate(parameter_names):
                                                analysis_type='sa')
             sa.visualise_sa(beat=1, fibre_work_post=fibre_work_post, labels=labels,
                             save_filename=simulation_dir + '/fibre_work_post.png')
+        else:
+            print('Not evaluating QoIs afresh!')
         qoi_names = ['peak_lambda', 'min_lambda', 'peak_ta', 'diastolic_ta']
         slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'fibrework_qois.csv', qois=qoi_names,
                                    show_healthy_ranges=False, save_filename=simulation_dir + '/fibre_scatter.png')
@@ -402,8 +412,11 @@ for param_i, param in enumerate(parameter_names):
             simulation_dir + '/param_' + param + '_strain_qoi_outcomes.csv')
 
     if evaluate_maps:
-        if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'maps_ensight/heart_sa_0.ensi.case'):
+        if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'maps_ensight/sa_lat_rt_ed_es_0.ensi.case'):
             sa.evaluate_maps(alya=alya, beat=beat, analysis_type='sa', simulation_dir=simulation_dir)
+    else:
+        print('Not evaluating maps either because fresh_qoi_evaluation is set to False, or because ' + simulation_dir +
+              'maps_ensight/sa_lat_rt_ed_es_0.ensi.case already exists')
 quit()
 #######################################################################################################################
 # Concatenate all results into a single CSV file

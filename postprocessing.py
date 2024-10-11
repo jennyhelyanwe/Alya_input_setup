@@ -1092,6 +1092,7 @@ class PostProcessing(MeshStructure):
             print('Read_CSV_FIELD: Must specify field and type')
         self.post_nodefield.add_field(data=temp, data_name=read_field_name, field_type='postnodefield')
         self.post_nodefield.add_field(data=time, data_name='time', field_type='postnodefield')
+        self.post_nodefield.add_field(data=inverse_pt_correspondence, data_name='inverse_pt_correspondence', field_type='postnodefield')
         temp = None
         time = None
 

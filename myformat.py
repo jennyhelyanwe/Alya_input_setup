@@ -102,6 +102,7 @@ class Fields:
             save_ensight_geometry(directory=output_dir, name=geometry.name, nodes_xyz=geometry.nodes_xyz,
                                   tetrahedrons=geometry.tetrahedrons)
         list_fields = list(self.dict.keys())
+        self.number_of_fields = len(list_fields)
         field_dimensions = []
         list_fields_output = []
         if fieldname and fieldtype:
