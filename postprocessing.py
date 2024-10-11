@@ -204,6 +204,9 @@ class PostProcessing(MeshStructure):
 
         ed_idx = np.where(t>0.15)[0][0]
         end_systole_idx = np.argmin(y[ed_idx:]) + ed_idx
+
+        end_systole_idx = np.where(self.pvs['phasels'][beat-1] == 4)[0][0]
+
         dvdt = self.get_first_derivative(t=t, y=y)
         if end_systole_idx > 10:
             dvdt_ejection = abs(np.amin(dvdt[10:end_systole_idx]))
@@ -211,6 +214,16 @@ class PostProcessing(MeshStructure):
         else:
             dvdt_ejection = np.nan
             dvdt_filling = np.nan
+
+        # # Check dvdt_filling
+        # plt.plot(t, y, 'b')
+        # plt.plot(t[end_systole_idx:], y[end_systole_idx:], 'r')
+        # plt.axline((t[end_systole_idx], y[end_systole_idx]),
+        #              slope=dvdt_filling, color='grey', linestyle='--')
+        # plt.plot()
+        # plt.show()
+        # print('dvdt filling:', dvdt_filling)
+        # SEARCH MARKER!
 
         t = self.pvs['ts'][beat - 1]
         y = self.pvs['pls'][beat - 1]

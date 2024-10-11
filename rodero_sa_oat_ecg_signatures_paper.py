@@ -167,7 +167,7 @@ if setup_simulations or run_simulations:
 # Evaluate QoIs and correlations
 qoi_names = []
 pv_qois = ['EDVL', 'ESVL', 'PmaxL', 'LVEF', 'SVL', 'dvdt_ejection', 'dvdt_filling', 'dpdt_max']
-ecg_qois = ['qrs_dur_mean', 'qrs_peak_v3', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'jt_dur_mean', 't_peak_mean', 'j_point_mean']
+ecg_qois = ['qrs_dur_mean', 'qrs_peak_v3', 't_dur_mean', 'qt_dur_mean', 't_pe_mean', 'jt_dur_mean', 't_peak_mean']
 deformation_qois = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness', 'percentage_volume_change']
 fibrework_qois = ['peak_lambda', 'min_lambda', 'peak_ta', 'diastolic_ta']
 strain_qois = ['max_mid_Ecc', 'min_mid_Ecc', 'max_mid_Err', 'min_mid_Err', 'max_four_chamber_Ell', 'min_four_chamber_Ell']
@@ -275,7 +275,7 @@ for param_i, param in enumerate(parameter_names):
         if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'pv_qois.csv'):
             pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                        analysis_type='sa')
-            sa.visualise_sa(beat=1, pv_post=pv_post, labels=labels, save_filename=simulation_dir+'/pv_post', show=True)
+            sa.visualise_sa(beat=1, pv_post=pv_post, labels=labels, save_filename=simulation_dir+'/pv_post', show=False)
         qoi_names = pv_qois
 
         slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=False,
