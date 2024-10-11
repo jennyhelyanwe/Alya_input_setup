@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --acount=e769-jennywang
+#SBATCH --account=e769-jennywang
 #SBATCH --job-name=heartpp
 #SBATCH --time=00:20:00
 #SBATCH --nodes=<<computational_nodes>>
@@ -7,7 +7,6 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --qos=short
 #SBATCH --partition=standard
-#SBATCH --export-none
 
 module load PrgEnv-gnu
 module load gcc/11.2.0
