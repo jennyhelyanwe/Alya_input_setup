@@ -7,8 +7,8 @@ from vtk.util import numpy_support as VN
 import pymp
 
 class FieldGeneration(MeshStructure):
-    def __init__(self, name, geometric_data_dir, personalisation_data_dir, verbose):
-        super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
+    def __init__(self, name, geometric_data_dir, personalisation_data_dir, max_cores_used, verbose):
+        super().__init__(name=name, geometric_data_dir=geometric_data_dir, max_cores_used=max_cores_used, verbose=verbose)
         self.personalisation_data_dir = personalisation_data_dir
         self.geometric_data_dir = geometric_data_dir
         self.verbose = verbose
@@ -87,7 +87,7 @@ class FieldGeneration(MeshStructure):
         tn = pymp.shared.array(self.node_fields.dict['transmural-vector'].shape)
         ln[:,:] = self.node_fields.dict['longitudinal-vector']
         tn[:, :] = self.node_fields.dict['transmural-vector']
-        threadsNum = multiprocessing.cpu_count()
+        threadsNum = np.amin((multiprocessing.cpu_count(), self.max_cores_used))
         with pymp.Parallel(min(threadsNum, self.geometry.number_of_nodes)) as p1:
             for node_i in p1.range(self.geometry.number_of_nodes):
                 l = ln[node_i, :]
@@ -116,7 +116,7 @@ class FieldGeneration(MeshStructure):
         rt[:] = self.node_fields.dict['rt']
         tm[:] = self.node_fields.dict['tm']
         tv[:] = self.node_fields.dict['tv']
-        threadsNum = multiprocessing.cpu_count()
+        threadsNum = np.amin((multiprocessing.cpu_count(), max_cores_used))
         with pymp.Parallel(min(threadsNum, self.geometry.number_of_nodes)) as p1:
             for node_i in p1.range(self.geometry.number_of_nodes):
                 if (ab[node_i] > 0.27) & (ab[node_i] < 0.3) & (tv[node_i] == -1):
@@ -380,7 +380,7 @@ class FieldGeneration(MeshStructure):
         ab_shared[:] = self.element_fields.dict['ab_tetra'][:]
         rt_shared[:] = self.element_fields.dict['rt_tetra'][:]
         tm_shared[:] = self.element_fields.dict['tm_tetra'][:]
-        threadsNum = multiprocessing.cpu_count()
+        threadsNum = np.amin(multiprocessing.cpu_count(), 10)
         infarct_rt_range = [1.2, 2.1]
         infarct_ab_range = [0.1, 0.5]
         infarct_ab_centre = np.abs((infarct_ab_range[1] + infarct_ab_range[0]) / 2.)

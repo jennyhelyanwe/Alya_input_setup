@@ -3,8 +3,10 @@ import numpy as np
 import pymp, multiprocessing
 import pandas as pd
 
+
+
 class Geometry:
-    def __init__(self, name, verbose):
+    def __init__(self, name, max_cores_used, verbose):
         # Geometry initialisations
         self.name = name
         self.number_of_nodes = 0
@@ -29,6 +31,7 @@ class Geometry:
         self.tm_epi = 1
         self.pericardial_ab_extent = 0.75
         self.verbose = verbose
+        self.max_cores_used = max_cores_used
 
     def save_to_csv(self, output_dir):
         if output_dir[-1] != '/':
@@ -73,12 +76,13 @@ class Geometry:
 
 
 class Fields:
-    def __init__(self, name, field_type, verbose):
+    def __init__(self, name, field_type, max_cores_used, verbose):
         self.name = name
         self.field_type = field_type
         self.dict = {}  # Placeholder.
         self.number_of_fields = len(self.dict)
         self.verbose = verbose
+        self.max_cores_used = max_cores_used
 
     def add_field(self, data, data_name, field_type):
         assert field_type == self.field_type, 'Input field type: ' + field_type + 'does not matching existing field ' \
@@ -161,7 +165,7 @@ class Fields:
         filenames = np.array([f for f in os.listdir(input_dir) if
                               os.path.isfile(os.path.join(input_dir, f)) and '_' + field_type + '_' in f])
         if filenames.shape[0] > 0:
-            threadsNum = multiprocessing.cpu_count()
+            threadsNum = np.amin((multiprocessing.cpu_count(), self.max_cores_used))
             self.dict = multiprocessing.Manager().dict()
             with pymp.Parallel(min(threadsNum, filenames.shape[0])) as p1:
                 for file_i in p1.range(filenames.shape[0]):
@@ -171,6 +175,7 @@ class Fields:
                         print('Reading in ' + input_dir + filenames[file_i])
                     varname = get_varname(filename=filenames[file_i], key=field_type)
                     self.dict[varname] = load_txt(filename=input_dir + filenames[file_i])
+            # self.dict = temporary_dict
         self.number_of_fields = len(self.dict)
 
 

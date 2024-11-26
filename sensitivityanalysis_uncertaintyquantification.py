@@ -148,7 +148,7 @@ class SAUQ:
                 f.write(self.all_simulation_dirs[i]+'\n')
         # baseline_simulation_dict = json.load(open(baseline_json_file, 'r'))
         # threadsNum = multiprocessing.cpu_count()
-        # threadsNum = 10
+        # threadsNum = max_cores_used
         # all_simulation_dirs = pymp.shared.array(self.parameter_set.shape[0])
         # parameter_names = pymp.shared.array(self.parameter_names.shape)
         # parameter_names = self.parameter_names

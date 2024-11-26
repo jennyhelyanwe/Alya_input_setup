@@ -1,4 +1,5 @@
 import matplotlib
+
 matplotlib.use('TKagg')
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -269,7 +270,7 @@ class PostProcessing(MeshStructure):
         displacement_shared = pymp.shared.array(self.post_nodefield.dict['DISPL'].shape, dtype=float)
         displacement_shared[:, :, :] = self.post_nodefield.dict['DISPL']
         print('Evaluating volume transient...')
-        threadsNum = int(multiprocessing.cpu_count())
+        threadsNum = np.amin((int(multiprocessing.cpu_count()), max_cores_used))
         volume_transient = pymp.shared.array(time_idx.shape[0])
         nodes_xyz = pymp.shared.array(self.geometry.nodes_xyz.shape, dtype=float)
         nodes_xyz[:, :] = self.geometry.nodes_xyz

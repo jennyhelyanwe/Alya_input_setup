@@ -4,6 +4,9 @@ import os
 from alyaformat import AlyaFormat
 import pymp, multiprocessing
 import matplotlib
+
+from rodero_baseline_calibration_validation import max_cores_used
+
 matplotlib.use('tkagg')
 from matplotlib.gridspec import GridSpec
 from matplotlib import pyplot as plt
@@ -321,7 +324,7 @@ class PopulationDrugTest:
                 os.system('cp ' + csv_dir + '* '+destination_dir)
                 filenames = os.listdir(csv_dir)
                 filenames_shared = pymp.shared.list(filenames)
-                threadsNum = multiprocessing.cpu_count()
+                threadsNum = np.amin((multiprocessing.cpu_count(), max_cores_used))
                 with pymp.Parallel(min(threadsNum, len(filenames))) as p1:
                     for conf_i in p1.range(len(filenames)):
                         # for file in filenames:

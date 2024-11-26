@@ -8,9 +8,9 @@ from meshstructure import MeshStructure
 from matplotlib import pyplot as plt
 
 class AlyaFormat(MeshStructure):
-    def __init__(self, name, geometric_data_dir, personalisation_dir, clinical_data_dir, simulation_dir, job_version, verbose):
+    def __init__(self, name, geometric_data_dir, personalisation_dir, clinical_data_dir, simulation_dir, job_version, max_cores_used, verbose):
         if geometric_data_dir:
-            super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
+            super().__init__(name=name, geometric_data_dir=geometric_data_dir, max_cores_used=max_cores_used, verbose=verbose)
         else:
             print('Creating empty Alya object without a geometry.')
         self.version = 'alya-compbiomed2'  # 'Alya_multiple_BZRZ_models'

@@ -169,6 +169,7 @@ if protocol == 'UQ':
             # Run simulations in MATLAB
             os.system('matlab -nodisplay -r "evaluateUQ"')
         if visualise:
+            print('Visualising...')
             if style == 'min_max':
                 # Load outputs
                 V = scipy.io.loadmat(output_dir + 'V.mat')['V'][0]
@@ -198,20 +199,24 @@ if protocol == 'UQ':
                           np.append(Ta[0][0], Ta[2][0][::-1]), alpha=0.3, edgecolor=None, color='k')
                 plt.savefig(output_dir + 'uq_' + uq_param + '_V_cai_Ta_ranges_fill.png')
             elif style == '8_traces':
-                # Load outputs
-                V = scipy.io.loadmat(output_dir + 'V.mat')['V'][0]
-                cai = scipy.io.loadmat(output_dir + 'cai.mat')['cai'][0]
-                Ta = scipy.io.loadmat(output_dir + 'Ta.mat')['Ta'][0]
-                time = scipy.io.loadmat(output_dir + 'time.mat')['time'][0]
-                fig = plt.figure(tight_layout=True, figsize=(15, 6))
-                gs = GridSpec(1, 3)
-                ax_V = fig.add_subplot(gs[0, 0])
-                for i in range(8):
-                    ax_V.plot(time[i][0], V[i][0])
-                ax_cai = fig.add_subplot(gs[0, 1])
-                for i in range(8):
-                    ax_cai.plot(time[i][0], cai[i][0])
-                ax_Ta = fig.add_subplot(gs[0, 2])
-                for i in range(8):
-                    ax_Ta.plot(time[i][0], Ta[i][0])
-                plt.savefig(output_dir + 'uq_' + uq_param + '_V_cai_Ta_8_traces.png')
+                celltypes = ['endo', 'epi', 'mid']
+                for celltype in celltypes:
+                    # Load outputs
+                    V = scipy.io.loadmat(output_dir + 'V_'+ celltype+'.mat')['V'][0]
+                    cai = scipy.io.loadmat(output_dir + 'cai_'+ celltype+'.mat')['cai'][0]
+                    Ta = scipy.io.loadmat(output_dir + 'Ta_'+ celltype+'.mat')['Ta'][0]
+                    time = scipy.io.loadmat(output_dir + 'time_'+ celltype+'.mat')['time'][0]
+                    fig = plt.figure(tight_layout=True, figsize=(15, 6))
+                    gs = GridSpec(1, 3)
+                    ax_V = fig.add_subplot(gs[0, 0])
+                    for i in range(8):
+                        ax_V.plot(time[i][0], V[i][0])
+                    ax_cai = fig.add_subplot(gs[0, 1])
+                    for i in range(8):
+                        ax_cai.plot(time[i][0], cai[i][0])
+                    ax_Ta = fig.add_subplot(gs[0, 2])
+                    for i in range(8):
+                        ax_Ta.plot(time[i][0], Ta[i][0])
+                    print('Saving figure to: '+ output_dir + 'uq_' + uq_param + '_V_cai_Ta_8_traces_'+ celltype+'.png' )
+                    plt.savefig(output_dir + 'uq_' + uq_param + '_V_cai_Ta_8_traces_'+ celltype+'.png')
+                    plt.show()

@@ -7,8 +7,8 @@ import copy
 from xml.dom import minidom
 
 class MeshPreprocessing(MeshStructure):
-    def __init__(self, vtk_name, name, input_dir, geometric_data_dir, verbose):
-        super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
+    def __init__(self, vtk_name, name, input_dir, geometric_data_dir, max_cores_used, verbose):
+        super().__init__(name=name, geometric_data_dir=geometric_data_dir, max_cores_used=max_cores_used, verbose=verbose)
         # Read and write geometry
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'

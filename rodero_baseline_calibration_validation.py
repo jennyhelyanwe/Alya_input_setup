@@ -24,6 +24,7 @@ elif 'Expansion' in workdir:
 else:
     system = 'heart'
 
+max_cores_used = 3
 if system == 'jureca':
     meta_data_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/meta_data/'
 elif system == 'cosma':
@@ -46,11 +47,11 @@ generate_fields_Green_fibres = False
 generate_fields_12090_fibres = False
 generate_fields_slices_and_local_bases = False
 setup_em_alya_literature_parameters_files = False
-setup_em_alya_files = False
+setup_em_alya_files = True
 setup_ep_alya_files = False
-run_alya_baseline_simulation = False
+run_alya_baseline_simulation = True
 run_alya_baseline_postprocessing = False
-evaluate_calibrated_baseline = True
+evaluate_calibrated_baseline = False
 setup_calibration_alya_simulations = False
 run_alya_calibration_simulations = False
 evaluate_calibration_sa = False
@@ -59,7 +60,7 @@ run_alya_validation_simulations = False
 run_alya_validation_postprocessing = False
 evaluate_validation_biomarkers = False
 
-iteration = '17th'
+iteration = '11th'
 
 #######################################################################################################################
 # Step 1: Save input mesh into CSV format, as prescribed in myformat.py
@@ -73,7 +74,8 @@ elif system == 'archer2':
 vtk_name = mesh_number + '_bivent_only'
 simulation_json_file = 'rodero_baseline_simulation_ep.json'
 if mesh_preprocess:
-    mesh = MeshPreprocessing(vtk_name=vtk_name, name=simulation_name, input_dir=vtk_dir, geometric_data_dir=geometric_data_dir, verbose=verbose)
+    mesh = MeshPreprocessing(vtk_name=vtk_name, name=simulation_name, input_dir=vtk_dir, geometric_data_dir=geometric_data_dir,
+                             max_cores_used=max_cores_used, verbose=verbose)
     mesh.read_geometry_from_vtk_rodero(save=False)
     mesh.generate_boundary_data_rodero(save=True)
     mesh.check_fields_for_qrs_inference()
@@ -96,7 +98,7 @@ personalisation_data_dir = meta_data_dir + 'results/personalisation_data/rodero_
 # Step 4: Generate fields for Alya simulation
 electrode_data_filename = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_electrode_xyz.csv'
 fields = FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir,
-                personalisation_data_dir=personalisation_data_dir, verbose=verbose)
+                personalisation_data_dir=personalisation_data_dir, max_cores_used=max_cores_used, verbose=verbose)
 
 if generate_fields_slices_and_local_bases:
     fields.generate_orthogonal_local_bases(save=False)
@@ -130,7 +132,7 @@ if generate_fields_12090_fibres:
 
 ########################################################################################################################
 # Step 5: Write Alya input files according to simulation protocol saved in .json file.
-simulation_dir = ''
+simulation_root_dir = ''
 if system == 'jureca':
     simulation_root_dir = '/p/project/icei-prace-2022-0003/wang1/Alya_pipeline/alya_simulations/'
 elif system == 'cosma':
@@ -144,7 +146,7 @@ elif system == 'archive':
 
 alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
-                  simulation_dir = simulation_root_dir, job_version=system, verbose=verbose)
+                  simulation_dir = simulation_root_dir, job_version=system, max_cores_used=max_cores_used, verbose=verbose)
 
 # Sanity check:
 # if not system == 'jureca' and not system == 'cosma' and not system == 'archer2':

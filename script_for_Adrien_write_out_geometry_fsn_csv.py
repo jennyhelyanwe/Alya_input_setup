@@ -4,6 +4,8 @@ import os
 import pymp, multiprocessing
 from matplotlib import pyplot as plt
 
+from rodero_baseline_calibration_validation import max_cores_used
+
 output_dir = '/data/machine_learning_mechanics/baseline/geometric_data/rodero_05/rodero_05_fine/'
 mesh_number = '05'
 workdir = os.getcwd()
@@ -42,7 +44,7 @@ normal = pymp.shared.array(mesh.node_fields.dict['normal'].shape)
 fibre[:,:] = mesh.node_fields.dict['fibre']
 sheet[:,:] = mesh.node_fields.dict['sheet']
 normal[:,:] = mesh.node_fields.dict['normal']
-threadsNum = multiprocessing.cpu_count()
+threadsNum = np.amin((multiprocessing.cpu_count(), max_cores_used))
 print('Generating new fibre projections...')
 zero_tcl_counter = 0
 tcl_identical_counter = 0
@@ -120,7 +122,7 @@ np.savetxt(output_dir+'rodero_05_fine_nodefield_epi.csv', epi_mask, fmt='%i', de
 f_global = pymp.shared.array(mesh.node_fields.dict['fibre'].shape)
 s_global = pymp.shared.array(mesh.node_fields.dict['fibre'].shape)
 n_global = pymp.shared.array(mesh.node_fields.dict['fibre'].shape)
-threadsNum = multiprocessing.cpu_count()
+threadsNum = np.amin((multiprocessing.cpu_count(), max_cores_used))
 print('Reconstructing fibres for comparison...')
 with pymp.Parallel(min(threadsNum, mesh.geometry.number_of_nodes)) as p1:
     for node_i in p1.range(mesh.geometry.number_of_nodes):
