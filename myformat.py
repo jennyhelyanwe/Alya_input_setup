@@ -51,6 +51,7 @@ class Geometry:
     def read_csv_to_attributes(self, input_dir):
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
+        print(input_dir + self.name + '_xyz.csv')
         if os.path.exists(input_dir + self.name + '_xyz.csv'):
             if self.verbose:
                 print('Reading in ' + input_dir + self.name + '_xyz.csv')
@@ -167,10 +168,10 @@ class Fields:
         if filenames.shape[0] > 0:
             threadsNum = np.amin((multiprocessing.cpu_count(), self.max_cores_used))
             self.dict = multiprocessing.Manager().dict()
-            with pymp.Parallel(min(threadsNum, filenames.shape[0])) as p1:
-                for file_i in p1.range(filenames.shape[0]):
-            # if True:
-            #     for file_i in range(filenames.shape[0]):
+            # with pymp.Parallel(min(threadsNum, filenames.shape[0])) as p1:
+            #     for file_i in p1.range(filenames.shape[0]):
+            if True:
+                for file_i in range(filenames.shape[0]):
                     if self.verbose:
                         print('Reading in ' + input_dir + filenames[file_i])
                     varname = get_varname(filename=filenames[file_i], key=field_type)

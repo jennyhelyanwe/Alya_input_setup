@@ -24,6 +24,13 @@ class MeshStructure:
         self.boundary_element_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='boundaryelementfield')
         self.materials.read_csv_to_attributes(self.geometric_data_dir, field_type='material')
         self.max_cores_used = max_cores_used
+        if (np.amin(self.geometry.tetrahedrons)) == 1:
+            self.geometry.tetrahedrons = self.geometry.tetrahedrons - 1
+        if not hasattr(self.geometry, 'tetrahedron_centres'):
+            self.geometry.tetrahedron_centres = (self.geometry.nodes_xyz[self.geometry.tetrahedrons[:, 0], :] +
+                                                 self.geometry.nodes_xyz[self.geometry.tetrahedrons[:, 1], :] +
+                                                 self.geometry.nodes_xyz[self.geometry.tetrahedrons[:, 2], :] +
+                                                 self.geometry.nodes_xyz[self.geometry.tetrahedrons[:, 3], :]) / 4.
         print('done reading mesh structure. ')
 
 

@@ -18,7 +18,7 @@ from scipy.signal import resample
 from meshpreprocessing import calculate_tetrahedral_mesh_volume
 
 class PostProcessing(MeshStructure):
-    def __init__(self, alya, simulation_json_file, alya_output_dir, protocol, verbose):
+    def __init__(self, alya, simulation_json_file, alya_output_dir, protocol, max_cores_used, verbose):
         # super().__init__(name=name, geometric_data_dir=geometric_data_dir, verbose=verbose)
         if hasattr(alya, 'geometry'):
             self.geometry = alya.geometry
@@ -32,8 +32,8 @@ class PostProcessing(MeshStructure):
         self.results_dir = self.alya_output_dir + '/results_analysis/'
         if not os.path.exists(self.results_dir):
             os.mkdir(self.results_dir)
-        self.post_nodefield = Fields(self.name, field_type='postnodefield', verbose=verbose)
-        self.post_elementfield = Fields(self.name, field_type='postelementfield', verbose=verbose)
+        self.post_nodefield = Fields(self.name, field_type='postnodefield', max_cores_used=max_cores_used, verbose=verbose)
+        self.post_elementfield = Fields(self.name, field_type='postelementfield', max_cores_used=max_cores_used, verbose=verbose)
         if protocol == 'postprocess':
             print ('Reading in post_nodefield CSV from: ', self.results_dir)
             self.post_nodefield.read_csv_to_attributes(input_dir=self.results_dir, field_type='postnodefield')
@@ -270,6 +270,7 @@ class PostProcessing(MeshStructure):
         displacement_shared = pymp.shared.array(self.post_nodefield.dict['DISPL'].shape, dtype=float)
         displacement_shared[:, :, :] = self.post_nodefield.dict['DISPL']
         print('Evaluating volume transient...')
+        max_cores_used = 10
         threadsNum = np.amin((int(multiprocessing.cpu_count()), max_cores_used))
         volume_transient = pymp.shared.array(time_idx.shape[0])
         nodes_xyz = pymp.shared.array(self.geometry.nodes_xyz.shape, dtype=float)
@@ -454,12 +455,57 @@ class PostProcessing(MeshStructure):
         qoi['decay_dtadt'] = decay_dtadt
         self.qoi.update(qoi)
 
+    def evaluate_mean_ap_cai(self, beat):
+        self.read_binary_outputs(read_field_name='INTRA', read_field_type='scalar')
+        self.read_binary_outputs(read_field_name='CALCI', read_field_type='scalar')
+        # Select time segment according to specified beat # TODO assuming CL is always 1.0 s
+        CL = 1.0
+        time_idx = []
+        t = []
+        for time_i in range(self.post_nodefield.dict['time'].shape[0]):
+            if (self.post_nodefield.dict['time'][time_i] > (beat - 1) * CL) & (
+                    self.post_nodefield.dict['time'][time_i] < beat * CL):
+                t.append(self.post_nodefield.dict['time'][time_i] - (beat - 1) * CL)
+                time_idx.append(time_i)
+        fibrework_t = np.array(t)
+        time_idx = np.array(time_idx, dtype=int)
+        # Separate mesh into three longitudinal chunks
+        base_cutoff = 0.66
+        basal_mesh_nodes = np.nonzero(self.node_fields.dict['ab'] >= base_cutoff)[0]
+        apical_cutoff = 0.33
+        apical_mesh_nodes = np.nonzero(self.node_fields.dict['ab'] <= apical_cutoff)[0]
+        midv_mesh_nodes = \
+        np.nonzero((self.node_fields.dict['ab'] > apical_cutoff) & (self.node_fields.dict['ab'] < base_cutoff))[0]
+
+        endo_cutoff = 0.7
+        epi_cutoff = 0.3
+        endo_mesh_nodes = np.nonzero(self.node_fields.dict['tm'] >= endo_cutoff)[0]
+        epi_mesh_nodes = np.nonzero(self.node_fields.dict['tm'] <= epi_cutoff)[0]
+        midw_mesh_nodes = \
+        np.nonzero((self.node_fields.dict['tm'] < endo_cutoff) & (self.node_fields.dict['tm'] > epi_cutoff))[0]
+
+        mid_short_axis_nodes = np.nonzero(self.node_fields.dict['short-axis-slices'] == 2)[0]
+        endo_midshort_nodes = mid_short_axis_nodes[
+            np.nonzero(self.node_fields.dict['tm'][mid_short_axis_nodes] >= endo_cutoff)[0]]
+        epi_midshort_nodes = mid_short_axis_nodes[
+            np.nonzero(self.node_fields.dict['tm'][mid_short_axis_nodes] <= epi_cutoff)[0]]
+        mid_midshort_nodes = mid_short_axis_nodes[
+            np.nonzero((self.node_fields.dict['tm'][mid_short_axis_nodes] < endo_cutoff)
+                       & (self.node_fields.dict['tm'][mid_short_axis_nodes] > epi_cutoff))[0]]
+        intra_shared = self.post_nodefield.dict['INTRA']
+        calci_shared = self.post_nodefield.dict['CALCI']
+        self.fibre_work_transients['mean_intra'] = np.mean(intra_shared, axis=0)[time_idx]
+        self.fibre_work_transients['mean_cai'] = np.mean(calci_shared, axis=0)[time_idx]
+
+
     def evaluate_fibre_work_biomarkers(self, beat):
         self.fibre_work = {}
         # self.read_csv_fields(read_field_name='LAMBD', read_field_type='vector')
         # self.read_csv_fields(read_field_name='ACTST', read_field_type='vector')
         self.read_binary_outputs(read_field_name='LAMBD', read_field_type='vector')
         self.read_binary_outputs(read_field_name='ACTST', read_field_type='vector')
+        # self.read_binary_outputs(read_field_name='INTRA', read_field_type='scalar')
+        # self.read_binary_outputs(read_field_name='CALCI', read_field_type='scalar')
         # Select time segment according to specified beat # TODO assuming CL is always 1.0 s
         CL = 1.0
         time_idx = []
@@ -517,8 +563,12 @@ class PostProcessing(MeshStructure):
 
         ta_shared = pymp.shared.array(self.post_nodefield.dict['ACTST'].shape, dtype=float)
         lambda_shared = pymp.shared.array(self.post_nodefield.dict['LAMBD'].shape, dtype=float)
+        # intra_shared = pymp.shared.array(self.post_nodefield.dict['INTRA'].shape, dtype=float)
+        # calci_shared = pymp.shared.array(self.post_nodefield.dict['CALCI'].shape, dtype=float)
         ta_shared[:,:] = self.post_nodefield.dict['ACTST']
         lambda_shared[:,:] = self.post_nodefield.dict['LAMBD']
+        # intra_shared[:,:] = self.post_nodefield.dict['INTRA']
+        # calci_shared[:,:] = self.post_nodefield.dict['CALCI']
         threadsNum = int(multiprocessing.cpu_count()*0.7)
         print('Regionally dividing lambda and Ta')
         with pymp.Parallel(min(threadsNum, time_idx.shape[0])) as p1:
@@ -578,7 +628,6 @@ class PostProcessing(MeshStructure):
         # self.fibre_work['endo_cross_lambda'] = endo_cross_lambda
         # self.fibre_work['midw_cross_lambda'] = midw_cross_lambda
         # self.fibre_work['epi_cross_lambda'] = epi_cross_lambda
-
         self.fibre_work_transients['endo_midshort_lambda']= endo_midshort_lambda
         self.fibre_work_transients['endo_midshort_lambda_median'] = endo_midshort_lambda_median
         self.fibre_work_transients['endo_midshort_lambda_uq'] = endo_midshort_lambda_uq
@@ -595,6 +644,8 @@ class PostProcessing(MeshStructure):
         self.fibre_work_transients['mid_midshort_lambda_lq'] = mid_midshort_lambda_lq
 
         self.fibre_work_transients['mean_lambda'] = np.mean(lambda_shared[:,0,:], axis=0)[time_idx]
+        # self.fibre_work_transients['mean_intra'] = np.mean(intra_shared, axis=0)[time_idx]
+        # self.fibre_work_transients['mean_cai'] = np.mean(calci_shared, axis=0)[time_idx]
         self.fibre_work_transients['mean_Ta'] = np.mean(ta_shared[:,0,:], axis=0)[time_idx]
 
         self.fibre_work_transients['apical_Ta'] = apical_Ta
@@ -729,7 +780,7 @@ class PostProcessing(MeshStructure):
                         parameter_qoi_correspondence[param] = 'for: '+ qoi
                         qoi_parameter_correspondence[qoi] = param
                         break
-        json.dump(sa_ranges, open('calibration_sa_ranges.json', 'w'))
+        json.dump(sa_ranges, open('calibration_sa_ranges_1st_iteration.json', 'w'))
         # json.dump(parameter_qoi_correspondence, open('calibration_sa_param_qoi_correspondence.json', 'w'))
         # json.dump(qoi_parameter_correspondence, open('calibration_sa_qoi_parameter_correspondence.json', 'w'))
         # print(qoi_parameter_correspondence)
@@ -737,7 +788,7 @@ class PostProcessing(MeshStructure):
     def visualise_calibration_sa_parameter_ranges(self, simulation_root_dir, oat_sa_slopes, oat_sa_intercepts,
                                                   oat_sa_p_values, oat_sa_r_values, oat_sa_ranges):
         qoi_parameter_correspondence = json.load(open('calibration_sa_qoi_parameter_correspondence.json', 'r'))
-        sa_ranges= json.load(open('calibration_sa_ranges.json', 'r'))
+        sa_ranges= json.load(open('calibration_sa_ranges_1st_iteration.json', 'r'))
         print(qoi_parameter_correspondence)
         outstanding_qois = list(qoi_parameter_correspondence.keys())
         slopes = pd.read_csv(oat_sa_slopes, index_col=0)
@@ -1500,43 +1551,43 @@ class PostProcessing(MeshStructure):
         # Circumferential
         systole = np.min(base_E_cc, axis=1)
         tol = 0.01 * abs(np.min(systole))
-        # base_E_cc_median = base_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        # base_E_cc_uq = base_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        # base_E_cc_lq = base_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        # systole = np.min(mid_E_cc, axis=1)
-        # mid_E_cc_median = mid_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        # mid_E_cc_uq = mid_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        # mid_E_cc_lq = mid_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        # systole = np.min(apex_E_cc, axis=1)
-        # apex_E_cc_median = apex_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        # apex_E_cc_uq = apex_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        # apex_E_cc_lq = apex_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        # # Radial
-        # systole = np.min(base_E_rr, axis=1)
-        # base_E_rr_median = base_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        # base_E_rr_uq = base_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        # base_E_rr_lq = base_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        # systole = np.min(mid_E_rr, axis=1)
-        # mid_E_rr_median = mid_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        # mid_E_rr_uq = mid_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        # mid_E_rr_lq = mid_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        # systole = np.min(apex_E_rr, axis=1)
-        # apex_E_rr_median = apex_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        # apex_E_rr_uq = apex_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        # apex_E_rr_lq = apex_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        # # Longitudinal
-        # systole = np.min(two_chamber_E_ll, axis=1)
-        # two_chamber_E_ll_median = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        # two_chamber_E_ll_uq = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        # two_chamber_E_ll_lq = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        # systole = np.min(four_chamber_E_ll, axis=1)
-        # four_chamber_E_ll_median = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        # four_chamber_E_ll_uq = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        # four_chamber_E_ll_lq = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
-        # systole = np.min(three_chamber_E_ll, axis=1)
-        # three_chamber_E_ll_median = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
-        # three_chamber_E_ll_uq = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
-        # three_chamber_E_ll_lq = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        base_E_cc_median = base_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        base_E_cc_uq = base_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        base_E_cc_lq = base_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        systole = np.min(mid_E_cc, axis=1)
+        mid_E_cc_median = mid_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        mid_E_cc_uq = mid_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        mid_E_cc_lq = mid_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        systole = np.min(apex_E_cc, axis=1)
+        apex_E_cc_median = apex_E_cc[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        apex_E_cc_uq = apex_E_cc[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        apex_E_cc_lq = apex_E_cc[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        # Radial
+        systole = np.min(base_E_rr, axis=1)
+        base_E_rr_median = base_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        base_E_rr_uq = base_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        base_E_rr_lq = base_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        systole = np.min(mid_E_rr, axis=1)
+        mid_E_rr_median = mid_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        mid_E_rr_uq = mid_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        mid_E_rr_lq = mid_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        systole = np.min(apex_E_rr, axis=1)
+        apex_E_rr_median = apex_E_rr[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        apex_E_rr_uq = apex_E_rr[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        apex_E_rr_lq = apex_E_rr[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        # Longitudinal
+        systole = np.min(two_chamber_E_ll, axis=1)
+        two_chamber_E_ll_median = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        two_chamber_E_ll_uq = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        two_chamber_E_ll_lq = two_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        systole = np.min(four_chamber_E_ll, axis=1)
+        four_chamber_E_ll_median = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        four_chamber_E_ll_uq = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        four_chamber_E_ll_lq = four_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
+        systole = np.min(three_chamber_E_ll, axis=1)
+        three_chamber_E_ll_median = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 50)) < tol)[0][0], :]
+        three_chamber_E_ll_uq = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 75)) < tol)[0][0], :]
+        three_chamber_E_ll_lq = three_chamber_E_ll[np.where(abs(systole-np.percentile(systole, 25)) < tol)[0][0], :]
 
         self.strain_transients = {}
         mean_mid_E_cc = np.mean(mid_E_cc, axis=0)
@@ -1556,64 +1607,64 @@ class PostProcessing(MeshStructure):
         qoi['min_four_chamber_Ell'] = np.min(mean_four_chamber_E_ll)
         self.qoi.update(qoi)
 
-        # self.strain_transients['base_E_cc'] = base_E_cc
-        # self.strain_transients['base_E_cc_median'] = base_E_cc_median
-        # self.strain_transients['base_E_cc_uq'] = base_E_cc_uq
-        # self.strain_transients['base_E_cc_lq'] = base_E_cc_lq
-        #
-        # self.strain_transients['mid_E_cc'] = mid_E_cc
-        # self.strain_transients['mean_mid_Ecc'] = np.mean(mid_E_cc, axis=0)
-        # self.strain_transients['mid_E_cc_median'] = mid_E_cc_median
-        # self.strain_transients['mid_E_cc_uq'] = mid_E_cc_uq
-        # self.strain_transients['mid_E_cc_lq'] = mid_E_cc_lq
-        #
-        # self.strain_transients['apex_E_cc'] = apex_E_cc
-        # self.strain_transients['apex_E_cc_median'] = apex_E_cc_median
-        # self.strain_transients['apex_E_cc_uq'] = apex_E_cc_uq
-        # self.strain_transients['apex_E_cc_lq'] = apex_E_cc_lq
-        #
-        # self.strain_transients['base_E_rr'] = base_E_rr
-        # self.strain_transients['base_E_rr_median'] = base_E_rr_median
-        # self.strain_transients['base_E_rr_uq'] = base_E_rr_uq
-        # self.strain_transients['base_E_rr_lq'] = base_E_rr_lq
-        #
-        # self.strain_transients['mid_E_rr'] = mid_E_rr
-        # self.strain_transients['mean_mid_Err'] = np.mean(mid_E_rr, axis=0)
-        # self.strain_transients['mid_E_rr_median'] = mid_E_rr_median
-        # self.strain_transients['mid_E_rr_uq'] = mid_E_rr_uq
-        # self.strain_transients['mid_E_rr_lq'] = mid_E_rr_lq
-        #
-        # self.strain_transients['apex_E_rr'] = apex_E_rr
-        # self.strain_transients['apex_E_rr_median'] = apex_E_rr_median
-        # self.strain_transients['apex_E_rr_uq'] = apex_E_rr_uq
-        # self.strain_transients['apex_E_rr_lq'] = apex_E_rr_lq
-        #
-        # self.strain_transients['two_chamber_E_ll'] = two_chamber_E_ll
-        # self.strain_transients['two_chamber_E_ll_median'] = two_chamber_E_ll_median
-        # self.strain_transients['two_chamber_E_ll_uq'] = two_chamber_E_ll_uq
-        # self.strain_transients['two_chamber_E_ll_lq'] = two_chamber_E_ll_lq
-        #
-        # self.strain_transients['four_chamber_E_ll'] = four_chamber_E_ll
-        # self.strain_transients['mean_four_chamber_E_ll'] = np.mean(four_chamber_E_ll, axis=0)
-        # self.strain_transients['four_chamber_E_ll_median'] = four_chamber_E_ll_median
-        # self.strain_transients['four_chamber_E_ll_uq'] = four_chamber_E_ll_uq
-        # self.strain_transients['four_chamber_E_ll_lq'] = four_chamber_E_ll_lq
-        #
-        # self.strain_transients['three_chamber_E_ll'] = three_chamber_E_ll
-        # self.strain_transients['three_chamber_E_ll_median'] = three_chamber_E_ll_median
-        # self.strain_transients['three_chamber_E_ll_uq'] = three_chamber_E_ll_uq
-        # self.strain_transients['three_chamber_E_ll_lq'] = three_chamber_E_ll_lq
+        self.strain_transients['base_E_cc'] = base_E_cc
+        self.strain_transients['base_E_cc_median'] = base_E_cc_median
+        self.strain_transients['base_E_cc_uq'] = base_E_cc_uq
+        self.strain_transients['base_E_cc_lq'] = base_E_cc_lq
+
+        self.strain_transients['mid_E_cc'] = mid_E_cc
+        self.strain_transients['mean_mid_Ecc'] = np.mean(mid_E_cc, axis=0)
+        self.strain_transients['mid_E_cc_median'] = mid_E_cc_median
+        self.strain_transients['mid_E_cc_uq'] = mid_E_cc_uq
+        self.strain_transients['mid_E_cc_lq'] = mid_E_cc_lq
+
+        self.strain_transients['apex_E_cc'] = apex_E_cc
+        self.strain_transients['apex_E_cc_median'] = apex_E_cc_median
+        self.strain_transients['apex_E_cc_uq'] = apex_E_cc_uq
+        self.strain_transients['apex_E_cc_lq'] = apex_E_cc_lq
+
+        self.strain_transients['base_E_rr'] = base_E_rr
+        self.strain_transients['base_E_rr_median'] = base_E_rr_median
+        self.strain_transients['base_E_rr_uq'] = base_E_rr_uq
+        self.strain_transients['base_E_rr_lq'] = base_E_rr_lq
+
+        self.strain_transients['mid_E_rr'] = mid_E_rr
+        self.strain_transients['mean_mid_Err'] = np.mean(mid_E_rr, axis=0)
+        self.strain_transients['mid_E_rr_median'] = mid_E_rr_median
+        self.strain_transients['mid_E_rr_uq'] = mid_E_rr_uq
+        self.strain_transients['mid_E_rr_lq'] = mid_E_rr_lq
+
+        self.strain_transients['apex_E_rr'] = apex_E_rr
+        self.strain_transients['apex_E_rr_median'] = apex_E_rr_median
+        self.strain_transients['apex_E_rr_uq'] = apex_E_rr_uq
+        self.strain_transients['apex_E_rr_lq'] = apex_E_rr_lq
+
+        self.strain_transients['two_chamber_E_ll'] = two_chamber_E_ll
+        self.strain_transients['two_chamber_E_ll_median'] = two_chamber_E_ll_median
+        self.strain_transients['two_chamber_E_ll_uq'] = two_chamber_E_ll_uq
+        self.strain_transients['two_chamber_E_ll_lq'] = two_chamber_E_ll_lq
+
+        self.strain_transients['four_chamber_E_ll'] = four_chamber_E_ll
+        self.strain_transients['mean_four_chamber_E_ll'] = np.mean(four_chamber_E_ll, axis=0)
+        self.strain_transients['four_chamber_E_ll_median'] = four_chamber_E_ll_median
+        self.strain_transients['four_chamber_E_ll_uq'] = four_chamber_E_ll_uq
+        self.strain_transients['four_chamber_E_ll_lq'] = four_chamber_E_ll_lq
+
+        self.strain_transients['three_chamber_E_ll'] = three_chamber_E_ll
+        self.strain_transients['three_chamber_E_ll_median'] = three_chamber_E_ll_median
+        self.strain_transients['three_chamber_E_ll_uq'] = three_chamber_E_ll_uq
+        self.strain_transients['three_chamber_E_ll_lq'] = three_chamber_E_ll_lq
 
 
-        # del base_E_cc
-        # del mid_E_cc
-        # del apex_E_cc
-        # del base_E_rr
-        # del mid_E_rr
-        # del apex_E_rr
-        # del two_chamber_E_ll
-        # del four_chamber_E_ll
-        # del three_chamber_E_ll
+        del base_E_cc
+        del mid_E_cc
+        del apex_E_cc
+        del base_E_rr
+        del mid_E_rr
+        del apex_E_rr
+        del two_chamber_E_ll
+        del four_chamber_E_ll
+        del three_chamber_E_ll
 
 
     def evaluate_baseline_qoi_against_healthy_ranges(self, ranked_qoi_names):
@@ -1633,7 +1684,7 @@ class PostProcessing(MeshStructure):
 
     def shift_to_start_at_ED(self, t, trace):
         t_tol = 1e-3
-        ed_idx = np.argmin(abs(t-self.simulation_dict['end_diastole_t'][0]))
+        ed_idx = np.argmin(abs(t-(self.simulation_dict['end_diastole_t'][0]+0.02))) # Contraction doesn't immediately start after excitation
         return np.concatenate((trace[ed_idx:], trace[:ed_idx]))
 
 
@@ -1706,7 +1757,7 @@ class PostProcessing(MeshStructure):
             print('Saving figure to ', save_figure)
             plt.savefig(save_figure)
 
-    def visualise_calibration_comparisons_global(self, beat, save_filename):
+    def visualise_calibration_comparisons_global(self, beat, save_filename, show=False):
         fig = plt.figure(tight_layout=True, figsize=(8, 12))
         gs = GridSpec(4, 6)
         ax_lv_pv = fig.add_subplot(gs[1:3, 0:3])
@@ -1950,7 +2001,8 @@ class PostProcessing(MeshStructure):
         if save_filename:
             print('Saving figure to ', save_filename)
             plt.savefig(save_filename)
-        plt.show()
+        if show == True:
+            plt.show()
 
 
     def visualise_calibration_comparisons_strain(self):
@@ -1998,90 +2050,112 @@ class PostProcessing(MeshStructure):
         ax_E_ll_three.axhline(y=-0.15, color='red', linestyle='--')
 
         # Fibre strain
-        endo_E_ff = 0.5*(self.fibre_work['endo_midshort_lambda']**2-1)
-        endo_E_ff_median = 0.5*(self.fibre_work['endo_midshort_lambda_median']**2 - 1)
-        endo_E_ff_lq = 0.5 * (self.fibre_work['endo_midshort_lambda_lq'] ** 2 - 1)
-        endo_E_ff_uq = 0.5 * (self.fibre_work['endo_midshort_lambda_uq'] ** 2 - 1)
-        for node_i in range(self.fibre_work['endo_midshort_lambda'].shape[0]):
-            ax_E_ff_endo.plot(self.fibre_work['fibrework_t'], endo_E_ff[node_i, :], color='m', alpha=0.3, linewidth=0.1)
-        ax_E_ff_endo.plot(self.fibre_work['fibrework_t'], endo_E_ff_median, color='k', linestyle='--')
-        ax_E_ff_endo.plot(self.fibre_work['fibrework_t'], endo_E_ff_lq, color='k', linestyle='-')
-        ax_E_ff_endo.plot(self.fibre_work['fibrework_t'], endo_E_ff_uq, color='k', linestyle='-')
+        endo_E_ff = 0.5*(self.fibre_work_transients['endo_midshort_lambda']**2-1)
+        endo_E_ff_median = 0.5*(self.fibre_work_transients['endo_midshort_lambda_median']**2 - 1)
+        endo_E_ff_median = self.shift_to_start_at_ED(self.fibre_work_transients['fibrework_t'], endo_E_ff_median)
+        endo_E_ff_lq = 0.5 * (self.fibre_work_transients['endo_midshort_lambda_lq'] ** 2 - 1)
+        endo_E_ff_lq = self.shift_to_start_at_ED(self.fibre_work_transients['fibrework_t'], endo_E_ff_lq)
+        endo_E_ff_uq = 0.5 * (self.fibre_work_transients['endo_midshort_lambda_uq'] ** 2 - 1)
+        endo_E_ff_uq = self.shift_to_start_at_ED(self.fibre_work_transients['fibrework_t'], endo_E_ff_uq)
+        for node_i in range(self.fibre_work_transients['endo_midshort_lambda'].shape[0]):
+            shifted = self.shift_to_start_at_ED(self.fibre_work_transients['fibrework_t'], endo_E_ff[node_i, :])
+            ax_E_ff_endo.plot(self.fibre_work_transients['fibrework_t'], shifted, color='m', alpha=0.3, linewidth=0.1)
+        ax_E_ff_endo.plot(self.fibre_work_transients['fibrework_t'], endo_E_ff_median, color='k', linestyle='--')
+        ax_E_ff_endo.plot(self.fibre_work_transients['fibrework_t'], endo_E_ff_lq, color='k', linestyle='-')
+        ax_E_ff_endo.plot(self.fibre_work_transients['fibrework_t'], endo_E_ff_uq, color='k', linestyle='-')
 
-        mid_E_ff = 0.5 * (self.fibre_work['mid_midshort_lambda'] ** 2 - 1)
-        mid_E_ff_median = 0.5 * (self.fibre_work['mid_midshort_lambda_median'] ** 2 - 1)
-        mid_E_ff_lq = 0.5 * (self.fibre_work['mid_midshort_lambda_lq'] ** 2 - 1)
-        mid_E_ff_uq = 0.5 * (self.fibre_work['mid_midshort_lambda_uq'] ** 2 - 1)
-        for node_i in range(self.fibre_work['mid_midshort_lambda'].shape[0]):
-            ax_E_ff_mid.plot(self.fibre_work['fibrework_t'], mid_E_ff[node_i, :], color='g', alpha=0.3, linewidth=0.1)
-        ax_E_ff_mid.plot(self.fibre_work['fibrework_t'], mid_E_ff_median, color='k', linestyle='--')
-        ax_E_ff_mid.plot(self.fibre_work['fibrework_t'], mid_E_ff_lq, color='k', linestyle='-')
-        ax_E_ff_mid.plot(self.fibre_work['fibrework_t'], mid_E_ff_uq, color='k', linestyle='-')
+        mid_E_ff = 0.5 * (self.fibre_work_transients['mid_midshort_lambda'] ** 2 - 1)
+        mid_E_ff_median = 0.5 * (self.fibre_work_transients['mid_midshort_lambda_median'] ** 2 - 1)
+        mid_E_ff_median = self.shift_to_start_at_ED(self.fibre_work_transients['fibrework_t'], mid_E_ff_median)
+        mid_E_ff_lq = 0.5 * (self.fibre_work_transients['mid_midshort_lambda_lq'] ** 2 - 1)
+        mid_E_ff_lq = self.shift_to_start_at_ED(self.fibre_work_transients['fibrework_t'], mid_E_ff_lq)
+        mid_E_ff_uq = 0.5 * (self.fibre_work_transients['mid_midshort_lambda_uq'] ** 2 - 1)
+        mid_E_ff_uq = self.shift_to_start_at_ED(self.fibre_work_transients['fibrework_t'], mid_E_ff_uq)
+        for node_i in range(self.fibre_work_transients['mid_midshort_lambda'].shape[0]):
+            shifted = self.shift_to_start_at_ED(self.fibre_work_transients['fibrework_t'], mid_E_ff[node_i, :])
+            ax_E_ff_mid.plot(self.fibre_work_transients['fibrework_t'], shifted, color='g', alpha=0.3, linewidth=0.1)
+        ax_E_ff_mid.plot(self.fibre_work_transients['fibrework_t'], mid_E_ff_median, color='k', linestyle='--')
+        ax_E_ff_mid.plot(self.fibre_work_transients['fibrework_t'], mid_E_ff_lq, color='k', linestyle='-')
+        ax_E_ff_mid.plot(self.fibre_work_transients['fibrework_t'], mid_E_ff_uq, color='k', linestyle='-')
 
-        epi_E_ff = 0.5 * (self.fibre_work['epi_midshort_lambda'] ** 2 - 1)
-        epi_E_ff_median = 0.5 * (self.fibre_work['epi_midshort_lambda_median'] ** 2 - 1)
-        epi_E_ff_lq = 0.5 * (self.fibre_work['epi_midshort_lambda_lq'] ** 2 - 1)
-        epi_E_ff_uq = 0.5 * (self.fibre_work['epi_midshort_lambda_uq'] ** 2 - 1)
-        for node_i in range(self.fibre_work['epi_midshort_lambda'].shape[0]):
-            ax_E_ff_epi.plot(self.fibre_work['fibrework_t'], epi_E_ff[node_i, :], color='b', alpha=0.3, linewidth=0.1)
-        ax_E_ff_epi.plot(self.fibre_work['fibrework_t'], epi_E_ff_median, color='k', linestyle='--')
-        ax_E_ff_epi.plot(self.fibre_work['fibrework_t'], epi_E_ff_lq, color='k', linestyle='-')
-        ax_E_ff_epi.plot(self.fibre_work['fibrework_t'], epi_E_ff_uq, color='k', linestyle='-')
+        epi_E_ff = 0.5 * (self.fibre_work_transients['epi_midshort_lambda'] ** 2 - 1)
+        epi_E_ff_median = 0.5 * (self.fibre_work_transients['epi_midshort_lambda_median'] ** 2 - 1)
+        epi_E_ff_median = self.shift_to_start_at_ED(self.fibre_work_transients['fibrework_t'], epi_E_ff_median)
+        epi_E_ff_lq = 0.5 * (self.fibre_work_transients['epi_midshort_lambda_lq'] ** 2 - 1)
+        epi_E_ff_lq = self.shift_to_start_at_ED(self.fibre_work_transients['fibrework_t'], epi_E_ff_lq)
+        epi_E_ff_uq = 0.5 * (self.fibre_work_transients['epi_midshort_lambda_uq'] ** 2 - 1)
+        epi_E_ff_uq = self.shift_to_start_at_ED(self.fibre_work_transients['fibrework_t'], epi_E_ff_uq)
+        for node_i in range(self.fibre_work_transients['epi_midshort_lambda'].shape[0]):
+            shifted = self.shift_to_start_at_ED(self.fibre_work_transients['fibrework_t'], epi_E_ff[node_i, :])
+            ax_E_ff_epi.plot(self.fibre_work_transients['fibrework_t'], shifted, color='b', alpha=0.3, linewidth=0.1)
+        ax_E_ff_epi.plot(self.fibre_work_transients['fibrework_t'], epi_E_ff_median, color='k', linestyle='--')
+        ax_E_ff_epi.plot(self.fibre_work_transients['fibrework_t'], epi_E_ff_lq, color='k', linestyle='-')
+        ax_E_ff_epi.plot(self.fibre_work_transients['fibrework_t'], epi_E_ff_uq, color='k', linestyle='-')
 
         # Strains
+        t = self.strain_transients['strain_t']
         for node_i in range(self.strain_transients['base_E_cc'].shape[0]):
-            ax_E_cc_base.plot(self.strain_transients['strain_t'], self.strain_transients['base_E_cc'][node_i, :], color='m', alpha=0.3, linewidth=0.1)
-        ax_E_cc_base.plot(self.strain_transients['strain_t'],self.strain_transients['base_E_cc_median'], color='k', linestyle='--')
-        ax_E_cc_base.plot(self.strain_transients['strain_t'], self.strain_transients['base_E_cc_uq'], color='k', linestyle='-')
-        ax_E_cc_base.plot(self.strain_transients['strain_t'], self.strain_transients['base_E_cc_lq'], color='k', linestyle='-')
+            shifted = self.shift_to_start_at_ED(t, self.strain_transients['base_E_cc'][node_i, :])
+            ax_E_cc_base.plot(self.strain_transients['strain_t'], shifted, color='m', alpha=0.3, linewidth=0.1)
+        ax_E_cc_base.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['base_E_cc_median']), color='k', linestyle='--')
+        ax_E_cc_base.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['base_E_cc_uq']), color='k', linestyle='-')
+        ax_E_cc_base.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['base_E_cc_lq']), color='k', linestyle='-')
 
         for node_i in range(self.strain_transients['mid_E_cc'].shape[0]):
-            ax_E_cc_mid.plot(self.strain_transients['strain_t'], self.strain_transients['mid_E_cc'][node_i, :], color='m', alpha=0.3, linewidth=0.1)
-        ax_E_cc_mid.plot(self.strain_transients['strain_t'],self.strain_transients['mid_E_cc_median'], color='k', linestyle='--')
-        ax_E_cc_mid.plot(self.strain_transients['strain_t'], self.strain_transients['mid_E_cc_uq'], color='k', linestyle='-')
-        ax_E_cc_mid.plot(self.strain_transients['strain_t'], self.strain_transients['mid_E_cc_lq'], color='k', linestyle='-')
+            shifted = self.shift_to_start_at_ED(t, self.strain_transients['mid_E_cc'][node_i, :])
+            ax_E_cc_mid.plot(self.strain_transients['strain_t'], shifted, color='m', alpha=0.3, linewidth=0.1)
+        ax_E_cc_mid.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['mid_E_cc_median']), color='k', linestyle='--')
+        ax_E_cc_mid.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['mid_E_cc_uq']), color='k', linestyle='-')
+        ax_E_cc_mid.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['mid_E_cc_lq']), color='k', linestyle='-')
 
         for node_i in range(self.strain_transients['apex_E_cc'].shape[0]):
-            ax_E_cc_apex.plot(self.strain_transients['strain_t'], self.strain_transients['apex_E_cc'][node_i, :], color='m', alpha=0.3, linewidth=0.1)
-        ax_E_cc_apex.plot(self.strain_transients['strain_t'],self.strain_transients['apex_E_cc_median'], color='k', linestyle='--')
-        ax_E_cc_apex.plot(self.strain_transients['strain_t'], self.strain_transients['apex_E_cc_uq'], color='k', linestyle='-')
-        ax_E_cc_apex.plot(self.strain_transients['strain_t'], self.strain_transients['apex_E_cc_lq'], color='k', linestyle='-')
+            shifted = self.shift_to_start_at_ED(t, self.strain_transients['apex_E_cc'][node_i, :])
+            ax_E_cc_apex.plot(self.strain_transients['strain_t'], shifted, color='m', alpha=0.3, linewidth=0.1)
+        ax_E_cc_apex.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['apex_E_cc_median']), color='k', linestyle='--')
+        ax_E_cc_apex.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['apex_E_cc_uq']), color='k', linestyle='-')
+        ax_E_cc_apex.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['apex_E_cc_lq']), color='k', linestyle='-')
 
         for node_i in range(self.strain_transients['base_E_rr'].shape[0]):
-            ax_E_rr_base.plot(self.strain_transients['strain_t'], self.strain_transients['base_E_rr'][node_i, :], color='g', alpha=0.3, linewidth=0.1)
-        ax_E_rr_base.plot(self.strain_transients['strain_t'],self.strain_transients['base_E_rr_median'], color='k', linestyle='--')
-        ax_E_rr_base.plot(self.strain_transients['strain_t'], self.strain_transients['base_E_rr_uq'], color='k', linestyle='-')
-        ax_E_rr_base.plot(self.strain_transients['strain_t'], self.strain_transients['base_E_rr_lq'], color='k', linestyle='-')
+            shifted = self.shift_to_start_at_ED(t,self.strain_transients['base_E_rr'][node_i, :])
+            ax_E_rr_base.plot(self.strain_transients['strain_t'], shifted, color='g', alpha=0.3, linewidth=0.1)
+        ax_E_rr_base.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['base_E_rr_median']), color='k', linestyle='--')
+        ax_E_rr_base.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['base_E_rr_uq']), color='k', linestyle='-')
+        ax_E_rr_base.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['base_E_rr_lq']), color='k', linestyle='-')
 
         for node_i in range(self.strain_transients['mid_E_rr'].shape[0]):
-            ax_E_rr_mid.plot(self.strain_transients['strain_t'], self.strain_transients['mid_E_rr'][node_i, :], color='g', alpha=0.3, linewidth=0.1)
-        ax_E_rr_mid.plot(self.strain_transients['strain_t'],self.strain_transients['mid_E_rr_median'], color='k', linestyle='--')
-        ax_E_rr_mid.plot(self.strain_transients['strain_t'], self.strain_transients['mid_E_rr_uq'], color='k', linestyle='-')
-        ax_E_rr_mid.plot(self.strain_transients['strain_t'], self.strain_transients['mid_E_rr_lq'], color='k', linestyle='-')
+            shifted = self.shift_to_start_at_ED(t,self.strain_transients['mid_E_rr'][node_i, :])
+            ax_E_rr_mid.plot(self.strain_transients['strain_t'], shifted, color='g', alpha=0.3, linewidth=0.1)
+        ax_E_rr_mid.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['mid_E_rr_median']), color='k', linestyle='--')
+        ax_E_rr_mid.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['mid_E_rr_uq']), color='k', linestyle='-')
+        ax_E_rr_mid.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['mid_E_rr_lq']), color='k', linestyle='-')
 
         for node_i in range(self.strain_transients['apex_E_rr'].shape[0]):
-            ax_E_rr_apex.plot(self.strain_transients['strain_t'], self.strain_transients['apex_E_rr'][node_i, :], color='g', alpha=0.3, linewidth=0.1)
-        ax_E_rr_apex.plot(self.strain_transients['strain_t'],self.strain_transients['apex_E_rr_median'], color='k', linestyle='--')
-        ax_E_rr_apex.plot(self.strain_transients['strain_t'], self.strain_transients['apex_E_rr_uq'], color='k', linestyle='-')
-        ax_E_rr_apex.plot(self.strain_transients['strain_t'], self.strain_transients['apex_E_rr_lq'], color='k', linestyle='-')
+            shifted = self.shift_to_start_at_ED(t, self.strain_transients['apex_E_rr'][node_i, :])
+            ax_E_rr_apex.plot(self.strain_transients['strain_t'], shifted, color='g', alpha=0.3, linewidth=0.1)
+        ax_E_rr_apex.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['apex_E_rr_median']), color='k', linestyle='--')
+        ax_E_rr_apex.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['apex_E_rr_uq']), color='k', linestyle='-')
+        ax_E_rr_apex.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['apex_E_rr_lq']), color='k', linestyle='-')
 
         for node_i in range(self.strain_transients['two_chamber_E_ll'].shape[0]):
-            ax_E_ll_two.plot(self.strain_transients['strain_t'], self.strain_transients['two_chamber_E_ll'][node_i, :], color='b', alpha=0.3, linewidth=0.1)
-        ax_E_ll_two.plot(self.strain_transients['strain_t'],self.strain_transients['two_chamber_E_ll_median'], color='k', linestyle='--')
-        ax_E_ll_two.plot(self.strain_transients['strain_t'], self.strain_transients['two_chamber_E_ll_uq'], color='k', linestyle='-')
-        ax_E_ll_two.plot(self.strain_transients['strain_t'], self.strain_transients['two_chamber_E_ll_lq'], color='k', linestyle='-')
+            shifted = self.shift_to_start_at_ED(t, self.strain_transients['two_chamber_E_ll'][node_i, :])
+            ax_E_ll_two.plot(self.strain_transients['strain_t'], shifted, color='b', alpha=0.3, linewidth=0.1)
+        ax_E_ll_two.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['two_chamber_E_ll_median']), color='k', linestyle='--')
+        ax_E_ll_two.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['two_chamber_E_ll_uq']), color='k', linestyle='-')
+        ax_E_ll_two.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['two_chamber_E_ll_lq']), color='k', linestyle='-')
 
         for node_i in range(self.strain_transients['four_chamber_E_ll'].shape[0]):
-            ax_E_ll_four.plot(self.strain_transients['strain_t'], self.strain_transients['four_chamber_E_ll'][node_i, :], color='b', alpha=0.3, linewidth=0.1)
-        ax_E_ll_four.plot(self.strain_transients['strain_t'],self.strain_transients['four_chamber_E_ll_median'], color='k', linestyle='--')
-        ax_E_ll_four.plot(self.strain_transients['strain_t'], self.strain_transients['four_chamber_E_ll_uq'], color='k', linestyle='-')
-        ax_E_ll_four.plot(self.strain_transients['strain_t'], self.strain_transients['four_chamber_E_ll_lq'], color='k', linestyle='-')
+            shifted = self.shift_to_start_at_ED(t, self.strain_transients['four_chamber_E_ll'][node_i, :])
+            ax_E_ll_four.plot(self.strain_transients['strain_t'], shifted, color='b', alpha=0.3, linewidth=0.1)
+        ax_E_ll_four.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['four_chamber_E_ll_median']), color='k', linestyle='--')
+        ax_E_ll_four.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['four_chamber_E_ll_uq']), color='k', linestyle='-')
+        ax_E_ll_four.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['four_chamber_E_ll_lq']), color='k', linestyle='-')
 
         for node_i in range(self.strain_transients['three_chamber_E_ll'].shape[0]):
-            ax_E_ll_three.plot(self.strain_transients['strain_t'], self.strain_transients['three_chamber_E_ll'][node_i, :], color='b', alpha=0.3, linewidth=0.1)
-        ax_E_ll_three.plot(self.strain_transients['strain_t'],self.strain_transients['three_chamber_E_ll_median'], color='k', linestyle='--')
-        ax_E_ll_three.plot(self.strain_transients['strain_t'], self.strain_transients['three_chamber_E_ll_uq'], color='k', linestyle='-')
-        ax_E_ll_three.plot(self.strain_transients['strain_t'], self.strain_transients['three_chamber_E_ll_lq'], color='k', linestyle='-')
+            shifted = self.shift_to_start_at_ED(t, self.strain_transients['three_chamber_E_ll'][node_i, :])
+            ax_E_ll_three.plot(self.strain_transients['strain_t'], shifted, color='b', alpha=0.3, linewidth=0.1)
+        ax_E_ll_three.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['three_chamber_E_ll_median']), color='k', linestyle='--')
+        ax_E_ll_three.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['three_chamber_E_ll_uq']), color='k', linestyle='-')
+        ax_E_ll_three.plot(self.strain_transients['strain_t'], self.shift_to_start_at_ED(t, self.strain_transients['three_chamber_E_ll_lq']), color='k', linestyle='-')
 
         plt.show()
 

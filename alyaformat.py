@@ -237,7 +237,7 @@ class AlyaFormat(MeshStructure):
 
     def write_alya_simulation_files(self):
         self.write_dat()
-        self.write_dom_dat()
+        # self.write_dom_dat()
         if 'EXMEDI' in self.simulation_dict['physics']:
             self.write_exm_dat()
             self.write_cell_txt()
@@ -445,25 +445,29 @@ class AlyaFormat(MeshStructure):
                                      field_idx=field_idx,
                                      field_data=field)
                 elif varname == 'endocardial-activation-times':
-                    print('Writing out ', varname,
-                          'as ' + self.output_dir + self.simulation_dict['name'] + '.' + varname)
-                    field_idx = self.boundary_node_fields.dict['endocardial-nodes'].astype(int) + 1
-                    meta_idx_sort = np.argsort(field_idx)
-                    field_idx = field_idx[meta_idx_sort]
-                    lat_scaling = float(self.simulation_dict['endocardial_activation_time_scaling'])
-                    activation_times = self.boundary_node_fields.dict[varname][meta_idx_sort] * lat_scaling
-                    if 'SOLIDZ' in self.simulation_dict['physics']:
-                        field = activation_times * 0.001 + self.simulation_dict['end_diastole_t'][0] - 0.02 # Convert to seconds for Alya
+                    if varname in self.boundary_node_fields.dict.keys():
+                        print('Writing out ', varname,
+                              'as ' + self.output_dir + self.simulation_dict['name'] + '.' + varname)
+                        field_idx = self.boundary_node_fields.dict['endocardial-nodes'].astype(int) + 1
+                        meta_idx_sort = np.argsort(field_idx)
+                        field_idx = field_idx[meta_idx_sort]
+                        lat_scaling = float(self.simulation_dict['endocardial_activation_time_scaling'])
+                        activation_times = self.boundary_node_fields.dict[varname][meta_idx_sort] * lat_scaling
+                        if 'SOLIDZ' in self.simulation_dict['physics']:
+                            field = activation_times * 0.001 + self.simulation_dict['end_diastole_t'][0] - 0.02 # Convert to seconds for Alya
+                        else:
+                            field = activation_times * 0.001
+                        filename=self.output_dir + self.simulation_dict['name'] + '.' + varname
+                        with open(filename, 'w') as f:
+                            for i in range(len(field_idx)):
+                                f.write(str(field_idx[i]))
+                                f.write('\t' + str(self.simulation_dict['stimulus_amplitude']) + '\t'
+                                        + str(field[i]) + '\t' + str(self.simulation_dict['stimulus_duration']) + '\t'
+                                        + str(int(self.simulation_dict['number_of_cycles'])) + '\t'
+                                        + str(self.simulation_dict['cycle_length']) + '\n')
                     else:
-                        field = activation_times * 0.001
-                    filename=self.output_dir + self.simulation_dict['name'] + '.' + varname
-                    with open(filename, 'w') as f:
-                        for i in range(len(field_idx)):
-                            f.write(str(field_idx[i]))
-                            f.write('\t' + str(self.simulation_dict['stimulus_amplitude']) + '\t'
-                                    + str(field[i]) + '\t' + str(self.simulation_dict['stimulus_duration']) + '\t'
-                                    + str(int(self.simulation_dict['number_of_cycles'])) + '\t'
-                                    + str(self.simulation_dict['cycle_length']) + '\n')
+                        os.system('cp '+self.geometric_data_dir + self.simulation_dict['name'] + '.' + varname + ' ' + self.output_dir)
+
                 elif varname == 'cell-type':
                     print('Writing out ', varname,
                           'as ' + self.output_dir + self.simulation_dict['name'] + '.' + varname)
@@ -568,12 +572,14 @@ class AlyaFormat(MeshStructure):
                     cavity_boundary_number = self.geometry.lv_endocardium
                     insert_data.append([cavity_i + 1, cavity_boundary_number,
                                         self.node_fields.dict['lv-cavity-nodes'][0].astype(int) + 1,
-                                        self.node_fields.dict['lv-cavity-nodes'][1].astype(int) + 1, cavity_i + 1])
+                                        self.node_fields.dict['lv-cavity-nodes'][1].astype(int) + 1,
+                                        cavity_i + 1])
                 elif self.simulation_dict['cavity_bcs'][cavity_i] == 'RV':
                     cavity_boundary_number = self.geometry.rv_endocardium
                     insert_data.append([cavity_i + 1, cavity_boundary_number,
                                         self.node_fields.dict['rv-cavity-nodes'][0].astype(int) + 1,
-                                        self.node_fields.dict['rv-cavity-nodes'][1].astype(int) + 1, cavity_i + 1])
+                                        self.node_fields.dict['rv-cavity-nodes'][1].astype(int) + 1,
+                                        cavity_i + 1])
             cavities_str = self.template(filename=filename, keys=keys, data=insert_data, num_duplicates=num_cavities)
 
     def write_sld_dat(self):
@@ -596,7 +602,7 @@ class AlyaFormat(MeshStructure):
             # Solidz cardiac cycle
             filename = self.template_dir + self.version + '.subtemplate.cavity_definition_template'
             keys = ["cavity_idx", "cavity_boundary_number", "cavity_basal_node_1", "cavity_basal_node_2",
-                    "prestress_field_idx"]
+                    "cavity_basal_node_3", "prestress_field_idx"]
             num_cavities = len(self.simulation_dict['cavity_bcs'])
             insert_data = []
             for cavity_i in range(num_cavities):
@@ -605,12 +611,14 @@ class AlyaFormat(MeshStructure):
                     cavity_boundary_number = self.geometry.lv_endocardium
                     insert_data.append([cavity_i + 1, cavity_boundary_number,
                                         self.node_fields.dict['lv-cavity-nodes'][0].astype(int) + 1,
-                                        self.node_fields.dict['lv-cavity-nodes'][1].astype(int) + 1, cavity_i + 1])
+                                        self.node_fields.dict['lv-cavity-nodes'][1].astype(int) + 1,
+                                        self.node_fields.dict['lv-cavity-nodes'][2].astype(int) + 1, cavity_i + 1])
                 elif self.simulation_dict['cavity_bcs'][cavity_i] == 'RV':
                     cavity_boundary_number = self.geometry.rv_endocardium
                     insert_data.append([cavity_i+1, cavity_boundary_number,
                                         self.node_fields.dict['rv-cavity-nodes'][0].astype(int) + 1,
-                                        self.node_fields.dict['rv-cavity-nodes'][1].astype(int) + 1, cavity_i + 1])
+                                        self.node_fields.dict['rv-cavity-nodes'][1].astype(int) + 1,
+                                        self.node_fields.dict['rv-cavity-nodes'][2].astype(int) + 1, cavity_i + 1])
             cavities_str = self.template(filename=filename, keys=keys, data=insert_data, num_duplicates=num_cavities)
             # Pressure string
             filename = self.template_dir + self.version + '.subtemplate.pressure_cycle_template'

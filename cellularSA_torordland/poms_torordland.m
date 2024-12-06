@@ -4,7 +4,8 @@ function [] = poms_torordland(param_values,celltype, outputdir)
 
 %% Setting parameters
 param.bcl = 800; % basic cycle length in ms
-param.model = @model_ToRORd_Land; % which model is to be used
+%param.model = @model_ToRORd_Land; % which model is to be used
+param.model = @model_ToRORd_Land_rescaled_IKs;
 param.verbose = false; % printing numbers of beats simulated. 
 params(1:size(param_values,1)) = param;
 nb_models = size(param_values,1);
@@ -149,8 +150,8 @@ T = table(apd40', apd50', apd90', CTD50', CTD90', CaTmax', CaTmin', Tamax', ...
           {'APD40', 'APD50', 'APD90', 'CTD50', 'CTD90', 'CaTmax', 'CaTmin', ...
           'Tamax', 'Tamin', 'TaD50', 'TaD90', 'dTadtmax'});
 writetable(T,[outputdir celltype '_output.txt'],'WriteRowNames',true, 'WriteVariableNames', true)
-save([outputdir 'V.mat'], 'V');
-save([outputdir 'cai.mat'], 'cai');
-save([outputdir 'Ta.mat'], 'Ta');
-save([outputdir 'time.mat'], 'time');
+save([outputdir 'V_' celltype '.mat'], 'V');
+save([outputdir 'cai_' celltype '.mat'], 'cai');
+save([outputdir 'Ta_' celltype '.mat'], 'Ta');
+save([outputdir 'time_' celltype '.mat'], 'time');
 end

@@ -10,6 +10,7 @@ import code
 
 ########################################################################################################################
 # Global Settings
+max_cores_used = 10
 mesh_number = '05'
 simulation_name = 'rodero_' + mesh_number + '_fine'
 workdir = os.getcwd()
@@ -57,41 +58,43 @@ elif system == 'archer2':
 personalisation_data_dir = meta_data_dir + 'results/personalisation_data/rodero_'+mesh_number+'/'
 alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
-                  simulation_dir = simulation_root_dir, verbose=verbose, job_version=system)
+                  simulation_dir = simulation_root_dir, verbose=verbose, max_cores_used=max_cores_used, job_version=system)
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
 setup_simulations = False
-run_simulations = False
+run_simulations = True
 postprocess = False
 # Choose which groups of parameters to setup/run/evaluate
 passive_mechanics = False
 active_mechanics = False
-cellular = True
+cellular = False
 haemodynamic = False
-conduction = False
+conduction = True
 all_parameters_at_once = False
 
 # Choose which groups of QoI to evaluate
 evaluate_pv= False
 evaluate_ecg = False
 evaluate_deformation = False
-evaluate_fibrework = True
+evaluate_fibrework = False
 evaluate_strain = False
 evaluate_volume = False
 evaluate_maps = False
-fresh_qoi_evaluation = True
+fresh_qoi_evaluation = False
 
 parameter_names = []
 sa_folder_root_names = []
-cellular_params = ['sf_jup']  # ['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup']
+cellular_params = ['sf_gnal', 'sf_gkr', 'sf_gnak', 'sf_gcal', 'sf_jup']
+
+### Plotting lambda and Ta curves for subselection, and also deformation maps to help illustrate LVEF effects.
 active_params = ['tref_scaling_myocardium', 'cal50_myocardium', 'sfkws_myocardium'] # Exclude Tref, because it doesn't have a direct biophysical meaning.
 # active_params = ['sfkws_myocardium']
 passive_params = ['pericardial_stiffness', 'Kct_myocardium', 'a_myocardium', 'af_myocardium', 'as_myocardium', 'afs_myocardium']
 # passive_params = ['as_myocardium', 'afs_myocardium']
-haemo_params = ['arterial_resistance_lv',
-                'arterial_compliance_lv',
-                'ejection_pressure_threshold_lv',
-                'gain_error_relaxation_lv']
+haemo_params =['arterial_resistance_lv',
+            'arterial_compliance_lv',
+            'ejection_pressure_threshold_lv',
+            'gain_error_relaxation_lv']
 # haemo_params = ['gain_error_contraction_lv', 'gain_derror_contraction_lv', 'gain_error_relaxation_lv', 'gain_derror_relaxation_lv']
 conduction_params = ['sigma_f', 'sigma_s', 'sigma_n']
 if cellular:
@@ -157,7 +160,7 @@ if setup_simulations or run_simulations:
             simulation_dir = simulation_root_dir + sa_folder_root_names[param_i] + '_' + param + '/'
         parameter_names = np.array([param])
         sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names, baseline_json_file=baseline_json_file,
-                 simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+                 simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, max_cores_used=max_cores_used, verbose=verbose)
         if setup_simulations:
             sa.setup(upper_bounds=upper_bounds, lower_bounds=lower_bounds)
         if run_simulations:
@@ -362,7 +365,7 @@ for param_i, param in enumerate(parameter_names):
             fibre_work_post = sa.evaluate_qois(qoi_group_name='fibre_work', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                                analysis_type='sa')
             sa.visualise_sa(beat=1, fibre_work_post=fibre_work_post, labels=labels,
-                            save_filename=simulation_dir + '/fibre_work_post.png')
+                            save_filename=simulation_dir + '/fibre_work_post.png', show=False)
         else:
             print('Not evaluating QoIs afresh!')
         qoi_names = ['peak_lambda', 'min_lambda', 'peak_ta', 'diastolic_ta']

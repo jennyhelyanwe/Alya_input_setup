@@ -15,9 +15,10 @@ import seaborn as sns
 from postprocessing import PostProcessing, mapIndices, evaluate_rt, evaluate_lat
 import pandas as pd
 from healthy_qoi_ranges import HealthyBiomarkerRanges
+
 class SAUQ:
     def __init__(self, name, sampling_method, n, parameter_names, baseline_json_file, baseline_dir,
-                 simulation_dir, alya_format, verbose):
+                 simulation_dir, alya_format, max_cores_used, verbose):
         self.name = name
         self.sampling_method = sampling_method
         self.n = n # This is a parameter that could either be the number of samples (for LHS) or is related to number of samples (Saltelli)
@@ -28,6 +29,7 @@ class SAUQ:
         self.simulation_dir = simulation_dir
         self.alya_format = alya_format
         self.verbose = verbose
+        self.max_cores_used = max_cores_used
         self.all_simulation_dirs = []
         if not os.path.exists(self.simulation_dir):
             os.mkdir(self.simulation_dir)
@@ -66,9 +68,9 @@ class SAUQ:
 
     def generate_parameter_set(self, upper_bounds, lower_bounds, input_parameter_set=None):
         if self.sampling_method == 'lhs':
-            sampler = scipy.stats.qms.LatinHypercube(d=self.number_of_parameters)
+            sampler = scipy.stats.qmc.LatinHypercube(d=self.number_of_parameters)
             sample = sampler.random(n=self.n)
-            self.parameter_set = scipy.qmc.scale(sample, lower_bounds, upper_bounds)
+            self.parameter_set = scipy.stats.qmc.scale(sample, lower_bounds, upper_bounds)
         elif self.sampling_method == 'saltelli':
             ranges = np.vstack((lower_bounds, upper_bounds)).transpose()
             problem = {
@@ -184,12 +186,12 @@ class SAUQ:
             os.mkdir(output_dir)
         for simulation_i in range(len(self.finished_simulation_dirs)):
             # Create new output post nodefield to write out LAT, RT, and displacements at ED and ES in a single casefile
-            maps_post = Fields(self.name, field_type='postnodefield', verbose=False)
+            maps_post = Fields(self.name, field_type='postnodefield',max_cores_used=self.max_cores_used,verbose=False)
             # Evaluate LAT and RT
             alya_output_dir = self.finished_simulation_dirs[simulation_i]
             json_file = self.simulation_dir + analysis_type + '_' + str(simulation_i) + '.json'
             post = PostProcessing(alya=alya, simulation_json_file=json_file,
-                                  alya_output_dir=alya_output_dir, protocol='postprocess',
+                                  alya_output_dir=alya_output_dir, protocol='postprocess', max_cores_used=self.max_cores_used,
                                   verbose=self.verbose)
             post.deformation_transients = {}
             post.read_binary_outputs(read_field_name='INTRA', read_field_type='scalar')
@@ -238,49 +240,49 @@ class SAUQ:
             json_file = self.simulation_dir + analysis_type + '_' + str(simulation_i) + '.json'
             if qoi_group_name == 'ecg':
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
-                                      alya_output_dir=alya_output_dir, protocol='raw',
+                                      alya_output_dir=alya_output_dir, protocol='raw',max_cores_used=self.max_cores_used,
                                       verbose=self.verbose)
                 post.evaluate_ecg_biomarkers(beat=beat, show_landmarks=False)
                 post.save_qoi(filename=qoi_save_dir + 'ecg_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
             elif qoi_group_name == 'pv':
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
-                                      alya_output_dir=alya_output_dir, protocol='raw',
+                                      alya_output_dir=alya_output_dir, protocol='raw',max_cores_used=self.max_cores_used,
                                       verbose=self.verbose)
                 post.evaluate_pv_biomarkers(beat=beat)
                 post.save_qoi(filename=qoi_save_dir + 'pv_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
             elif qoi_group_name == 'deformation':
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
-                                      alya_output_dir=alya_output_dir, protocol='postprocess',
+                                      alya_output_dir=alya_output_dir, protocol='postprocess',max_cores_used=self.max_cores_used,
                                       verbose=self.verbose)
                 post.evaluate_deformation_biomarkers(beat=beat)
                 post.save_qoi(filename=qoi_save_dir + 'deformation_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
             elif qoi_group_name == 'volume':
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
-                                      alya_output_dir=alya_output_dir, protocol='postprocess',
+                                      alya_output_dir=alya_output_dir, protocol='postprocess',max_cores_used=self.max_cores_used,
                                       verbose=self.verbose)
                 post.evaluate_volume_biomarkers(beat=beat)
                 post.save_qoi(filename=qoi_save_dir + 'volume_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
             elif qoi_group_name == 'strain':
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
-                                      alya_output_dir=alya_output_dir, protocol='postprocess',
+                                      alya_output_dir=alya_output_dir, protocol='postprocess',max_cores_used=self.max_cores_used,
                                       verbose=self.verbose)
                 post.evaluate_strain_biomarkers(beat=beat)
                 post.save_qoi(filename=qoi_save_dir + 'strain_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
             elif qoi_group_name == 'fibre_work':
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
-                                      alya_output_dir=alya_output_dir, protocol='postprocess',
+                                      alya_output_dir=alya_output_dir, protocol='postprocess',max_cores_used=self.max_cores_used,
                                       verbose=self.verbose)
                 post.evaluate_fibre_work_biomarkers(beat=beat)
                 post.save_qoi(filename=qoi_save_dir + 'fibrework_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
             elif qoi_group_name == 'cube_deformation_ta':
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
-                                      alya_output_dir=alya_output_dir, protocol='postprocess',
+                                      alya_output_dir=alya_output_dir, protocol='postprocess',max_cores_used=self.max_cores_used,
                                       verbose=self.verbose)
                 post.evaluate_cube_deformation_ta_biomarkers()
                 post.save_qoi(filename=qoi_save_dir + 'cube_deformation_ta_qoi_' + str(simulation_i) + '.csv')
@@ -469,7 +471,6 @@ class SAUQ:
             ax.set_xlabel(self.parameter_names[i])
             ax.set_ylabel('Parameter value')
         plt.show()
-
 
 
     def visualise_sa(self, beat, ecg_post=None, pv_post=None, deformation_post=None,
@@ -760,10 +761,13 @@ class SAUQ:
                 plt.show()
             plt.close()
         if fibre_work_post:
-            fig = plt.figure(tight_layout=True, figsize=(18, 10))
-            gs = GridSpec(1, 2)
+            fig = plt.figure(tight_layout=True, figsize=(18, 8))
+            fig2 = plt.figure()
+            gs = GridSpec(1, 3)
             ax_lambda = fig.add_subplot(gs[0,0])
             ax_ta = fig.add_subplot(gs[0,1])
+            # ax_v = fig.add_subplot(gs[0,2])
+            # ax_cai = fig.add_subplot(gs[0,2])
             for simulation_i in range(len(fibre_work_post)):
                 if labels:
                     ax_lambda.plot(fibre_work_post[simulation_i].fibre_work_transients['fibrework_t'],
@@ -772,20 +776,36 @@ class SAUQ:
                     ax_ta.plot(fibre_work_post[simulation_i].fibre_work_transients['fibrework_t'],
                                  fibre_work_post[simulation_i].fibre_work_transients['mean_Ta'],
                                  label=labels[simulation_i])
+                    # ax_v.plot(fibre_work_post[simulation_i].fibre_work_transients['fibrework_t'],
+                    #            fibre_work_post[simulation_i].fibre_work_transients['mean_intra'],
+                    #            label=labels[simulation_i])
+                    # ax_cai.plot(fibre_work_post[simulation_i].fibre_work_transients['fibrework_t'],
+                    #           fibre_work_post[simulation_i].fibre_work_transients['mean_cai'],
+                    #           label=labels[simulation_i])
                 else:
                     ax_lambda.plot(deformation_post[simulation_i].deformation_transients['fibrework_t'],
                                  deformation_post[simulation_i].deformation_transients['mean_lambda'])
                     ax_ta.plot(deformation_post[simulation_i].deformation_transients['fibrework_t'],
                                  deformation_post[simulation_i].deformation_transients['mean_Ta'])
+                    # ax_v.plot(deformation_post[simulation_i].deformation_transients['fibrework_t'],
+                    #           deformation_post[simulation_i].deformation_transients['mean_intra'])
+                    # ax_cai.plot(deformation_post[simulation_i].deformation_transients['fibrework_t'],
+                    #           deformation_post[simulation_i].deformation_transients['mean_cai'])
             ax_lambda.set_title('Fibre stretch ratio')
             ax_lambda.set_xlabel('Time (s)')
             ax_lambda.set_ylabel('Lambda')
             ax_ta.set_title('Active tension')
             ax_ta.set_xlabel('Time (s)')
             ax_ta.set_ylabel('Ta (kPa)')
+            # ax_v.set_title('Mean membrane potential')
+            # ax_v.set_xlabel('Time (s)')
+            # ax_v.set_ylabel('Membrane potential (mV)')
+            # ax_cai.set_title('Calcium transient')
+            # ax_cai.set_xlabel('Time (s)')
+            # ax_cai.set_ylabel('(mM)')
             if labels:
-                ax_lambda.legend()
-                ax_ta.legend()
+                fig2.legend(ax_lambda.get_legend_handles_labels()[0], ax_lambda.get_legend_handles_labels()[1])
+                fig2.savefig(save_filename + '_legend.png')
             if save_filename:
                 plt.savefig(save_filename)
             if show:
@@ -816,11 +836,11 @@ class SAUQ:
             ax_Ecc.set_xlabel('Time (s)')
             ax_Ell.set_ylabel('Four chamber Ell')
             ax_Ell.set_xlabel('Time (s)')
+            if save_filename:
+                fig.savefig(save_filename)
             if labels:
                 fig2.legend(ax_Err.get_legend_handles_labels()[0], ax_Err.get_legend_handles_labels()[1])
                 fig2.savefig(save_filename + '_legend.png')
-            if save_filename:
-                fig.savefig(save_filename)
             if show:
                 plt.show()
             plt.close()
@@ -1298,6 +1318,88 @@ class SAUQ:
         plt.show()
 
 
+    def select_best_calibration_result(self, pv_qois_filename, qoi_names, qoi_weights, image_save_dir,
+                                       calibrated_simulation_dir, calibrated_json_filename, show=False):
+        print('selecting best calibration result based on PV biomakers')
+        pv_qois = pd.read_csv(pv_qois_filename, index_col=False)
+        Y = pv_qois[qoi_names].values
+        parameter_names = self.parameter_names
+        X = np.zeros((Y.shape[0], len(parameter_names)))
+        calibration_scores = np.zeros(Y.shape[0])
+        calibration_scores.fill(np.nan)
+        individual_raw_scores = np.zeros((Y.shape[0], len(qoi_names)))
+        finished_parameters_i = []
+        for i in range(len(self.finished_simulation_dirs)):
+            finished_parameters_i.append(int(self.finished_simulation_dirs[i].split('/')[-2].split('_')[1]))
+        for meta_i in range(Y.shape[0]):
+            simulation_i = finished_parameters_i[meta_i]
+            filename = self.simulation_dir+'sa_'+str(simulation_i)+'.json'
+            dict = json.load(open(filename, 'r'))
+            for param_i in range(len(parameter_names)):
+                if 'sf_' in parameter_names[param_i]:
+                    X[meta_i,param_i] = dict[parameter_names[param_i]][0][0]
+                elif 'sigma_f' in parameter_names[param_i]:
+                    X[meta_i,param_i] = dict['sigma'][0][0]
+                elif 'sigma_s' in parameter_names[param_i]:
+                    X[meta_i, param_i] = dict['sigma'][0][1]
+                elif 'sigma_n' in parameter_names[param_i]:
+                    X[meta_i, param_i] = dict['sigma'][0][2]
+                elif '_lv' in parameter_names[param_i]:
+                    X[meta_i,param_i] = dict[parameter_names[param_i].split('_lv')[0]][0]
+                elif '_rv' in parameter_names[param_i]:
+                    X[meta_i, param_i] = dict[parameter_names[param_i].split('_rv')[0]][1]
+                elif '_myocardium' in parameter_names[param_i]:
+                    X[meta_i, param_i] = dict[parameter_names[param_i].split('_myocardium')[0]][0]
+                elif '_valveplug' in parameter_names[param_i]:
+                    X[meta_i, param_i] = dict[parameter_names[param_i].split('_valveplug')[0]][1]
+                else:
+                    X[meta_i,param_i] = dict[parameter_names[param_i]]
+            # Give each simulation a normalised score from 0 to 1 for how well it fits inside the healthy ranges
+            # Values outside healthy ranges are negative, values inside range are zero. Differences are normalised by
+            # mean healthy value, then weighted using user-specified weights (qoi_weights).
+            score = 0
+            for i, qoi_name in enumerate(qoi_names):
+                diff = np.amin(((Y[meta_i, i] - self.healthy_ranges[qoi_name][0]),
+                                (self.healthy_ranges[qoi_name][1] - Y[meta_i, i])))
+                if diff < 0:
+                    # QoI is out of range
+                    raw_score = diff
+                else:
+                    # QoI is in range
+                    raw_score = 0
+                individual_raw_scores[meta_i, i] = raw_score
+                normalised_raw_score = raw_score / np.mean(self.healthy_ranges[qoi_name])
+                score = score + normalised_raw_score*qoi_weights[i]
+            calibration_scores[meta_i] = score
+
+        # Determine best parameter set
+        best_meta_simulation_id = np.nanargmax(calibration_scores)
+        best_simulation_id = finished_parameters_i[best_meta_simulation_id]
+        print('Best simulation ID is: ', best_simulation_id)
+        print('With parameter values: ', X[best_meta_simulation_id, :])
+        print('With QoIs: ')
+        for qoi_i, qoi_name in enumerate(qoi_names):
+            print(qoi_name, ': ', Y[best_simulation_id, qoi_i], ', (healthy: [', self.healthy_ranges[qoi_name][0], ', ',
+                  self.healthy_ranges[qoi_name][1], '])')
+
+        # Plot scores with selected parameter set
+        colours = ['blue'] * Y.shape[0]
+        colours[best_meta_simulation_id]= 'green'
+        for qoi_i, qoi_name in enumerate(qoi_names):
+            plt.bar(np.arange(Y.shape[0]), individual_raw_scores[:, qoi_i], color=colours)
+            plt.xlabel('Parameter set ID')
+            plt.ylabel('Raw score for '+ qoi_name)
+            plt.savefig(image_save_dir + 'raw_scores_' + qoi_name + '_barplot.png')
+        plt.bar(np.arange(Y.shape[0]), calibration_scores, color=colours)
+        plt.xlabel('Parameter set ID')
+        plt.ylabel('Calibraton score')
+        plt.savefig(image_save_dir + 'calibration_score_barplot.png')
+        if show == True:
+            plt.show()
+        os.system('cp ' + self.simulation_dir+'sa_'+str(best_simulation_id)+'.json ' + calibrated_json_filename)
+        os.system('cp -r ' + self.simulation_dir+'sa_'+str(best_simulation_id)+'_rodero_05_fine ' + calibrated_simulation_dir )
+
+
     def run_jobs(self, simulation_dir, start_id=0, end_id=None):
         with open(simulation_dir+'/all_simulation_dirs.txt', 'r') as f:
             all_simulation_dirs = f.readlines()
@@ -1326,4 +1428,5 @@ class SAUQ:
     #     desired_file_prefix = anatomy_subject_name + '_' + desired_resolution
     #
     #     for simulation_i in range(len(all_simulation_dirs)):
+
 

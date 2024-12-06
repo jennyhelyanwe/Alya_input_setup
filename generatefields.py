@@ -177,6 +177,31 @@ class FieldGeneration(MeshStructure):
                                    field_type='nodefield')
         self.save()
 
+    def generate_cavity_landmarks_three_nodes(self):
+        print('Evaluate cavity landmark nodes (old CC version, 3 nodes needed)')
+        # LV cavity landmarks
+        basal_ring_meta_idx = np.nonzero(self.node_fields.dict['ab'][self.boundary_node_fields.dict['ep-lvnodes'].astype(int)] == self.geometry.base)
+        basal_ring = self.boundary_node_fields.dict['ep-lvnodes'][basal_ring_meta_idx].astype(int)
+        rt_posterior = -np.pi/2.
+        rt_anterior = np.pi/2.
+        posterior_meta_idx = np.argmin(abs(self.node_fields.dict['rt'][basal_ring] - rt_posterior))
+        lv_posterior_node = basal_ring[posterior_meta_idx]
+        anterior_meta_idx = np.argmin(abs(self.node_fields.dict['rt'][basal_ring] - rt_anterior))
+        lv_anterior_node = basal_ring[anterior_meta_idx]
+
+        # RV cavity landmarks
+        basal_ring_meta_idx = np.nonzero(self.node_fields.dict['ab'][self.boundary_node_fields.dict['ep-rvnodes'].astype(int)] == self.geometry.base)
+        basal_ring = self.boundary_node_fields.dict['ep-rvnodes'][basal_ring_meta_idx].astype(int)
+        posterior_meta_idx = np.argmin(abs(self.node_fields.dict['rt'][basal_ring] - rt_posterior))
+        rv_posterior_node = basal_ring[posterior_meta_idx]
+        anterior_meta_idx = np.argmin(abs(self.node_fields.dict['rt'][basal_ring] - rt_anterior))
+        rv_anterior_node = basal_ring[anterior_meta_idx]
+        self.node_fields.add_field(data=np.array([lv_posterior_node, lv_anterior_node]), data_name='lv-cavity-nodes',
+                                   field_type='nodefield')
+        self.node_fields.add_field(data=np.array([rv_posterior_node, rv_anterior_node]), data_name='rv-cavity-nodes',
+                                   field_type='nodefield')
+        self.save()
+
     def read_cavity_landmarks(self, save=False):
         lv_posterior_node = 5078
         lv_anterior_node = 5151
@@ -353,7 +378,6 @@ class FieldGeneration(MeshStructure):
 
     def generate_infarct_borderzone(self):
         # Using UVC to define infarct and border zone geometry.
-
         # Evaluate ab, rt, and tm at tetrahedron centres
         # if not 'ab' in list(self.element_fields.dict.keys()):
         #     if self.verbose:
@@ -368,43 +392,50 @@ class FieldGeneration(MeshStructure):
         #     self.element_fields.add_field(data=tm_tetra_centres, data_name='tm_tetra', field_type='elementfield')
         #     self.element_fields.add_field(data=tv_tetra_centres, data_name='tv_tetra', field_type='elementfield')
         #     self.save()
-        # quit()
+
         if self.verbose:
             print('Delineating infarct and borderzones...')
         materials = self.materials.dict['tetra']
-        materials_shared = pymp.shared.array((materials.shape[0]), dtype=int)
-        ab_shared = pymp.shared.array((materials.shape[0]), dtype=float)
-        rt_shared = pymp.shared.array((materials.shape[0]), dtype=float)
-        tm_shared = pymp.shared.array((materials.shape[0]), dtype=float)
-        materials_shared[:] = self.materials.dict['tetra'][:]
-        ab_shared[:] = self.element_fields.dict['ab_tetra'][:]
-        rt_shared[:] = self.element_fields.dict['rt_tetra'][:]
-        tm_shared[:] = self.element_fields.dict['tm_tetra'][:]
-        threadsNum = np.amin(multiprocessing.cpu_count(), 10)
-        infarct_rt_range = [1.2, 2.1]
-        infarct_ab_range = [0.1, 0.5]
-        infarct_ab_centre = np.abs((infarct_ab_range[1] + infarct_ab_range[0]) / 2.)
-        infarct_rt_centre = np.abs((infarct_rt_range[1] + infarct_rt_range[0]) / 2.)
-        infarct_a = infarct_ab_range[1] - infarct_ab_centre
-        infarct_b = infarct_rt_range[1] - infarct_rt_centre
-        bz_rt_range = [1.0, 2.4]
-        bz_ab_range = [0.0, 0.6]
-        bz_ab_centre = np.abs((bz_ab_range[1] + bz_ab_range[0]) / 2.)
-        bz_rt_centre = np.abs((bz_rt_range[1] + bz_rt_range[0]) / 2.)
-        bz_a = bz_ab_range[1] - bz_ab_centre
-        bz_b = bz_rt_range[1] - bz_rt_centre
-        with pymp.Parallel(min(threadsNum, self.geometry.tetrahedron_centres.shape[0])) as p1:
-            for i in p1.range(self.geometry.tetrahedron_centres.shape[0]):
-        # if True:
-        #     for i in range(self.geometry.tetrahedron_centres.shape[0]):
-                bz_equation = ((ab_shared[i] - bz_ab_centre) / bz_a) ** 2 + ((rt_shared[i] - bz_rt_centre) / bz_b) ** 2 - 1
-                if (bz_equation < 0):
-                    materials_shared[i] = 4
-                infarct_equation = ((ab_shared[i] - infarct_ab_centre) / infarct_a) ** 2 + ((rt_shared[i] - infarct_rt_centre) / infarct_b) ** 2 - 1
-                if (infarct_equation < 0) & (tm_shared[i] < 0.75):
-                    materials_shared[i] = 3 # Infarct
+        materials_shared = pymp.shared.array(materials.shape, dtype=int)
+        cell_centres = pymp.shared.array(self.geometry.tetrahedron_centres.shape, dtype=float)
+        tm_shared = pymp.shared.array((self.node_fields.dict['tm'].shape[0]), dtype=float)
+        materials_shared[:] = materials[:]
+        cell_centres[:,:] = self.geometry.tetrahedron_centres[:, :]
+        tm_shared[:] = self.node_fields.dict['tm'][:]
+        threadsNum = np.amin((multiprocessing.cpu_count(), 10))
+        infarct_centres = np.array([[-1.91, -2.977, 6.066], [-1.198, -2.075, 3.98], [-2.40, -1.36, 2.88], [-1.58, -3.91, 4.48],
+                           [-1.56, 0.187, 1.65]])
+        infarct_radii = [2, 2, 2, 1, 1]
+        bz_width = 0.5
+        with (pymp.Parallel(min(threadsNum, cell_centres.shape[0]))) as p1:
+            for conf_i in p1.range(0, cell_centres.shape[0]):
+                for i_centre in range(infarct_centres.shape[0]):
+                    infarct_centre = infarct_centres[i_centre,:]
+                    infarct_radius = infarct_radii[i_centre]
+                    bz_radius = infarct_radius + bz_width
+                    infarct_equation = np.sqrt((cell_centres[conf_i,0]-infarct_centre[0])**2+
+                                               (cell_centres[conf_i,1]-infarct_centre[1])**2+
+                                               (cell_centres[conf_i,2]-infarct_centre[2])**2)
+                    if (infarct_equation <= infarct_radius) & (tm_shared[self.geometry.tetrahedrons[conf_i,0]] < 0.75):
+                        materials_shared[conf_i] = 3
+                    elif (infarct_equation<bz_radius) & (not (materials_shared[conf_i]==3)):
+                        materials_shared[conf_i] = 4
         self.materials.add_field(data=materials_shared, data_name='tetra_mi', field_type='material')
         self.save()
+        # infarct_centres = [[1.0, 1.0]] # rt and ab
+        # infarct_rt_range = [1.2, 2.1]
+        # infarct_ab_range = [0.1, 0.5]
+        # infarct_ab_centre = np.abs((infarct_ab_range[1] + infarct_ab_range[0]) / 2.)
+        # infarct_rt_centre = np.abs((infarct_rt_range[1] + infarct_rt_range[0]) / 2.)
+        # infarct_a = infarct_ab_range[1] - infarct_ab_centre
+        # infarct_b = infarct_rt_range[1] - infarct_rt_centre
+        # bz_rt_range = [1.0, 2.4]
+        # bz_ab_range = [0.0, 0.6]
+        # bz_ab_centre = np.abs((bz_ab_range[1] + bz_ab_range[0]) / 2.)
+        # bz_rt_centre = np.abs((bz_rt_range[1] + bz_rt_range[0]) / 2.)
+        # bz_a = bz_ab_range[1] - bz_ab_centre
+        # bz_b = bz_rt_range[1] - bz_rt_centre
+        # Define centres and ranges for ab and rt coordinates
 
 def evaluate_mesh_characteristics(geometry):
     unfolded_edges = np.concatenate((geometry.edges, np.flip(geometry.edges, axis=1))).astype(int)

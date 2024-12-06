@@ -1,5 +1,5 @@
     CAVITY: <<cavity_idx>>
       BOUNDARY: <<cavity_boundary_number>>
-      PLANE NODSET <<cavity_basal_node_1>> <<cavity_basal_node_2>>
+      PLANE NODSET <<cavity_basal_node_1>> <<cavity_basal_node_2>> <<cavity_basal_node_3>>
 	  PSFIE: <<prestress_field_idx>>
     END_CAVITY
