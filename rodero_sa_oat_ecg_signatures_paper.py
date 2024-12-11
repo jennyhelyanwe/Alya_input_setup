@@ -62,7 +62,7 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
 setup_simulations = False
-run_simulations = True
+run_simulations = False
 postprocess = False
 # Choose which groups of parameters to setup/run/evaluate
 passive_mechanics = False
@@ -73,7 +73,7 @@ conduction = True
 all_parameters_at_once = False
 
 # Choose which groups of QoI to evaluate
-evaluate_pv= False
+evaluate_pv= True
 evaluate_ecg = False
 evaluate_deformation = False
 evaluate_fibrework = False
@@ -81,6 +81,7 @@ evaluate_strain = False
 evaluate_volume = False
 evaluate_maps = False
 fresh_qoi_evaluation = False
+show = True
 
 parameter_names = []
 sa_folder_root_names = []
@@ -96,7 +97,7 @@ haemo_params =['arterial_resistance_lv',
             'ejection_pressure_threshold_lv',
             'gain_error_relaxation_lv']
 # haemo_params = ['gain_error_contraction_lv', 'gain_derror_contraction_lv', 'gain_error_relaxation_lv', 'gain_derror_relaxation_lv']
-conduction_params = ['sigma_f', 'sigma_s', 'sigma_n']
+conduction_params = ['sigma_s', 'endocardial-activation-time-scaling'] #['sigma_f', 'sigma_s', 'sigma_n']
 if cellular:
     parameter_names = parameter_names + cellular_params
     sa_folder_root_names = sa_folder_root_names + ['sensitivity_analyses_cellular_parameters_oat']*len(cellular_params)
@@ -235,7 +236,7 @@ for param_i, param in enumerate(parameter_names):
     parameter_names = np.array([param])  # Dummy
     baseline_dir = ''  # Dummy
     sa = SAUQ(name='sa', sampling_method='uniform', n=8, parameter_names=parameter_names, baseline_json_file=baseline_json_file,
-              simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, verbose=verbose)
+              simulation_dir=simulation_dir, alya_format=alya, baseline_dir=baseline_dir, max_cores_used=max_cores_used, verbose=verbose)
     # labels = [param +'=' + s for s in ["%.1f" % x for x in np.linspace(lower_bounds, upper_bounds, 8)]]
     # Get actual parameter values from .json files
     labels = []
@@ -278,12 +279,12 @@ for param_i, param in enumerate(parameter_names):
         if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'pv_qois.csv'):
             pv_post = sa.evaluate_qois(qoi_group_name='pv', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                        analysis_type='sa')
-            sa.visualise_sa(beat=1, pv_post=pv_post, labels=labels, save_filename=simulation_dir+'/pv_post', show=False)
+            sa.visualise_sa(beat=1, pv_post=pv_post, labels=labels, save_filename=simulation_dir+'/pv_post', show=show)
         else:
             print('Not evaluating QoIs afresh!')
         qoi_names = pv_qois
 
-        slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=False,
+        slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'pv_qois.csv', qois=qoi_names, show_healthy_ranges=True,
                                    save_filename=simulation_dir + '/pv_scatter.png')
         print(ranges[3, 0])
         all_slopes.loc[param, qoi_names] = slopes[:, 0]
@@ -302,7 +303,7 @@ for param_i, param in enumerate(parameter_names):
             if not ecg_post:
                 print('ERROR: ECG postprocessing did not happen for some reason')
                 quit()
-            sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post', show=False)
+            sa.visualise_sa(beat=1, ecg_post=ecg_post, labels=labels, save_filename=simulation_dir+'/ecg_post', show=show)
         else:
             print('Not evaluating QoIs afresh!')
         qoi_names = ecg_qois
@@ -325,7 +326,7 @@ for param_i, param in enumerate(parameter_names):
                 print('ERROR: Deformation postprocessing did not happen for some reason')
                 quit()
             sa.visualise_sa(beat=1, deformation_post=deformation_post, labels=labels,
-                            save_filename=simulation_dir + '/deformation_post', show=False)
+                            save_filename=simulation_dir + '/deformation_post', show=show)
         else:
             print('Not evaluating QoIs afresh!')
         qoi_names = ['es_ed_avpd', 'es_ed_apical_displacement', 'diff_lv_wall_thickness', 'percentage_volume_change']
@@ -365,7 +366,7 @@ for param_i, param in enumerate(parameter_names):
             fibre_work_post = sa.evaluate_qois(qoi_group_name='fibre_work', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                                analysis_type='sa')
             sa.visualise_sa(beat=1, fibre_work_post=fibre_work_post, labels=labels,
-                            save_filename=simulation_dir + '/fibre_work_post.png', show=False)
+                            save_filename=simulation_dir + '/fibre_work_post.png', show=show)
         else:
             print('Not evaluating QoIs afresh!')
         qoi_names = ['peak_lambda', 'min_lambda', 'peak_ta', 'diastolic_ta']
@@ -385,7 +386,7 @@ for param_i, param in enumerate(parameter_names):
             strain_post = sa.evaluate_qois(qoi_group_name='strain', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
                                            analysis_type='sa')
             sa.visualise_sa(beat=1, strain_post=strain_post, labels=labels,
-                            save_filename=simulation_dir + '/strain_post', show=False)
+                            save_filename=simulation_dir + '/strain_post', show=show)
         qoi_names = ['max_mid_Ecc', 'min_mid_Ecc', 'max_mid_Err', 'min_mid_Err', 'max_four_chamber_Ell', 'min_four_chamber_Ell']
         slopes, intercepts, p_values, r_values, ranges, params, qois = sa.analyse(filename=simulation_dir + 'strain_qois.csv', qois=qoi_names, show_healthy_ranges=False,
                                    save_filename=simulation_dir + '/strain_scatter.png')
@@ -415,8 +416,11 @@ for param_i, param in enumerate(parameter_names):
             simulation_dir + '/param_' + param + '_strain_qoi_outcomes.csv')
 
     if evaluate_maps:
-        if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'maps_ensight/sa_lat_rt_ed_es_0.ensi.case'):
-            sa.evaluate_maps(alya=alya, beat=beat, analysis_type='sa', simulation_dir=simulation_dir)
+        if fresh_qoi_evaluation or not os.path.exists(simulation_dir + 'latrt_qois.csv'):
+            strain_post = sa.evaluate_qois(qoi_group_name='latrt', alya=alya, beat=beat, qoi_save_dir=simulation_dir,
+                                           analysis_type='sa')
+            sa.visualise_sa(beat=1, strain_post=strain_post, labels=labels,
+                            save_filename=simulation_dir + '/latrt_post', show=show)
     else:
         print('Not evaluating maps either because fresh_qoi_evaluation is set to False, or because ' + simulation_dir +
               'maps_ensight/sa_lat_rt_ed_es_0.ensi.case already exists')

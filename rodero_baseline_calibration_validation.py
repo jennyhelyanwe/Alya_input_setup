@@ -437,9 +437,9 @@ if visualise_calibration_result:
                         alya_output_dir=alya_output_dir, protocol='raw', max_cores_used=max_cores_used,
                         verbose=verbose)
     beat = 1
-    pp.evaluate_strain_biomarkers(beat=beat)
+    pp.evaluate_strain_biomarkers(beat=beat) 
     pp.evaluate_fibre_work_biomarkers(beat=beat)
-    pp.visualise_calibration_comparisons_strain()
+    pp.visualise_calibration_comparisons_strain(save_figure_dir=alya_output_dir)
     # pp.read_ecg_pv()
     # pp.evaluate_deformation_biomarkers(beat=beat)
     # pp.visualise_calibration_comparisons_global(beat=beat,

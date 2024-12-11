@@ -1236,10 +1236,36 @@ class PostProcessing(MeshStructure):
                                       float(self.simulation_dict['cycle_length'])])
         rt[self.node_fields.dict['tv'] == -10] = np.nan
         lat[self.node_fields.dict['tv'] == -10] = np.nan
-        print('Max LAT: ', str(np.nanmax(lat)))
-        print('Max RT: ', str(np.nanmax(rt)))
         self.post_nodefield.add_field(data=lat, data_name='lat', field_type='postnodefield')
         self.post_nodefield.add_field(data=rt, data_name='rt', field_type='postnodefield')
+        print('Max LAT: ', str(np.nanmax(lat)))
+        print('Max RT: ', str(np.nanmax(rt)))
+
+        # Wall thickness
+        print('Evaluating transmural CV')
+        lv_nodes = np.nonzero((self.node_fields.dict['tv'] == self.geometry.lv)
+                              & (self.node_fields.dict['rvlv'] > 0.2))[0]  # Exclude also the septum from this.
+        rv_nodes = np.nonzero(self.node_fields.dict['tv'] == self.geometry.rv)[0]
+        lv_endo_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.tm_endo)[0]]
+        lv_epi_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.tm_epi)[0]]
+        rv_endo_nodes = rv_nodes[np.nonzero(self.node_fields.dict['tm'][rv_nodes] == self.geometry.tm_endo)[0]]
+        rv_epi_nodes = rv_nodes[np.nonzero(self.node_fields.dict['tm'][rv_nodes] == self.geometry.tm_epi)[0]]
+        lv_mapped_epi_nodes = lv_epi_nodes[mapIndices(points_to_map_xyz=self.geometry.nodes_xyz[lv_endo_nodes, :],
+                                                      reference_points_xyz=self.geometry.nodes_xyz[lv_epi_nodes, :])]
+        rv_mapped_epi_nodes = rv_epi_nodes[mapIndices(points_to_map_xyz=self.geometry.nodes_xyz[rv_endo_nodes, :],
+                                                      reference_points_xyz=self.geometry.nodes_xyz[rv_epi_nodes, :])]
+        lat_transmural_diff = lat[lv_mapped_epi_nodes, :] - lat[lv_endo_nodes, :]
+        rt_transmural_diff = rt[lv_mapped_epi_nodes, :] - rt[lv_endo_nodes, :]
+        mean_lat_transmural_diff = np.nanmean(lat_transmural_diff)
+        mean_rt_transmural_diff = np.nanmean(rt_transmural_diff)
+        # Get transmural activation and repolarisation delay
+        qoi = {}
+        qoi['max_lat'] = np.nanmax(lat)
+        qoi['max_rt'] = np.nanmax(rt)
+        qoi['mean_lat_transmural_diff'] = mean_lat_transmural_diff
+        qoi['mean_rt_transmural_diff'] = mean_rt_transmural_diff
+        self.qoi.update(qoi)
+
 
     def evaluate_ventricular_cvs(self):
         print('Evaluating mean transmural conduction velocity')
