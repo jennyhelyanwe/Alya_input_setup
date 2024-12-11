@@ -2,7 +2,21 @@
 
 This pipeline handles the creation, monitoring, postprocessing, and analysis of Alya electromechanical or electrophysiological simulations. It is highly modular and adaptable to different supercomputing or cluster computing platforms, as well as to different version of Alya, and is designed to be able to deploy and analyse large volumes of simulations. 
 
-Code structure is summarised in the following flowchart:
+Code structure is summarised in the following simplified flowchart:
+```mermaid
+graph TD;
+    A(Input geometric and field data) --> |Mesh Preprocessing|B(Standard .CSV format dataset);
+    B --> |Fields generation|C(Additional fields);
+    B --> H;
+    H(Personalisation) -->|Inference| C;
+    B --> |Alya formatting| D(Alya simulation files);
+    C --> |Alya formatting| D;
+    E(Sampling methods) --> |Generation| F(Parameters set json files);
+    F --> |Alya formatting| D;
+    D --> |Postprocessing| G(Simulated biomarkers);
+```
+And a more comprehensive flowchart below:
+
 ```mermaid
 graph TD;
     A[Input geometric and field data e.g. vtk format]-->B(Mesh Preprocessing)
