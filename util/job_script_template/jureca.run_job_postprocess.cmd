@@ -8,5 +8,5 @@
 #SBATCH --mail-type=ALL
 #SBATCH --partition=<<job_type>>
 
-alyaenv
-srun -n <<computational_cores>> python main.py
+alyapostenv
+srun -n <<computational_cores>> python alya2csvensight_mpi.py

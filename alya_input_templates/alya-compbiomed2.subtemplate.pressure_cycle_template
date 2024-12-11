@@ -1,9 +1,9 @@
       CYCLE = <<cycle_idx>>
         FOR_CAVITY = <<cavity_idx>>
-        TZERO = <<prestress_t>>   $ Duration of the prescribe pre-stress
-        PSTR0 = <<prestress_p>> $ Prescribed pre-stress
         TPSTR = <<diastasis_t>>   $ Duration to reach balanaced diastasis
+        PSTR0 = <<prestress_p>> $ Prescribed pre-stress
         PZERO = <<diastasis_p>> $ Pressure at diastasis
+        TZERO = <<prestress_t>>   $ Duration of the prescribe pre-stress
         GAINP = <<gain_error_prestress>> <<gain_derror_prestress>> $ Gain for error and derror for pre-stress
         TENDD = <<end_diastole_t>>   $ Time to reach ED
         PENDD = <<end_diastole_p>> $ ED pressure
@@ -14,4 +14,6 @@
         GAINR = <<gain_error_relaxation>> <<gain_derror_relaxation>>  $ Gain at error and derror for IVR
         PPOST = <<filling_pressure_threshold>> $ Pressure at which to stop IVR
         PERIO = <<cycle_length>> $ Cycle length
+        NEVOLVE_AOP
+        FILL_GAIN
       END_CYCLE

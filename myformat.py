@@ -1,9 +1,12 @@
 import os
 import numpy as np
+import pymp, multiprocessing
+import pandas as pd
+
 
 
 class Geometry:
-    def __init__(self, name, verbose):
+    def __init__(self, name, max_cores_used, verbose):
         # Geometry initialisations
         self.name = name
         self.number_of_nodes = 0
@@ -18,11 +21,17 @@ class Geometry:
         self.rv_endocardium = 2
         self.epicardium = 1
         self.valve_plug = 4
+        self.ra_endocardium = 5
+        self.la_endocardium = 6
         self.lv = -1
         self.rv = 1
         self.base = 1
         self.apex = 0
+        self.tm_endo = 0
+        self.tm_epi = 1
+        self.pericardial_ab_extent = 0.75
         self.verbose = verbose
+        self.max_cores_used = max_cores_used
 
     def save_to_csv(self, output_dir):
         if output_dir[-1] != '/':
@@ -42,26 +51,39 @@ class Geometry:
     def read_csv_to_attributes(self, input_dir):
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
+        print(input_dir + self.name + '_xyz.csv')
         if os.path.exists(input_dir + self.name + '_xyz.csv'):
+            if self.verbose:
+                print('Reading in ' + input_dir + self.name + '_xyz.csv')
             self.nodes_xyz = load_txt(filename=input_dir + self.name + '_xyz.csv')
+            if self.verbose:
+                print('Reading in ' + input_dir + self.name + '_tetra.csv')
             self.tetrahedrons = load_txt(filename=input_dir + self.name + '_tetra.csv').astype(int)
             if np.amin(self.tetrahedrons == 1):
                 self.tetrahedrons = self.tetrahedrons - 1
             self.number_of_elements = self.tetrahedrons.shape[0]
             self.number_of_nodes = self.nodes_xyz.shape[0]
-            self.triangles = load_txt(filename=input_dir + self.name + '_triangles.csv')
-            self.number_of_triangles = self.triangles.shape[0]
-            self.tetrahedron_centres = load_txt(filename=input_dir + self.name + '_tetrahedron_centres.csv')
-            self.edges = load_txt(filename=input_dir + self.name + '_edges.csv')
+            if os.path.exists(input_dir + self.name + '_triangles.csv'):
+                if self.verbose:
+                    print('Reading in ' + input_dir + self.name + '_triangles.csv')
+                self.triangles = load_txt(filename=input_dir + self.name + '_triangles.csv')
+                self.number_of_triangles = self.triangles.shape[0]
+            if os.path.exists(input_dir + self.name + '_tetrahedron_centers.csv'):
+                if self.verbose:
+                    print('Reading in ' + input_dir + self.name + '_tetrahedron_centers.csv')
+                    print('Reading in ' + input_dir + self.name + '_edges.csv')
+                self.tetrahedron_centres = load_txt(filename=input_dir + self.name + '_tetrahedron_centers.csv')
+                self.edges = load_txt(filename=input_dir + self.name + '_edges.csv')
 
 
 class Fields:
-    def __init__(self, name, field_type, verbose):
+    def __init__(self, name, field_type, max_cores_used, verbose):
         self.name = name
         self.field_type = field_type
         self.dict = {}  # Placeholder.
         self.number_of_fields = len(self.dict)
         self.verbose = verbose
+        self.max_cores_used = max_cores_used
 
     def add_field(self, data, data_name, field_type):
         assert field_type == self.field_type, 'Input field type: ' + field_type + 'does not matching existing field ' \
@@ -78,59 +100,101 @@ class Fields:
             save_txt(filename=output_dir + self.name + '_' + self.field_type + '_' + varname + '.csv',
                      var=self.dict[varname])
 
-    def save_to_ensight(self, output_dir, casename, geometry):
+    def save_to_ensight(self, output_dir, casename, geometry, fieldname=None, fieldtype=None):
         if output_dir[-1] != '/':
             output_dir = output_dir + '/'
         if not os.path.exists(output_dir + geometry.name + '.ensi.geo'):
-            save_ensight_geometry(directory=output_dir, name=self.name, nodes_xyz=geometry.nodes_xyz,
+            save_ensight_geometry(directory=output_dir, name=geometry.name, nodes_xyz=geometry.nodes_xyz,
                                   tetrahedrons=geometry.tetrahedrons)
         list_fields = list(self.dict.keys())
+        self.number_of_fields = len(list_fields)
         field_dimensions = []
         list_fields_output = []
-        for field_i in range(self.number_of_fields):
-            varname = list_fields[field_i]
-            if self.field_type == 'nodefield':
+        if fieldname and fieldtype:
+            varname = fieldname
+            if fieldtype == 'nodefield' or fieldtype == 'boundarynodefield' or \
+                    fieldtype == 'postnodefield':
                 if self.dict[varname].shape[0] == geometry.number_of_nodes:
-                    save_ensight_node(directory=output_dir, name=self.name, field_name=varname, var=self.dict[varname])
+                    save_ensight_node(directory=output_dir, name=geometry.name, field_name=varname, var=self.dict[varname])
                     list_fields_output.append(varname)
                     if len(self.dict[varname].shape) == 1:
                         field_dimensions.append(1)
-                    else:
+                    elif self.dict[varname].shape[1] < 10:
                         field_dimensions.append(self.dict[varname].shape[1])
-            elif self.field_type == 'elementfield' or self.field_type == 'material':
+            elif fieldtype == 'elementfield' or fieldtype == 'material' or \
+                    fieldtype == 'boundaryelementfield' or fieldtype == 'postelementfield':
                 if self.dict[varname].shape[0] == geometry.number_of_elements:
-                    save_ensight_element(directory=output_dir, name=self.name, field_name=varname,
+                    save_ensight_element(directory=output_dir, name=geometry.name, field_name=varname,
                                          var=self.dict[varname])
                     list_fields_output.append(varname)
                     if len(self.dict[varname].shape) == 1:
                         field_dimensions.append(1)
-                    else:
+                    elif self.dict[varname].shape[1] < 10:
                         field_dimensions.append(self.dict[varname].shape[1])
-        save_ensight_case(directory=output_dir, name=casename, geometry_name=geometry.name,
-                          field_names=list_fields_output,
-                          field_dimensions=field_dimensions, field_type=self.field_type)
+            save_ensight_case(directory=output_dir, name=casename, geometry_name=geometry.name,
+                              field_names=[fieldname],
+                              field_dimensions=field_dimensions, field_type=fieldtype)
+        else:
+            for field_i in range(self.number_of_fields):
+                varname = list_fields[field_i]
+                if self.field_type == 'nodefield' or self.field_type == 'boundarynodefield' or \
+                        self.field_type == 'postnodefield':
+                    if self.dict[varname].shape[0] == geometry.number_of_nodes:
+                        save_ensight_node(directory=output_dir, name=geometry.name, field_name=varname, var=self.dict[varname])
+                        list_fields_output.append(varname)
+                        if len(self.dict[varname].shape) == 1:
+                            field_dimensions.append(1)
+                        elif self.dict[varname].shape[1] < 10:
+                            field_dimensions.append(self.dict[varname].shape[1])
+                elif self.field_type == 'elementfield' or self.field_type == 'material' or \
+                        self.field_type == 'boundaryelementfield' or self.field_type == 'postelementfield':
+                    if self.dict[varname].shape[0] == geometry.number_of_elements:
+                        save_ensight_element(directory=output_dir, name=geometry.name, field_name=varname,
+                                             var=self.dict[varname])
+                        list_fields_output.append(varname)
+                        if len(self.dict[varname].shape) == 1:
+                            field_dimensions.append(1)
+                        elif self.dict[varname].shape[1] < 10:
+                            field_dimensions.append(self.dict[varname].shape[1])
+            save_ensight_case(directory=output_dir, name=casename, geometry_name=geometry.name,
+                              field_names=list_fields_output,
+                              field_dimensions=field_dimensions, field_type=self.field_type)
 
     def read_csv_to_attributes(self, input_dir, field_type):
         if input_dir[-1] != '/':
             input_dir = input_dir + '/'
         filenames = np.array([f for f in os.listdir(input_dir) if
                               os.path.isfile(os.path.join(input_dir, f)) and '_' + field_type + '_' in f])
-        for file_i in range(filenames.shape[0]):
-            if self.verbose:
-                print('Reading in ' + input_dir + filenames[file_i])
-            varname = get_varname(filename=filenames[file_i], key=field_type)
-            self.dict[varname] = load_txt(filename=input_dir + filenames[file_i])
+        if filenames.shape[0] > 0:
+            threadsNum = np.amin((multiprocessing.cpu_count(), self.max_cores_used))
+            self.dict = multiprocessing.Manager().dict()
+            # with pymp.Parallel(min(threadsNum, filenames.shape[0])) as p1:
+            #     for file_i in p1.range(filenames.shape[0]):
+            if True:
+                for file_i in range(filenames.shape[0]):
+                    if self.verbose:
+                        print('Reading in ' + input_dir + filenames[file_i])
+                    varname = get_varname(filename=filenames[file_i], key=field_type)
+                    self.dict[varname] = load_txt(filename=input_dir + filenames[file_i])
+            # self.dict = temporary_dict
         self.number_of_fields = len(self.dict)
 
 
 def save_txt(filename, var):
     if var is not None:
-        np.savetxt(filename, var, delimiter=',')
+        print('Saving to : ', filename)
+        if len(var.shape) <= 2: # np.savetxt can only handle 1D and 2D arrays
+            np.savetxt(filename, var, delimiter=',')
+        else:
+            print ('WARNING, save text can only handle 1D and 2D arrays, ', filename, ' not saved.')
 
 
 def load_txt(filename):
     if os.path.exists(filename):
-        return np.loadtxt(filename, delimiter=',')
+        data = pd.read_csv(filename, delimiter=',', header=None).values
+        if data.shape[1] == 1:
+            data = data.transpose()[0]
+        return data
     else:
         return None
 
@@ -204,12 +268,14 @@ def save_ensight_case(directory, name, geometry_name, field_names, field_dimensi
         for field_i in range(len(field_names)):
             field_name = field_names[field_i]
             field_dimension = field_dimensions[field_i]
-            if field_type == 'nodefield':
+            if field_type == 'nodefield' or field_type == 'boundarynodefield' or field_type == 'postnodefield':
                 ensight_field_type = 'node'
-            elif field_type == 'elementfield':
+            elif field_type == 'elementfield' or field_type == 'boundaryelementfield' or field_type == 'postelementfield':
                 ensight_field_type = 'element'
             elif field_type == 'material':
                 ensight_field_type = 'element'
+            else:
+                raise ValueError('Field type '+ field_type + ' not found. ')
             if field_dimension == 1:
                 f.write(
                     'scalar per ' + ensight_field_type + ':\t' + str(

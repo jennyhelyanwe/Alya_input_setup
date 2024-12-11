@@ -1,0 +1,8 @@
+{"ejection_pressure_threshold_lv": [70000, 90000],
+  "Kct_myocardium": [400000.0, 1000000.0],
+  "cal50_myocardium": [0.5, 0.7],
+  "arterial_resistance_lv": [150, 300],
+  "arterial_compliance_lv": [0.0001, 0.001],
+  "gain_error_relaxation_lv":  [0.005, 0.05],
+  "sfkws_myocardium": [2, 5]
+}

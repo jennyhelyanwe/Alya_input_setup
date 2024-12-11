@@ -1,0 +1,17 @@
+Import mesh, select point clouds as *.txt, SPACE delimiter 
+
+Filter -> Point Set -> Point Cloud Simplification 
+Around 5000 points should do it.
+
+Filter -> Point Set -> Compute normals for point sets 
+
+Filter -> Remeshing, Simplification and Reconstruction -> Surface Reconstruction: Ball Pivoting 
+
+Increase the world unit for the Ball until the mesh is watertight 
+
+Save the new layer
+
+Filter ->  Remeshing, Simplification and Reconstruction ->  Remeshing: Isotropic Explicit Remeshing 
+
+Leave everything as default. This will now remesh the whole surface to the most common resolution. 
+

@@ -2,7 +2,7 @@ from myformat import *
 
 
 class MeshStructure:
-    def __init__(self, name, geometric_data_dir, verbose):
+    def __init__(self, name, geometric_data_dir, max_cores_used, verbose):
         if geometric_data_dir[-1] != '/':
             geometric_data_dir = geometric_data_dir + '/'
         if not os.path.exists(geometric_data_dir + 'ensight/'):
@@ -10,25 +10,33 @@ class MeshStructure:
         print('Reading in mesh structure ' + name + ' from ' + geometric_data_dir)
         self.geometric_data_dir = geometric_data_dir
         self.name = name
-        self.geometry = Geometry(self.name, verbose=verbose)
-        self.node_fields = Fields(self.name, field_type='nodefield', verbose=verbose)
-        self.boundary_node_fields = Fields(self.name, field_type='nodefield', verbose=verbose)
-        self.element_fields = Fields(self.name, field_type='elementfield', verbose=verbose)
-        self.boundary_element_fields = Fields(self.name, field_type='elementfield', verbose=verbose)
-        self.materials = Fields(self.name, field_type='material', verbose=verbose)
+        self.geometry = Geometry(self.name, max_cores_used=max_cores_used, verbose=verbose)
+        self.node_fields = Fields(self.name, field_type='nodefield', max_cores_used=max_cores_used, verbose=verbose)
+        self.boundary_node_fields = Fields(self.name, field_type='boundarynodefield', max_cores_used=max_cores_used,verbose=verbose)
+        self.element_fields = Fields(self.name, field_type='elementfield', max_cores_used=max_cores_used,verbose=verbose)
+        self.boundary_element_fields = Fields(self.name, field_type='boundaryelementfield', max_cores_used=max_cores_used,verbose=verbose)
+        self.materials = Fields(self.name, field_type='material', max_cores_used=max_cores_used, verbose=verbose)
         # Read in existing fields
         self.geometry.read_csv_to_attributes(self.geometric_data_dir)
         self.node_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='nodefield')
-        self.node_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='nodefield')
         self.element_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='elementfield')
-        self.element_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='elementfield')
-        self.boundary_node_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='nodefield')
-        self.boundary_element_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='elementfield')
+        self.boundary_node_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='boundarynodefield')
+        self.boundary_element_fields.read_csv_to_attributes(self.geometric_data_dir, field_type='boundaryelementfield')
         self.materials.read_csv_to_attributes(self.geometric_data_dir, field_type='material')
+        self.max_cores_used = max_cores_used
+        if (np.amin(self.geometry.tetrahedrons)) == 1:
+            self.geometry.tetrahedrons = self.geometry.tetrahedrons - 1
+        if not hasattr(self.geometry, 'tetrahedron_centres'):
+            self.geometry.tetrahedron_centres = (self.geometry.nodes_xyz[self.geometry.tetrahedrons[:, 0], :] +
+                                                 self.geometry.nodes_xyz[self.geometry.tetrahedrons[:, 1], :] +
+                                                 self.geometry.nodes_xyz[self.geometry.tetrahedrons[:, 2], :] +
+                                                 self.geometry.nodes_xyz[self.geometry.tetrahedrons[:, 3], :]) / 4.
+        print('done reading mesh structure. ')
 
 
     def save(self):
         # Save to CSV
+        print('Saving geometry and fields to CSV')
         self.geometry.save_to_csv(self.geometric_data_dir)
         self.node_fields.save_to_csv(self.geometric_data_dir)
         self.element_fields.save_to_csv(self.geometric_data_dir)
@@ -36,6 +44,7 @@ class MeshStructure:
         self.boundary_node_fields.save_to_csv(self.geometric_data_dir)
         self.boundary_element_fields.save_to_csv(self.geometric_data_dir)
         # Save to ensight
+        print('Saving geometry and fields to Ensight')
         self.geometry.save_to_ensight(self.geometric_data_dir + 'ensight/')
         self.node_fields.save_to_ensight(output_dir=self.geometric_data_dir + 'ensight/',
                                          casename=self.name + '_nodefield', geometry=self.geometry)
