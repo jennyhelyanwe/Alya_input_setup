@@ -24,8 +24,11 @@ class AlyaFormat(MeshStructure):
         self.verbose = verbose
         self.name = name
 
-    def do(self, simulation_json_file, SA_flag=False, drug_flag=False, best_match_biomarker_file='', baseline_dir=''):
-        self.output_dir = self.simulation_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + self.name + '/'
+    def do(self, simulation_json_file, SA_flag=False, drug_flag=False, best_match_biomarker_file='', baseline_dir='', output_dir=None):
+        if output_dir:
+            self.output_dir = output_dir
+        else:
+            self.output_dir = self.simulation_dir + simulation_json_file.split('/')[-1].split('.')[0] + '_' + self.name + '/'
         print('Alya version: ' + self.version + ', simulation name: ', self.name, ' to: ', self.output_dir)
         if not os.path.exists(self.output_dir):
             os.mkdir(self.output_dir)
@@ -237,7 +240,7 @@ class AlyaFormat(MeshStructure):
 
     def write_alya_simulation_files(self):
         self.write_dat()
-        # self.write_dom_dat()
+        self.write_dom_dat()
         if 'EXMEDI' in self.simulation_dict['physics']:
             self.write_exm_dat()
             self.write_cell_txt()
