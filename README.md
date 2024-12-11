@@ -18,6 +18,23 @@ graph TD;
     J[Parameters set json file] -->G;
     K(Sampling methods)-->J;
     G --> L[Alya simulation files];
+    L --> M(Submit multiple jobs to queue);
+    N(Live monitoring scripts) --> M;
+    M --> O(Postprocessing);
+    O --> P[ECG biomarkers];
+    O --> Q[Pressure volume biomarkers];
+    O --> R[Displacement biomarkers];
+    O --> S[Strain biomarkers];
+    P --> T(Sensitivity analyses);
+    Q --> T;
+    R --> T;
+    S --> T;
+    P --> V(Evaluation);
+    Q --> V;
+    R --> V;
+    S --> V;
+    U[Healthy biomarker ranges] --> V;
+    
 ```
 
 
