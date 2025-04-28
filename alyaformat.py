@@ -485,6 +485,32 @@ class AlyaFormat(MeshStructure):
         else:
             raise ValueError('Please read in geometry information first before writing .dom.dat file. ')
 
+    def write_endocardial_activation_times(self):
+        varname = 'endocardial-activation-times'
+        if varname in self.boundary_node_fields.dict.keys():
+            print('Writing out ', varname,
+                  'as ' + self.output_dir + self.simulation_dict['name'] + '.' + varname)
+            field_idx = self.boundary_node_fields.dict['endocardial-nodes'].astype(int) + 1
+            meta_idx_sort = np.argsort(field_idx)
+            field_idx = field_idx[meta_idx_sort]
+            lat_scaling = float(self.simulation_dict['endocardial-activation-time-scaling'])
+            print(lat_scaling)
+            activation_times = self.boundary_node_fields.dict[varname][meta_idx_sort] * lat_scaling
+            if 'SOLIDZ' in self.simulation_dict['physics']:
+                field = activation_times * 0.001 + self.simulation_dict['end_diastole_t'][
+                    0] - 0.02  # Convert to seconds for Alya
+            else:
+                field = activation_times * 0.001
+            filename = self.output_dir + self.simulation_dict['name'] + '.' + varname
+            with open(filename, 'w') as f:
+                for i in range(len(field_idx)):
+                    f.write(str(field_idx[i]))
+                    f.write('\t' + str(self.simulation_dict['stimulus_amplitude']) + '\t'
+                            + str(field[i]) + '\t' + str(self.simulation_dict['stimulus_duration']) + '\t'
+                            + str(int(self.simulation_dict['number_of_cycles'])) + '\t'
+                            + str(self.simulation_dict['cycle_length']) + '\n')
+
+
     def write_exm_dat(self):
         if self.version == 'alya-compbiomed2':
             filename = self.template_dir + self.version + '.exm.dat'

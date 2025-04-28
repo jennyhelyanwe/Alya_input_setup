@@ -64,7 +64,7 @@ class HealthyBiomarkerRanges:
                                 'hypertension_dvdt_ejection': [222, 430], # mL/s, +- std, ejection rate from echo for HTN patients https://www.sciencedirect.com/science/article/pii/S0894731702744702#fig2
                                 'hypertension_dvdt_filling': [109, 327], # mL/s, +- std, filling rate from echo for HTN patients https://www.sciencedirect.com/science/article/pii/S0894731702744702#fig2
                                 'dpdt_max_mmHg': [895, 1347], # mmHg/s, +- std, invasively measured in patients after CRT application. https://academic.oup.com/europace/article/13/7/984/446139
-                                'dpdt_max': [900000, 2100000], # Barye/s, converted from measurement https://academic.oup.com/europace/article/13/7/984/446139
+                                'dpdt_max': [90, 210], # kPa/s, converted from measurement https://academic.oup.com/europace/article/13/7/984/446139
                                 'edpvr_a_klotz': [28.2], # mmHg/mL, https://journals.physiology.org/doi/full/10.1152/ajpheart.01240.2005
                                 'edpvr_b_klotz' : [2.79], # dimensionless, https://journals.physiology.org/doi/full/10.1152/ajpheart.01240.2005
                                 'edpvr_v_intercept': [0, 0],

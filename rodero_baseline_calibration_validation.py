@@ -437,14 +437,14 @@ if visualise_calibration_result:
                         alya_output_dir=alya_output_dir, protocol='raw', max_cores_used=max_cores_used,
                         verbose=verbose)
     beat = 1
-    pp.evaluate_strain_biomarkers(beat=beat)
-    pp.evaluate_fibre_work_biomarkers(beat=beat)
-    pp.visualise_calibration_comparisons_strain()
-    # pp.read_ecg_pv()
+    # pp.evaluate_strain_biomarkers(beat=beat)
+    # pp.evaluate_fibre_work_biomarkers(beat=beat)
+    # pp.visualise_calibration_comparisons_strain()
+    pp.read_ecg_pv()
     # pp.evaluate_deformation_biomarkers(beat=beat)
-    # pp.visualise_calibration_comparisons_global(beat=beat,
-    #                                             save_filename=simulation_dir + '/calibration_result.png',
-    #                                             show=True)
+    pp.visualise_calibration_comparisons_global(beat=beat,
+                                                save_filename=simulation_dir + '/calibration_result.png',
+                                                show=True)
 
 ########################################################################################################################
 # Step 6: Validation experiments - volume perturbation
@@ -455,8 +455,8 @@ simulation_json_file = baseline_json_file
 simulation_dict = json.load(open(simulation_json_file, 'r'))
 perturbed_parameters_name = np.array(['end_diastole_p_lv'])
 baseline_parameter_values = np.array([simulation_dict['end_diastole_p'][0]])
-upper_bounds = baseline_parameter_values * 2.0
-lower_bounds = baseline_parameter_values * 0.2
+upper_bounds = baseline_parameter_values * 5.0
+lower_bounds = baseline_parameter_values * 0.5
 baseline_dir = calibrated_simulation_dir
 simulation_dir = simulation_root_dir + validation_folder_name + '/'
 experiment = SAUQ(name='sa', sampling_method='uniform', n=16, parameter_names=perturbed_parameters_name,

@@ -1236,10 +1236,36 @@ class PostProcessing(MeshStructure):
                                       float(self.simulation_dict['cycle_length'])])
         rt[self.node_fields.dict['tv'] == -10] = np.nan
         lat[self.node_fields.dict['tv'] == -10] = np.nan
-        print('Max LAT: ', str(np.nanmax(lat)))
-        print('Max RT: ', str(np.nanmax(rt)))
         self.post_nodefield.add_field(data=lat, data_name='lat', field_type='postnodefield')
         self.post_nodefield.add_field(data=rt, data_name='rt', field_type='postnodefield')
+        print('Max LAT: ', str(np.nanmax(lat)))
+        print('Max RT: ', str(np.nanmax(rt)))
+
+        # Wall thickness
+        print('Evaluating transmural CV')
+        lv_nodes = np.nonzero((self.node_fields.dict['tv'] == self.geometry.lv)
+                              & (self.node_fields.dict['rvlv'] > 0.2))[0]  # Exclude also the septum from this.
+        rv_nodes = np.nonzero(self.node_fields.dict['tv'] == self.geometry.rv)[0]
+        lv_endo_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.tm_endo)[0]]
+        lv_epi_nodes = lv_nodes[np.nonzero(self.node_fields.dict['tm'][lv_nodes] == self.geometry.tm_epi)[0]]
+        rv_endo_nodes = rv_nodes[np.nonzero(self.node_fields.dict['tm'][rv_nodes] == self.geometry.tm_endo)[0]]
+        rv_epi_nodes = rv_nodes[np.nonzero(self.node_fields.dict['tm'][rv_nodes] == self.geometry.tm_epi)[0]]
+        lv_mapped_epi_nodes = lv_epi_nodes[mapIndices(points_to_map_xyz=self.geometry.nodes_xyz[lv_endo_nodes, :],
+                                                      reference_points_xyz=self.geometry.nodes_xyz[lv_epi_nodes, :])]
+        rv_mapped_epi_nodes = rv_epi_nodes[mapIndices(points_to_map_xyz=self.geometry.nodes_xyz[rv_endo_nodes, :],
+                                                      reference_points_xyz=self.geometry.nodes_xyz[rv_epi_nodes, :])]
+        lat_transmural_diff = lat[lv_mapped_epi_nodes, :] - lat[lv_endo_nodes, :]
+        rt_transmural_diff = rt[lv_mapped_epi_nodes, :] - rt[lv_endo_nodes, :]
+        mean_lat_transmural_diff = np.nanmean(lat_transmural_diff)
+        mean_rt_transmural_diff = np.nanmean(rt_transmural_diff)
+        # Get transmural activation and repolarisation delay
+        qoi = {}
+        qoi['max_lat'] = np.nanmax(lat)
+        qoi['max_rt'] = np.nanmax(rt)
+        qoi['mean_lat_transmural_diff'] = mean_lat_transmural_diff
+        qoi['mean_rt_transmural_diff'] = mean_rt_transmural_diff
+        self.qoi.update(qoi)
+
 
     def evaluate_ventricular_cvs(self):
         print('Evaluating mean transmural conduction velocity')
@@ -1923,28 +1949,28 @@ class PostProcessing(MeshStructure):
             ax_vt.set_ylim(self.healthy_ranges['ESVL'][0], self.healthy_ranges['EDVL'][1])
             ax_vt.set_xlim(0, 1)
 
-        # Displacements
-        # avpd = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['avpd'])
-        apical_displacement = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'],
-                                         self.deformation_transients['apical_displacement'])
-        ax_avpd.plot(self.deformation_transients['deformation_t'], self.deformation_transients['avpd'], label='AVPD',
-                     color='C0')
-        # ax_avpd.plot(self.deformation_transients['deformation_t'], apical_displacement, label='Apex displacement', color='C0')
-        ax_avpd.axhspan(np.amax(self.deformation_transients['avpd'])-self.healthy_ranges['es_ed_avpd'][0],np.amax(self.deformation_transients['avpd'])-self.healthy_ranges['es_ed_avpd'][1], alpha=0.3, color='C0')
-        # ax_avpd.axhspan(self.healthy_ranges['apical_displacement'][0],
-        #                 self.healthy_ranges['apical_displacement'][1], alpha=0.3,
-        #                 color='C0')
-
-        # thickness = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['lv_wall_thickness'])
-        ax_thickness.plot(self.deformation_transients['deformation_t'], self.deformation_transients['lv_wall_thickness'], label='AVPD',
-                     color='C0')
-        ax_thickness.axhspan(self.healthy_ranges['ED_wall_thickness'][0], self.healthy_ranges['ED_wall_thickness'][1],
-                             alpha=0.3, color='green')
-        ax_thickness.axhspan(self.healthy_ranges['ES_wall_thickness'][0], self.healthy_ranges['ES_wall_thickness'][1],
-                             alpha=0.3, color='green')
-        # volume = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['volume'])
-        ax_volume.plot(self.deformation_transients['deformation_t'], self.deformation_transients['volume'], label='Volume', color='C0')
-        ax_volume.axhline(y=0.87 * np.amax(self.deformation_transients['volume']), color='green', alpha=0.3) # 13% systolic change in myocardial volume.
+        # # Displacements
+        # # avpd = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['avpd'])
+        # apical_displacement = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'],
+        #                                  self.deformation_transients['apical_displacement'])
+        # ax_avpd.plot(self.deformation_transients['deformation_t'], self.deformation_transients['avpd'], label='AVPD',
+        #              color='C0')
+        # # ax_avpd.plot(self.deformation_transients['deformation_t'], apical_displacement, label='Apex displacement', color='C0')
+        # ax_avpd.axhspan(np.amax(self.deformation_transients['avpd'])-self.healthy_ranges['es_ed_avpd'][0],np.amax(self.deformation_transients['avpd'])-self.healthy_ranges['es_ed_avpd'][1], alpha=0.3, color='C0')
+        # # ax_avpd.axhspan(self.healthy_ranges['apical_displacement'][0],
+        # #                 self.healthy_ranges['apical_displacement'][1], alpha=0.3,
+        # #                 color='C0')
+        #
+        # # thickness = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['lv_wall_thickness'])
+        # ax_thickness.plot(self.deformation_transients['deformation_t'], self.deformation_transients['lv_wall_thickness'], label='AVPD',
+        #              color='C0')
+        # ax_thickness.axhspan(self.healthy_ranges['ED_wall_thickness'][0], self.healthy_ranges['ED_wall_thickness'][1],
+        #                      alpha=0.3, color='green')
+        # ax_thickness.axhspan(self.healthy_ranges['ES_wall_thickness'][0], self.healthy_ranges['ES_wall_thickness'][1],
+        #                      alpha=0.3, color='green')
+        # # volume = self.shift_to_start_at_ED(self.deformation_transients['deformation_t'], self.deformation_transients['volume'])
+        # ax_volume.plot(self.deformation_transients['deformation_t'], self.deformation_transients['volume'], label='Volume', color='C0')
+        # ax_volume.axhline(y=0.87 * np.amax(self.deformation_transients['volume']), color='green', alpha=0.3) # 13% systolic change in myocardial volume.
 
         # # strain_transients
         # ell_median = self.shift_to_start_at_ED(self.strain_transients['strain_t'], self.strain_transients['four_chamber_E_ll_median'])

@@ -144,6 +144,10 @@ class SAUQ:
             self.alya_format.simulation_dir = self.simulation_dir
             self.alya_format.do(simulation_json_file=self.simulation_dir+self.name + '_' + str(sample_i) + '.json',
                                 SA_flag=True, baseline_dir=self.baseline_dir)
+            if 'endocardial-activation-time-scaling' in self.parameter_names:
+                print('Writing endocardial activation times afresh')
+                self.alya_format.simulation_dict['endocardial-activation-time-scaling'] = sample_simulation_dict['endocardial-activation-time-scaling']
+                self.alya_format.write_endocardial_activation_times()
             self.all_simulation_dirs.append(self.alya_format.output_dir)
         with open(self.simulation_dir+'/all_simulation_dirs.txt', 'w') as f:
             for i in range(len(self.all_simulation_dirs)):
@@ -279,6 +283,14 @@ class SAUQ:
                                       verbose=self.verbose)
                 post.evaluate_fibre_work_biomarkers(beat=beat)
                 post.save_qoi(filename=qoi_save_dir + 'fibrework_qoi_' + str(simulation_i) + '.csv')
+                postp_objects.append(post)
+            elif qoi_group_name == 'latrt':
+                post = PostProcessing(alya=alya, simulation_json_file=json_file,
+                                      alya_output_dir=alya_output_dir, protocol='postprocess',
+                                      max_cores_used=self.max_cores_used,
+                                      verbose=self.verbose)
+                post.evaluate_ep_maps(beat=beat)
+                post.save_qoi(filename=qoi_save_dir + 'latrt_qoi_' + str(simulation_i) + '.csv')
                 postp_objects.append(post)
             elif qoi_group_name == 'cube_deformation_ta':
                 post = PostProcessing(alya=alya, simulation_json_file=json_file,
@@ -474,7 +486,7 @@ class SAUQ:
 
 
     def visualise_sa(self, beat, ecg_post=None, pv_post=None, deformation_post=None,
-                     fibre_work_post=None, strain_post=None, cube_deformation_ta_post=None, volume_post=None,
+                     fibre_work_post=None, strain_post=None, cube_deformation_ta_post=None, volume_post=None, latrt_post=None,
                      labels=None, save_filename=None, show=False, highlight_max_lvef=False):
         if pv_post:
             fig = plt.figure(tight_layout=True, figsize=(18, 10))
@@ -526,6 +538,15 @@ class SAUQ:
             if labels:
                 fig2.legend(ax_pv.get_legend_handles_labels()[0], ax_pv.get_legend_handles_labels()[1])
                 fig2.savefig(save_filename + '_legend.png')
+            if show:
+                plt.show()
+            plt.close()
+
+        if latrt_post:
+            fig = plt.figure(tight_layout=True, figsize=(18, 10))
+            plt.plot(np.zeros(len(latrt_post)), latrt_post.mean_lat_transmural_diff, '*')
+            plt.plot(np.zeros(len(latrt_post)) + 1, latrt_post.mean_rt_transmural_diff, '*')
+            
             if show:
                 plt.show()
             plt.close()
