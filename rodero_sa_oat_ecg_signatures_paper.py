@@ -62,7 +62,7 @@ alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
 ########################################################################################################################
 # CHANGE THIS FOR DIFFERENT SAs!!!
 setup_simulations = False
-run_simulations = True
+run_simulations = False
 postprocess = False
 # Choose which groups of parameters to setup/run/evaluate
 passive_mechanics = False
@@ -73,7 +73,7 @@ conduction = True
 all_parameters_at_once = False
 
 # Choose which groups of QoI to evaluate
-evaluate_pv= False
+evaluate_pv= True
 evaluate_ecg = False
 evaluate_deformation = False
 evaluate_fibrework = False
