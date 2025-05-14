@@ -5,6 +5,9 @@ import pandas as pd
 import vtk
 from vtk.util import numpy_support as VN
 import pymp
+from matplotlib import pyplot as plt
+import numba
+from dijkstra import Dijkstra
 
 class FieldGeneration(MeshStructure):
     def __init__(self, name, geometric_data_dir, personalisation_data_dir, max_cores_used, verbose):
@@ -103,7 +106,6 @@ class FieldGeneration(MeshStructure):
         if save:
             self.save()
 
-
     def generate_short_long_axes_slices(self, save):
         num_slices = 3
         short_axis_slices = pymp.shared.array((self.geometry.number_of_nodes))
@@ -116,7 +118,7 @@ class FieldGeneration(MeshStructure):
         rt[:] = self.node_fields.dict['rt']
         tm[:] = self.node_fields.dict['tm']
         tv[:] = self.node_fields.dict['tv']
-        threadsNum = np.amin((multiprocessing.cpu_count(), max_cores_used))
+        threadsNum = np.amin((multiprocessing.cpu_count(), self.max_cores_used))
         with pymp.Parallel(min(threadsNum, self.geometry.number_of_nodes)) as p1:
             for node_i in p1.range(self.geometry.number_of_nodes):
                 if (ab[node_i] > 0.27) & (ab[node_i] < 0.3) & (tv[node_i] == -1):
@@ -375,7 +377,6 @@ class FieldGeneration(MeshStructure):
         if save:
             self.save()
 
-
     def generate_infarct_borderzone(self):
         # Using UVC to define infarct and border zone geometry.
         # Evaluate ab, rt, and tm at tetrahedron centres
@@ -436,6 +437,155 @@ class FieldGeneration(MeshStructure):
         # bz_a = bz_ab_range[1] - bz_ab_centre
         # bz_b = bz_rt_range[1] - bz_rt_centre
         # Define centres and ranges for ab and rt coordinates
+
+    def generate_infarct_borderzone_Wallman(self, visualise=False):
+        print('Generating infarct and borderzone using Wallman code...')
+        dijkstra = Dijkstra()
+        # Re-implementation of MATLAB code from Wallman, based on algorithm as described in https://doi.org/10.1371/journal.pone.0149342 and
+        # https://ieeexplore.ieee.org/document/7043132) and selects elements as infarcted
+        # Select region for scar and BZ
+        # LAD:
+        scar_candidates = []
+        LAD_ab = 0.4
+        LAD_tm = 1
+        LAD_rt = 1.61
+        LAD_tv = -1 # LV
+        TOL = 0.01
+        lv_select = np.where((self.node_fields.dict['tv'] == LAD_tv))[0]
+        ab_select = lv_select[np.where(abs(self.node_fields.dict['ab'][lv_select] - LAD_ab) < TOL)[0]]
+        tm_select = ab_select[np.where((self.node_fields.dict['tm'][ab_select] == LAD_tm))[0]]
+        rt_select = tm_select[np.where(abs(self.node_fields.dict['rt'][tm_select] - LAD_rt) < TOL)[0]]
+        scar_candidates.append(rt_select[0])
+
+        LAD_ab = 0.6
+        LAD_tm = 1
+        LAD_rt = 1.61
+        LAD_tv = -1  # LV
+        TOL = 0.01
+        lv_select = np.where((self.node_fields.dict['tv'] == LAD_tv))[0]
+        ab_select = lv_select[np.where(abs(self.node_fields.dict['ab'][lv_select] - LAD_ab) < TOL)[0]]
+        tm_select = ab_select[np.where((self.node_fields.dict['tm'][ab_select] == LAD_tm))[0]]
+        rt_select = tm_select[np.where(abs(self.node_fields.dict['rt'][tm_select] - LAD_rt) < TOL)[0]]
+        scar_candidates.append(rt_select[0])
+
+        LAD_ab = 0.4
+        LAD_tm = 1
+        LAD_rt = 1.05
+        LAD_tv = -1  # LV
+        TOL = 0.01
+        lv_select = np.where((self.node_fields.dict['tv'] == LAD_tv))[0]
+        ab_select = lv_select[np.where(abs(self.node_fields.dict['ab'][lv_select] - LAD_ab) < TOL)[0]]
+        tm_select = ab_select[np.where((self.node_fields.dict['tm'][ab_select] == LAD_tm))[0]]
+        rt_select = tm_select[np.where(abs(self.node_fields.dict['rt'][tm_select] - LAD_rt) < TOL)[0]]
+        scar_candidates.append(rt_select[0])
+        seed_times = len(scar_candidates) * [0]
+
+        LAD_ab = 0.5
+        LAD_tm = 1
+        LAD_rt = 1.08
+        LAD_tv = -1  # LV
+        TOL = 0.01
+        lv_select = np.where((self.node_fields.dict['tv'] == LAD_tv))[0]
+        ab_select = lv_select[np.where(abs(self.node_fields.dict['ab'][lv_select] - LAD_ab) < TOL)[0]]
+        tm_select = ab_select[np.where((self.node_fields.dict['tm'][ab_select] == LAD_tm))[0]]
+        rt_select = tm_select[np.where(abs(self.node_fields.dict['rt'][tm_select] - LAD_rt) < TOL)[0]]
+        scar_candidates.append(rt_select[0])
+
+        seed_times = len(scar_candidates) * [0]
+        print(scar_candidates)
+        # Generate core and border zones
+        print ('Generate scar region...')
+        long_axis = self.node_fields.dict['longitudinal-vector'].mean(axis=0)
+        long_axis = long_axis/np.linalg.norm(long_axis)
+        projection = np.matmul(self.geometry.nodes_xyz, long_axis)
+        heart_length = np.max(projection) - np.min(projection)
+        cutoff = (1.2 - self.node_fields.dict['ab']) * (heart_length) * 0.5
+        cutoff[np.where(self.node_fields.dict['ab'] == -10)[0]] = np.nan
+
+        approx_djikstra_max_path_len = 100
+        neighbour, nodes_xyz, unfoldedEdges, edgeVEC = dijkstra.prepare_for_dijkstra(edge=self.geometry.edges,
+                                                                                     node_xyz=self.geometry.nodes_xyz)
+        num_iterations = 2
+        for j in range(num_iterations):
+            distance = dijkstra.iso_eikonal(sub_node_coordinates=nodes_xyz, source_indexes=scar_candidates,
+                                       seed_times=seed_times, sub_edge_indexes=self.geometry.edges,
+                                       sub_edgeVEC=edgeVEC, sub_neighbour=neighbour, sub_unfoldedEdges=unfoldedEdges)
+        # distance = dijkstra.sorted_dijkstra(source_indexes=np.asarray(scar_candidates, dtype=int), seed_times=seed_times,
+        #                                   dijkstra_nodes_xyz=self.geometry.nodes_xyz,
+        #                                   dijkstra_unfoldedEdges=unfoldedEdges,
+        #                                   dijkstra_edgeVEC=edgeVEC,
+        #                                   dijkstra_neighbours=neighbour,
+        #                                   approx_dijkstra_max_path_len=approx_djikstra_max_path_len)
+        scar = np.where(distance < cutoff)[0]
+        expr = np.zeros(self.geometry.number_of_nodes)
+        expr[scar] = 1
+
+        print ('Generate core and border zones...')
+        core_ext_noise = 6
+        core_post_noise = 0
+        ncores = 250 # Dense scar cores
+        core = scar[np.random.uniform(0, len(scar), ncores).astype(int)]
+        seed_times = abs(np.random.normal(0, core_ext_noise, len(core)))
+        num_iterations = 2
+        for j in range(num_iterations):
+            core_d = dijkstra.iso_eikonal(sub_node_coordinates=nodes_xyz, source_indexes=np.asarray(core, dtype=int),
+                                         seed_times=seed_times, sub_edge_indexes=self.geometry.edge,
+                                         sub_edgeVEC=edgeVEC, sub_neighbour=neighbour, sub_unfoldedEdges=unfoldedEdges)
+        # core_d = dijkstra.sorted_dijkstra(source_indexes=np.asarray(core, dtype=int), seed_times=seed_times,
+        #                                   dijkstra_nodes_xyz=self.geometry.nodes_xyz,
+        #                                   dijkstra_unfoldedEdges=unfoldedEdges,
+        #                                   dijkstra_edgeVEC=edgeVEC,
+        #                                   dijkstra_neighbours=neighbour,
+        #                                   approx_dijkstra_max_path_len=approx_djikstra_max_path_len)
+        # core_d = core_d/np.amax(core_d) + np.random.normal(0, core_post_noise, np.shape(core_d)[1])
+        cz_threshold = 0.13
+        bz_threshold = 0.18
+        cz_nodes = np.where(core_d < cz_threshold)[0]
+        bz_nodes = np.where(core_d < bz_threshold)[0]
+        cz_bz_regions = np.zeros(self.geometry.number_of_nodes)
+        cz_bz_regions[cz_nodes] = 1
+        cz_bz_regions[bz_nodes] = 2
+        if visualise:
+            print('Visualising...')
+            def scatter_visualise(ax, xyz, field, title):
+                p = ax.scatter(xyz[:, 0], xyz[:, 1], xyz[:, 2], c=field, marker='o', s=1)
+                ax.set_title(title)
+                return p
+            node_downsample_skip = int(self.geometry.number_of_nodes / 10000.)
+            node_xyz = self.geometry.nodes_xyz[::node_downsample_skip, :]
+            d_downsample = distance[::node_downsample_skip]
+
+            fig = plt.figure(figsize=(16, 12))
+            ax1 = fig.add_subplot(131, projection='3d')
+            p = scatter_visualise(ax1, node_xyz,d_downsample,'Dijkstra solution')
+            ax1.scatter(self.geometry.nodes_xyz[scar_candidates, 0], self.geometry.nodes_xyz[scar_candidates, 1], self.geometry.nodes_xyz[scar_candidates, 2], marker='o', s=3, c='r')
+            # ax1.quiver(0,0,0, long_axis[0], long_axis[1], long_axis[2], length=1, color='r' )
+            # ax1.quiver(0, 0, 0, rvlv_axis[0], rvlv_axis[1], rvlv_axis[2], length=1, color='b')
+            # ax1.quiver(0, 0, 0, slanted_axis[0], slanted_axis[1], slanted_axis[2], length=1, color='m')
+            fig.colorbar(p)
+
+            ax2 = fig.add_subplot(132, projection='3d')
+            rvlv_downsample = self.node_fields.dict['rvlv'][::node_downsample_skip]
+            # slanted_coordinate_downsample = slanted_coordinate[::node_downsample_skip]
+            cutoff_downsample = cutoff[::node_downsample_skip]
+            p = scatter_visualise(ax2, node_xyz, cutoff_downsample, 'cutoff_downsample')
+            fig.colorbar(p)
+
+            ax3 = fig.add_subplot(133, projection='3d')
+            scar_region = expr[::node_downsample_skip]
+            cz_bz_region_downsample = cz_bz_regions[::node_downsample_skip]
+            p = scatter_visualise(ax3, node_xyz, cz_bz_region_downsample, 'Core and BZ delineation')
+            fig.colorbar(p)
+            plt.show()
+        quit()
+
+
+
+        # Save as new material fields.
+        materials = []
+        self.materials.add_field(data=materials, data_name='tetra_mi', field_type='material')
+        self.save()
+
 
 def evaluate_mesh_characteristics(geometry):
     unfolded_edges = np.concatenate((geometry.edges, np.flip(geometry.edges, axis=1))).astype(int)
@@ -572,3 +722,100 @@ def plug_fibres(geometry, element_fields, neighbours, ortho):
             ortho[sorted_plug_nodes[i] - 1, :] = new_fibres
             mask[sorted_plug_nodes[i] - 1] = 1
 
+
+
+
+def dijkstra_specify_seed_node_times(nodes_xyz, edge, navigation_costs, seed_nodes, seed_times):
+    # Adapted from Julia Camps' implementation of Dijkstra from https://github.com/juliacamps/Cardiac-Digital-Twin/blob/main/src/propagation_models.py
+    adjacent_cost = numba.typed.List()
+    unfolded_edge = np.concatenate((edge, np.flip(edge, axis=1))).astype(int)
+    aux = [[] for i in range(0, np.shape(nodes_xyz)[0], 1)]
+    for edge_i in range(0, len(unfolded_edge)):
+        aux[unfolded_edge[edge_i, 0]].append(unfolded_edge[edge_i, 1])
+    neighbours = [np.array(n) for n in aux]  # Node numbers starting 0
+    for i in range(0, nodes_xyz.shape[0], 1):
+        not_nan_neighbours = neighbours[i][neighbours[i] != np.nan]
+        adjacent_cost.append(np.concatenate((unfolded_edge[not_nan_neighbours][:, 1:2],
+                                             np.expand_dims(navigation_costs[not_nan_neighbours % edge.shape[0]], -1)), axis=1))
+    seed_nodes = np.array(seed_nodes).astype(np.int32)
+    seed_times = np.array(seed_times)
+    predicted_lat = np.zeros((nodes_xyz.shape[0],), np.float64)
+    visited_nodes = np.zeros((nodes_xyz.shape[0],), dtype=np.bool_)
+    temp_times = np.zeros((nodes_xyz.shape[0],), np.float64) + 1e6  # Initialise times to largely impossible values
+    temp_times[seed_nodes] = seed_times
+    time_sorting = np.array(np.argsort(seed_times))
+    seed_nodes = seed_nodes[time_sorting]
+    seed_times = seed_times[time_sorting]
+    cumm_cost = seed_times[0]
+    initial_root_nodes_indexes = seed_times <= cumm_cost
+    initial_rootNodes = seed_nodes[initial_root_nodes_indexes]
+    initial_rootActivationTimes = seed_times[initial_root_nodes_indexes]
+    later_rootNodes = seed_nodes[np.logical_not(initial_root_nodes_indexes)]
+    later_rootActivationTimes = seed_times[np.logical_not(initial_root_nodes_indexes)]
+    visited_nodes[initial_rootNodes] = True  # Not simultaneous activation anymore
+    predicted_lat[initial_rootNodes] = initial_rootActivationTimes  # Not simultaneous activation anymore
+    next_nodes = (np.vstack([adjacent_cost[initial_rootNodes[rootNode_i]]
+                             + np.array([0, initial_rootActivationTimes[rootNode_i]]) for rootNode_i in
+                             range(initial_rootNodes.shape[0])])).tolist()  # Not simultaneous activation anymore
+    for rootNode_i in range(later_rootNodes.shape[0]):
+        next_nodes.append(np.array([later_rootNodes[rootNode_i], later_rootActivationTimes[rootNode_i]]))
+    activeNode_i = seed_nodes[0]
+    sortSecond = lambda x: x[1]
+    next_nodes.sort(key=sortSecond, reverse=True)
+
+    while visited_nodes[activeNode_i]:
+        nextEdge = next_nodes.pop()
+        activeNode_i = int(nextEdge[0])
+    cumm_cost = nextEdge[1]
+    if next_nodes:  # Check if the list is empty, which can happen while everything being Ok
+        temp_times[(np.array(next_nodes)[:, 0]).astype(np.int32)] = np.array(next_nodes)[:,1]
+    def insert_sorted(aList, newV):
+        # Function to insert element
+        ini_index = 0
+        end_index = len(aList)
+        index = int((end_index - ini_index) / 2)
+        for i in range(0, len(aList), 1):
+            if newV[1] < aList[index][1]:
+                if end_index - ini_index <= 1 or index + 1 == end_index:
+                    index = index + 1
+                    break
+                else:
+                    ini_index = index + 1
+                    index = int(index + (end_index - ini_index) / 2 + 1)
+            elif newV[1] > aList[index][1]:
+                if end_index - ini_index <= 1 or index == ini_index:
+                    index = index  # Place before the current position
+                    break
+                else:
+                    end_index = index
+                    index = int(index - (end_index - ini_index) / 2)
+            else:
+                index = ini_index
+                break
+        aList.insert(index, newV)
+
+    ## Run the whole algorithm
+    for i in range(0, nodes_xyz.shape[0] - np.sum(visited_nodes), 1):
+        visited_nodes[activeNode_i] = True
+        predicted_lat[activeNode_i] = cumm_cost  # Instead of using cumCost, I could use the actual time cost for each node
+        adjacents = (adjacent_cost[activeNode_i] + np.array([0, cumm_cost])).tolist()  # Instead of using cumCost, I could use the actual time cost for each node
+        # If I use the actual costs, I only have to do it the first time and then it will just propagate, I will have to use decimals though, so no more uint type arrays.
+        for adjacent_i in range(0, len(adjacents), 1):
+            if (not visited_nodes[int(adjacents[adjacent_i][0])]
+                    and (temp_times[int(adjacents[adjacent_i][0])] >
+                         adjacents[adjacent_i][1])):
+                insert_sorted(next_nodes, adjacents[adjacent_i])
+                temp_times[int(adjacents[adjacent_i][0])] = adjacents[adjacent_i][1]
+        while visited_nodes[activeNode_i] and len(next_nodes) > 0:
+            nextEdge = next_nodes.pop()
+            activeNode_i = int(nextEdge[0])
+        cumm_cost = nextEdge[1]
+
+    # Clean Memory
+    adjacent_cost = None  # Clear Mem
+    visited_nodes = None  # Clear Mem
+    tempTimes = None  # Clear Mem
+    next_nodes = None  # Clear Mem
+    tempVisited = None  # Clear Mem
+    navigationCosts = None  # Clear Mem
+    return predicted_lat
