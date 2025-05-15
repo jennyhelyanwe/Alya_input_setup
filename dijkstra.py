@@ -95,8 +95,6 @@ class Dijkstra:
     def eikonal_part1(self, sub_node_coordinates, source_indexes, seed_times, sub_edge_indexes, sub_edgeVEC, sub_neighbour, sub_unfoldedEdges):
         root_node_indexes = source_indexes
         root_node_times = seed_times
-        # TODO REIMPLEMENT THE ABOVE SECTION USING FUNCTIONS FROM conduction_system.py
-
         ## ISOTROPIC REGIONS - without fibre orientation
         # Compute the cost of all endocardial edges
         navigation_costs = np.empty((sub_edge_indexes.shape[0]))
@@ -217,10 +215,6 @@ class Dijkstra:
                 navigationCosts[index] = math.sqrt(np.dot(dijkstra_edgeVEC[index, :], dijkstra_edgeVEC[index, :]))
 
             # Build adjacentcy costs
-            # TODO remove this:
-            # if True:
-            # for i in range(0, dijkstra_nodes_xyz.shape[0], 1):
-            #     print('dijkstra_neighbours ', dijkstra_neighbours)
             adjacentCost = [np.concatenate((dijkstra_unfoldedEdges[dijkstra_neighbours[i]][:, 1][:, np.newaxis],
                                             navigationCosts[dijkstra_neighbours[i] % navigationCosts.shape[0]][:,
                                             np.newaxis]), axis=1) for i in range(0, dijkstra_nodes_xyz.shape[0], 1)]
