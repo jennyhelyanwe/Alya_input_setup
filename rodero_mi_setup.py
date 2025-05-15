@@ -21,7 +21,7 @@ elif system == 'heart':
 geometric_data_dir = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_fine/'
 clinical_data_dir = meta_data_dir + 'clinical_data/'
 verbose = False
-
+max_cores_used = 10
 #######################################################################################################################
 # Step 1: Save input mesh into CSV format, as prescribed in myformat.py
 if system == 'heart':
@@ -49,7 +49,7 @@ personalisation_data_dir = meta_data_dir + 'results/personalisation_data/rodero_
 # Step 4: Generate fields for Alya simulation
 electrode_data_filename = meta_data_dir + 'geometric_data/rodero_'+mesh_number+'/rodero_'+mesh_number+'_electrode_xyz.csv'
 fields = FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir,
-                personalisation_data_dir=personalisation_data_dir, verbose=verbose)
+                personalisation_data_dir=personalisation_data_dir, max_cores_used=max_cores_used, verbose=verbose)
 # fields.read_fibre_fields(fibre_field_filename='')
 # doste_fibre_directory = geometric_data_dir + 'CR05_orig_files/'
 # fields.read_doste_fibre_fields_vtk(fibre_vtk_filename=doste_fibre_directory+'Long_Fibers0_0_20_CR05_orig.vtk',
@@ -57,7 +57,8 @@ fields = FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data
 #                                    normal_vtk_filename=doste_fibre_directory+'Normal_Fibers0_0_20_CR05_orig.vtk')
 # quit()
 # fields.generate_infarct_borderzone()
-# quit()
+fields.generate_infarct_borderzone_Wallman(visualise=True)
+quit()
 ########################################################################################################################
 # Step 5: Write Alya input files according to simulation protocol saved in .json file.
 if system == 'jureca':
@@ -66,7 +67,7 @@ elif system == 'heart':
     simulation_dir = './'
 alya = AlyaFormat(name=simulation_name, geometric_data_dir=geometric_data_dir,
                   personalisation_dir=personalisation_data_dir, clinical_data_dir=clinical_data_dir,
-                  simulation_dir = simulation_dir, verbose=verbose)
+                  simulation_dir = simulation_dir, max_cores_used=max_cores_used, verbose=verbose)
 
 # Sanity check:
 simulation_json_file = 'rodero_mi_acute_bz1_simulation_em.json'
@@ -85,6 +86,6 @@ quit()
 # Step 6: Postprocess
 simulation_json_file = 'rodero_baseline_simulation_em.json'
 pp = PostProcessing(name=simulation_name, geometric_data_dir=geometric_data_dir, simulation_json_file=simulation_json_file,
-                    alya_output_dir=simulation_dir, verbose=verbose)
+                    alya_output_dir=simulation_dir, max_cores_used=max_cores_used, verbose=verbose)
 pp.evaluate_ecg_pv_biomarkers(beat=0)
 # pp.save_sa_results(sa_results_dir+'sa_results.csv')
