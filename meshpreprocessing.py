@@ -7,6 +7,8 @@ import copy
 from xml.dom import minidom
 # import pymesh
 import json
+from matplotlib import pyplot as plt
+import pandas as pd
 
 class MeshPreprocessing(MeshStructure):
     def __init__(self, vtk_name, name, input_dir, geometric_data_dir, max_cores_used, verbose):
@@ -55,6 +57,154 @@ class MeshPreprocessing(MeshStructure):
         assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_nodefield_rvlv.csv')
         assert os.path.exists(self.geometric_data_dir + self.geometry.name + '_material_tetra.csv')
         print('Everything set for T wave inference')
+
+    def read_geometry_from_vtu_hannah_smith(self, vtu_name, save=False):
+        print('Reading VTU files from ' + self.input_dir + vtu_name + '.vtu')
+        reader = vtk.vtkXMLUnstructuredGridReader()
+        reader.SetFileName(self.input_dir + vtu_name + '.vtu')
+        reader.Update()
+        data = reader.GetOutput()
+        self.geometry.number_of_elements = data.GetNumberOfCells()
+        self.geometry.number_of_nodes = data.GetNumberOfPoints()
+        self.geometry.tetrahedrons = np.zeros((self.geometry.number_of_elements, 4)).astype(int)
+        self.geometry.nodes_xyz = np.zeros((self.geometry.number_of_nodes, 3))
+        for i in range(0, self.geometry.number_of_elements):
+            self.geometry.tetrahedrons[i, 0] = int(data.GetCell(i).GetPointId(0))
+            self.geometry.tetrahedrons[i, 1] = int(data.GetCell(i).GetPointId(1))
+            self.geometry.tetrahedrons[i, 2] = int(data.GetCell(i).GetPointId(2))
+            self.geometry.tetrahedrons[i, 3] = int(data.GetCell(i).GetPointId(3))
+        nodes_xyz = VN.vtk_to_numpy(data.GetPoints().GetData())  # Convert from mm to cm
+        self.geometry.nodes_xyz = nodes_xyz
+        self.geometry.edges = []
+        for element_i in range(self.geometry.number_of_elements):
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 1]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 2]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 2], self.geometry.tetrahedrons[element_i, 3]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 3], self.geometry.tetrahedrons[element_i, 0]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 1], self.geometry.tetrahedrons[element_i, 3]])
+            self.geometry.edges.append(
+                [self.geometry.tetrahedrons[element_i, 0], self.geometry.tetrahedrons[element_i, 2]])
+        self.geometry.edges = np.unique(np.sort(self.geometry.edges, axis=1), axis=0)
+        unfolded_edges = np.concatenate((self.geometry.edges, np.flip(self.geometry.edges, axis=1))).astype(int)
+        aux = [[] for i in range(0, self.geometry.number_of_nodes, 1)]
+        for i in range(0, len(unfolded_edges)):
+            aux[unfolded_edges[i, 0]].append(unfolded_edges[i, 1])
+        neighbours = [np.array(n) for n in aux]  # Node numbers starting 0
+        self.neighbours = neighbours
+        self.geometry.tetrahedron_centres = (nodes_xyz[self.geometry.tetrahedrons[:, 0], :] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:, 1], :] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:, 2], :] +
+                                             nodes_xyz[self.geometry.tetrahedrons[:, 3], :]) / 4.
+        self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('tv')), 'tv', 'nodefield')
+        self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('tm')), 'tm', 'nodefield')
+        self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('ab')), 'ab', 'nodefield')
+        self.node_fields.add_field(VN.vtk_to_numpy(data.GetPointData().GetArray('rt')), 'rt', 'nodefield')
+        def _normalise_vector(vector):
+            m = np.linalg.norm(vector)
+            if m > 0:
+                return vector / m
+            else:
+                return vector
+
+        print('Reading vtk file from: ' + self.input_dir + 'transmural_vectors.vtk')
+        reader = vtk.vtkUnstructuredGridReader()
+        reader.SetFileName(self.input_dir + 'transmural_vectors.vtk')
+        reader.Update()
+        data = reader.GetOutput()
+        transmural_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
+        for node_i in range(transmural_vector.shape[0]):
+            transmural_vector[node_i, :] = _normalise_vector(transmural_vector[node_i, :])
+        self.node_fields.add_field(transmural_vector, 'transmural-vector', 'nodefield')
+        print('Reading vtk file from: ' + self.input_dir + 'longitudinal_vectors.vtk')
+        reader.SetFileName(self.input_dir + 'longitudinal_vectors.vtk')
+        reader.Update()
+        data = reader.GetOutput()
+        longitudinal_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
+        for node_i in range(longitudinal_vector.shape[0]):
+            longitudinal_vector[node_i, :] = _normalise_vector(longitudinal_vector[node_i, :])
+        self.node_fields.add_field(longitudinal_vector, 'longitudinal-vector', 'nodefield')
+        print('Reading vtk file from: ' + self.input_dir + 'circumferential_vectors.vtk')
+        reader.SetFileName(self.input_dir + 'circumferential_vectors.vtk')
+        reader.Update()
+        data = reader.GetOutput()
+        circumferential_vector = VN.vtk_to_numpy(data.GetPointData().GetArray('ScalarGradient'))
+        for node_i in range(circumferential_vector.shape[0]):
+            circumferential_vector[node_i, :] = _normalise_vector(circumferential_vector[node_i, :])
+        self.node_fields.add_field(circumferential_vector, 'circumferential-vector', 'nodefield')
+        if save:
+            self.save()
+
+    def add_cap_to_mesh(self):
+        # This function only goes as far as generating new surface data points for the endo and epi surfaces
+        # These points are then used to generate surface meshes using meshlab
+        # Then they are passed to Ruben Doste's pipeline to generate UVCs and fibre orientations.
+        vtk_names = ['epicardium.vtk', 'lv_endocardium.vtk', 'rv_endocardium.vtk']
+        edge_names = ['lv_endo_edge_node_start_vectors.csv',
+                  'rv_endo_edge_node_start_vectors.csv',
+                  'epicardium_edge_node_start_vectors.csv']
+        save_names = ['lvendo_cap_and_surface.txt',
+                  'rvendo_cap_and_surface.txt',
+                  'epicardium_cap_and_surface.txt']
+        lid_rise_percentages = [0.15, 0.15, 0.2]
+
+        all_start_vectors = []
+        for edge_name in edge_names:
+            data = pd.read_csv(self.geometric_data_dir + edge_name)
+            edge_node_idx = data['PointIds'].values
+            start_vectors = np.zeros((edge_node_idx.shape[0], 3))
+            start_vectors[:, 0] = data['ScalarGradient:0'].values
+            start_vectors[:, 1] = data['ScalarGradient:1'].values
+            start_vectors[:, 2] = data['ScalarGradient:2'].values
+            all_start_vectors.append(start_vectors)
+        all_start_vectors = np.concatenate(all_start_vectors, axis=0)
+        normal_vector = np.average(all_start_vectors, axis=0)
+        for vtk_name, edge_name, save_name, lid_rise_percentage in zip(vtk_names, edge_names, save_names,
+                                                                       lid_rise_percentages):
+            print(' Reading ', self.geometric_data_dir + vtk_name, '...')
+            reader = vtk.vtkUnstructuredGridReader()
+            reader.SetFileName(self.geometric_data_dir + vtk_name)
+            reader.ReadAllVectorsOn()
+            reader.ReadAllScalarsOn()
+            reader.Update()
+            data = reader.GetOutput()
+            nodes_xyz = VN.vtk_to_numpy(data.GetPoints().GetData())  # Convert from mm to cm
+            fig = plt.figure(figsize=(8, 8))
+            ax = fig.add_subplot(projection='3d')
+            ax.scatter(nodes_xyz[:, 0], nodes_xyz[:, 1], nodes_xyz[:, 2], marker='*', c='b')
+            node_ids = VN.vtk_to_numpy(data.GetPointData().GetArray('PointIds'))
+            existing_lv_length = np.amax(np.abs(np.sum(normal_vector * nodes_xyz, axis=1, keepdims=True)))
+            lid_rise = existing_lv_length * lid_rise_percentage
+            data = pd.read_csv(self.geometric_data_dir + edge_name)
+            edge_node_idx = data['PointIds'].values
+            start_vectors = np.zeros((edge_node_idx.shape[0], 3))
+            start_vectors[:, 0] = data['ScalarGradient:0'].values
+            start_vectors[:, 1] = data['ScalarGradient:1'].values
+            start_vectors[:, 2] = data['ScalarGradient:2'].values
+            # edge_node_idx = np.loadtxt('DTI003/epi_edge_node_idx.csv', delimiter=',')[:, 0].astype(int)
+            edge_nodes = np.zeros((edge_node_idx.shape[0], 3))
+            for i, idx in enumerate(edge_node_idx):
+                print(nodes_xyz[np.where(node_ids == idx)[0], :])
+                print(edge_nodes[i, :])
+                edge_nodes[i, :] = nodes_xyz[np.where(node_ids == idx)[0], :]
+            # ax.scatter(edge_nodes[:, 0], edge_nodes[:, 1], edge_nodes[:, 2], marker='*', c='r')
+            # start_vectors = np.zeros((edge_nodes.shape[0], 3))
+            # start_vectors[:, 0] = normal_vector[0]
+            # start_vectors[:, 1] = normal_vector[1]
+            # start_vectors[:, 2] = normal_vector[2]
+            print('Generating cap data for ', edge_nodes.shape[0], ' edge nodes...')
+            cap_data = generate_cap_surface_data(edge_nodes=edge_nodes, start_vectors=start_vectors,
+                                                 longitudinal_vector=normal_vector, lid_rise=lid_rise,
+                                                 flat_percentage=0.9, resolution_along_radius=0.05)
+            cap_and_surface_data = np.concatenate((cap_data, nodes_xyz), axis=0)
+            ax.scatter(cap_data[:, 0], cap_data[:, 1], cap_data[:, 2], marker='*', c='m')
+            plt.show()
+            np.savetxt(self.geometric_data_dir + save_name, cap_and_surface_data)
+            reader = None
 
     def read_geometry_from_xml_vtk_cardiax_ellipsoid(self, xml_name, vtk_name, save=False):
         # Fenics XML element numbering is compatible with Alya. CardiaX number will give negative Jacobians.
@@ -1034,7 +1184,6 @@ def normalise_vector(vector):
     else:
         return vector
 
-
 def map_ventricular_coordinates(input_ranges, output_ranges, input_coordinate):
     input_ranges = np.array(input_ranges)
     output_ranges = np.array(output_ranges)
@@ -1072,3 +1221,73 @@ def calculate_tetrahedral_mesh_volume(nodes, elements):
     BD = None
     CD = None
     return np.sum(tV) / 6.
+
+def generate_cap_surface_data(edge_nodes, start_vectors, longitudinal_vector, lid_rise, flat_percentage, resolution_along_radius):
+    # Create curves from each edge node to the middle
+    middle_coord = np.mean(edge_nodes, axis=0)
+    middle_lid_coord = middle_coord + longitudinal_vector*lid_rise
+    # plot_3D_vector(ax, middle_lid_coord, longitudinal_vector, 'k')
+    data = np.array([[0, 0, 0]])
+    for edge_node, start_vector in zip(edge_nodes, start_vectors):
+        # Create local axes
+        x_vector = middle_coord - edge_node
+        y_axis = np.cross(x_vector/np.linalg.norm(x_vector), longitudinal_vector)
+        y_axis = y_axis/np.linalg.norm(y_axis)
+        x_axis = np.cross(longitudinal_vector, y_axis)
+        x_axis = x_axis/np.linalg.norm(x_axis)
+        dx = resolution_along_radius * (x_vector)/np.linalg.norm(x_vector)
+        # plot_3D_vector(ax, edge_node, dx, 'm')
+        # plot_3D_vector(ax, edge_node, x_axis, 'g')
+        # plot_3D_vector(ax, edge_node, y_axis, 'r')
+        # plot_3D_vector(ax, edge_node, longitudinal_vector, 'b')
+        n_points = np.floor(np.linalg.norm(x_vector)/ resolution_along_radius).astype(int)
+        curve = np.zeros((n_points, 3))
+        curve[0, :] = edge_node
+        flat_x = flat_percentage * np.linalg.norm(x_vector)
+        end_vector = x_vector / np.linalg.norm(x_vector)
+        start_angle = np.arccos(np.dot(start_vector, end_vector))
+        # plot_3D_vector(ax, edge_node, start_vector, 'k')
+        current_coord = edge_node
+        for i in range(1, n_points):
+            angle = vector_angle(i * resolution_along_radius, start_angle, flat_x)
+            basis_transformation = np.vstack((x_axis, y_axis, longitudinal_vector)).transpose()
+            R = np.array([[np.cos(angle), 0, -np.sin(angle)], [0, 1, 0], [np.sin(angle), 0, np.cos(angle)]])
+            new_vector = np.matmul(R, np.matmul(np.linalg.inv(basis_transformation),end_vector))
+            current_coord = current_coord + dx
+            new_vector_global = np.matmul(basis_transformation, new_vector)
+            new_vector_global = new_vector_global/np.linalg.norm(new_vector_global)
+            # plot_3D_vector(ax, current_coord, new_vector_global, 'b')
+            # plot_3D_vector(ax, current_coord, dx, 'm')
+            # scaling = resolution_along_radius / (np.dot(new_vector_global, dx/np.linalg.norm(dx)))
+            curve[i, :] = curve[i-1,:] + new_vector_global * resolution_along_radius
+            # ax.scatter(curve[0, 0], curve[0, 1], curve[0, 2], marker='o', c='m')
+            # ax.scatter(curve[i, 0], curve[i, 1], curve[i, 2], marker='o', c='g')
+            # plt.show()
+            # quit()
+        # lid_scale = lid_rise/np.dot(longitudinal_vector, curve[-1,:] - middle_coord)
+        # x_scale = np.linalg.norm(x_vector)/np.dot(x_axis, np.linalg.norm(curve[-1,:] - edge_node))
+        lid_scale = lid_rise / (np.dot(longitudinal_vector, curve[-1,:] - edge_node))
+        x_scale =  np.linalg.norm(x_vector)/np.dot(x_axis, curve[-1,:] - edge_node)
+        for i in range(0, n_points):
+            curve_x = np.dot((curve[i,:]-edge_node), x_axis)
+            curve_y = np.dot((curve[i,:]-edge_node), y_axis)
+            curve_z = np.dot((curve[i,:]-edge_node), longitudinal_vector)
+            curve[i, :] = (curve_x* x_axis*x_scale + curve_y*y_axis + curve_z * longitudinal_vector * lid_scale) + edge_node
+        curve = curve[1:, :]
+        # ax.scatter(curve[:, 0], curve[:, 1], curve[:, 2], marker='*', c='m')
+        # plt.show()
+        # quit()
+        data = np.concatenate((data,curve))
+    data = data[1:,:]
+    return data
+
+
+def vector_angle(x, start_angle, flat_x):
+    if x <= flat_x:
+        return start_angle/(flat_x)**2 * (x-flat_x)**2 # This is a quadratic function that begins at start angle and goes to zero at end_x
+    else:
+        return 0
+
+def plot_3D_vector(ax, coord, vector, color):
+    ax.quiver(coord[0], coord[1], coord[2], vector[0], vector[1], vector[2], color=color)
+

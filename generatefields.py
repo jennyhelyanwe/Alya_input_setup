@@ -447,59 +447,57 @@ class FieldGeneration(MeshStructure):
         # LAD:
         scar_candidates = []
         LAD_ab = 0.4
-        LAD_tm = 1
-        LAD_rt = 1.61
-        LAD_tv = -1 # LV
-        TOL = 0.01
+        LAD_tm = 0
+        LAD_rt = 0.604
+        LAD_tv = 0 # LV
+        abTOL = 0.01
+        tmTOL = 0.05
+        rtTOL = 0.1
         lv_select = np.where((self.node_fields.dict['tv'] == LAD_tv))[0]
-        ab_select = lv_select[np.where(abs(self.node_fields.dict['ab'][lv_select] - LAD_ab) < TOL)[0]]
-        tm_select = ab_select[np.where((self.node_fields.dict['tm'][ab_select] == LAD_tm))[0]]
-        rt_select = tm_select[np.where(abs(self.node_fields.dict['rt'][tm_select] - LAD_rt) < TOL)[0]]
+        ab_select = lv_select[np.where(abs(self.node_fields.dict['ab'][lv_select] - LAD_ab) < abTOL)[0]]
+        tm_select = ab_select[np.where(abs(self.node_fields.dict['tm'][ab_select] - LAD_tm) < tmTOL)[0]]
+        rt_select = tm_select[np.where(abs(self.node_fields.dict['rt'][tm_select] - LAD_rt) < rtTOL)[0]]
         scar_candidates.append(rt_select[0])
 
         LAD_ab = 0.6
-        LAD_tm = 1
-        LAD_rt = 1.61
-        LAD_tv = -1  # LV
-        TOL = 0.01
+        LAD_tm = 0
+        LAD_rt = 0.604
+        LAD_tv = 0  # LV
         lv_select = np.where((self.node_fields.dict['tv'] == LAD_tv))[0]
-        ab_select = lv_select[np.where(abs(self.node_fields.dict['ab'][lv_select] - LAD_ab) < TOL)[0]]
-        tm_select = ab_select[np.where((self.node_fields.dict['tm'][ab_select] == LAD_tm))[0]]
-        rt_select = tm_select[np.where(abs(self.node_fields.dict['rt'][tm_select] - LAD_rt) < TOL)[0]]
+        ab_select = lv_select[np.where(abs(self.node_fields.dict['ab'][lv_select] - LAD_ab) < abTOL)[0]]
+        tm_select = ab_select[np.where(abs(self.node_fields.dict['tm'][ab_select] - LAD_tm) < tmTOL)[0]]
+        rt_select = tm_select[np.where(abs(self.node_fields.dict['rt'][tm_select] - LAD_rt) < rtTOL)[0]]
         scar_candidates.append(rt_select[0])
 
         LAD_ab = 0.4
-        LAD_tm = 1
-        LAD_rt = 1.05
-        LAD_tv = -1  # LV
-        TOL = 0.01
+        LAD_tm = 0
+        LAD_rt = 0.85
+        LAD_tv = 0  # LV
         lv_select = np.where((self.node_fields.dict['tv'] == LAD_tv))[0]
-        ab_select = lv_select[np.where(abs(self.node_fields.dict['ab'][lv_select] - LAD_ab) < TOL)[0]]
-        tm_select = ab_select[np.where((self.node_fields.dict['tm'][ab_select] == LAD_tm))[0]]
-        rt_select = tm_select[np.where(abs(self.node_fields.dict['rt'][tm_select] - LAD_rt) < TOL)[0]]
+        ab_select = lv_select[np.where(abs(self.node_fields.dict['ab'][lv_select] - LAD_ab) < abTOL)[0]]
+        tm_select = ab_select[np.where(abs(self.node_fields.dict['tm'][ab_select] - LAD_tm) < tmTOL)[0]]
+        rt_select = tm_select[np.where(abs(self.node_fields.dict['rt'][tm_select] - LAD_rt) < rtTOL)[0]]
         scar_candidates.append(rt_select[0])
         seed_times = len(scar_candidates) * [0]
 
-        LAD_ab = 0.5
-        LAD_tm = 1
-        LAD_rt = 1.08
-        LAD_tv = -1  # LV
-        TOL = 0.01
+        LAD_ab = 0.6
+        LAD_tm = 0
+        LAD_rt = 0.85
+        LAD_tv = 0  # LV
         lv_select = np.where((self.node_fields.dict['tv'] == LAD_tv))[0]
-        ab_select = lv_select[np.where(abs(self.node_fields.dict['ab'][lv_select] - LAD_ab) < TOL)[0]]
-        tm_select = ab_select[np.where((self.node_fields.dict['tm'][ab_select] == LAD_tm))[0]]
-        rt_select = tm_select[np.where(abs(self.node_fields.dict['rt'][tm_select] - LAD_rt) < TOL)[0]]
+        ab_select = lv_select[np.where(abs(self.node_fields.dict['ab'][lv_select] - LAD_ab) < abTOL)[0]]
+        tm_select = ab_select[np.where(abs(self.node_fields.dict['tm'][ab_select] - LAD_tm) < tmTOL)[0]]
+        rt_select = tm_select[np.where(abs(self.node_fields.dict['rt'][tm_select] - LAD_rt) < rtTOL)[0]]
         scar_candidates.append(rt_select[0])
 
         seed_times = len(scar_candidates) * [0]
-        print(scar_candidates)
         # Generate core and border zones
         print ('Generate scar region...')
         long_axis = self.node_fields.dict['longitudinal-vector'].mean(axis=0)
         long_axis = long_axis/np.linalg.norm(long_axis)
         projection = np.matmul(self.geometry.nodes_xyz, long_axis)
         heart_length = np.max(projection) - np.min(projection)
-        cutoff = (1.2 - self.node_fields.dict['ab']) * (heart_length) * 0.5
+        cutoff = (1.2 - self.node_fields.dict['ab']) * (heart_length) * 0.4
         cutoff[np.where(self.node_fields.dict['ab'] == -10)[0]] = np.nan
 
         approx_djikstra_max_path_len = 100
@@ -529,7 +527,7 @@ class FieldGeneration(MeshStructure):
         num_iterations = 2
         for j in range(num_iterations):
             core_d = dijkstra.iso_eikonal(sub_node_coordinates=nodes_xyz, source_indexes=np.asarray(core, dtype=int),
-                                         seed_times=seed_times, sub_edge_indexes=self.geometry.edge,
+                                         seed_times=seed_times, sub_edge_indexes=self.geometry.edges,
                                          sub_edgeVEC=edgeVEC, sub_neighbour=neighbour, sub_unfoldedEdges=unfoldedEdges)
         # core_d = dijkstra.sorted_dijkstra(source_indexes=np.asarray(core, dtype=int), seed_times=seed_times,
         #                                   dijkstra_nodes_xyz=self.geometry.nodes_xyz,
@@ -537,14 +535,14 @@ class FieldGeneration(MeshStructure):
         #                                   dijkstra_edgeVEC=edgeVEC,
         #                                   dijkstra_neighbours=neighbour,
         #                                   approx_dijkstra_max_path_len=approx_djikstra_max_path_len)
-        # core_d = core_d/np.amax(core_d) + np.random.normal(0, core_post_noise, np.shape(core_d)[1])
-        cz_threshold = 0.13
+        core_d = core_d/np.amax(core_d) + np.random.normal(0, core_post_noise, len(core_d))
+        cz_threshold = 0.08
         bz_threshold = 0.18
         cz_nodes = np.where(core_d < cz_threshold)[0]
         bz_nodes = np.where(core_d < bz_threshold)[0]
         cz_bz_regions = np.zeros(self.geometry.number_of_nodes)
-        cz_bz_regions[cz_nodes] = 1
-        cz_bz_regions[bz_nodes] = 2
+        cz_bz_regions[bz_nodes] = 1
+        cz_bz_regions[cz_nodes] = 2
         if visualise:
             print('Visualising...')
             def scatter_visualise(ax, xyz, field, title):
@@ -559,28 +557,19 @@ class FieldGeneration(MeshStructure):
             ax1 = fig.add_subplot(131, projection='3d')
             p = scatter_visualise(ax1, node_xyz,d_downsample,'Dijkstra solution')
             ax1.scatter(self.geometry.nodes_xyz[scar_candidates, 0], self.geometry.nodes_xyz[scar_candidates, 1], self.geometry.nodes_xyz[scar_candidates, 2], marker='o', s=3, c='r')
-            # ax1.quiver(0,0,0, long_axis[0], long_axis[1], long_axis[2], length=1, color='r' )
-            # ax1.quiver(0, 0, 0, rvlv_axis[0], rvlv_axis[1], rvlv_axis[2], length=1, color='b')
-            # ax1.quiver(0, 0, 0, slanted_axis[0], slanted_axis[1], slanted_axis[2], length=1, color='m')
             fig.colorbar(p)
 
             ax2 = fig.add_subplot(132, projection='3d')
-            rvlv_downsample = self.node_fields.dict['rvlv'][::node_downsample_skip]
-            # slanted_coordinate_downsample = slanted_coordinate[::node_downsample_skip]
-            cutoff_downsample = cutoff[::node_downsample_skip]
-            p = scatter_visualise(ax2, node_xyz, cutoff_downsample, 'cutoff_downsample')
+            scar_region = expr[::node_downsample_skip]
+            p = scatter_visualise(ax2, node_xyz, scar_region, 'Scar region')
             fig.colorbar(p)
 
             ax3 = fig.add_subplot(133, projection='3d')
-            scar_region = expr[::node_downsample_skip]
             cz_bz_region_downsample = cz_bz_regions[::node_downsample_skip]
             p = scatter_visualise(ax3, node_xyz, cz_bz_region_downsample, 'Core and BZ delineation')
             fig.colorbar(p)
             plt.show()
         quit()
-
-
-
         # Save as new material fields.
         materials = []
         self.materials.add_field(data=materials, data_name='tetra_mi', field_type='material')

@@ -9,8 +9,11 @@ import json
 
 ########################################################################################################################
 # Global Settings
-mesh_number = '1097970'
-simulation_name = mesh_number + '_fine'
+vtu_names = ['1032146', '1037406', '1347962']
+# vtk_name = '1097970'
+vtu_name = vtu_names[0] + '_combo_fibres'
+mesh_number = vtu_names[0]
+simulation_name = mesh_number
 workdir = os.getcwd()
 if 'icei' in workdir:
     system = 'jureca'
@@ -29,12 +32,12 @@ if system == 'archer2':
     meta_data_dir = '/work/e769/e769/jennywang/Alya_pipeline/meta_data/'
 elif system == 'heart':
     meta_data_dir = '/data/Personalisation_projects/meta_data/'
-geometric_data_dir = meta_data_dir + 'geometric_data/UKB_'+mesh_number+'/'
+geometric_data_dir = meta_data_dir + 'geometric_data/UKB_'+mesh_number+'_HSmith/'
 print('Geometric data directory: ', geometric_data_dir)
 clinical_data_dir = meta_data_dir + 'clinical_data/'
 
 verbose = False
-mesh_preprocess = False
+mesh_preprocess = True
 calibrate_cv = False
 generate_fields_original_doste = False
 generate_fields_Green_fibres = False
@@ -57,10 +60,14 @@ evaluate_validation_biomarkers = False
 #######################################################################################################################
 # Step 1: Save input mesh into CSV format, as prescribed in myformat.py
 vtk_dir = geometric_data_dir
-vtk_name = '1097970'
+# Meshes from Hannah Smith 20 May 2025
+
 if mesh_preprocess:
-    mesh = MeshPreprocessing(vtk_name=vtk_name, name=simulation_name, input_dir=vtk_dir, geometric_data_dir=geometric_data_dir,
+    mesh = MeshPreprocessing(vtk_name=vtu_name, name=simulation_name, input_dir=vtk_dir, geometric_data_dir=geometric_data_dir,
                              max_cores_used=max_cores_used, verbose=verbose)
+    # mesh.read_geometry_from_vtu_hannah_smith(vtu_name=vtu_name,save=True)
+    # mesh.add_cap_to_mesh()
+
     # mesh.generate_boundary_data_UKB(save=True)
     # mesh.check_fields_for_qrs_inference()
     # mesh.check_fields_for_twave_inference()
@@ -83,6 +90,9 @@ personalisation_data_dir = meta_data_dir + 'results/personalisation_data/UKB_'+m
 electrode_data_filename = meta_data_dir + 'geometric_data/UKB_'+mesh_number+'/UKB_'+mesh_number+'_electrode_xyz.csv'
 fields = FieldGeneration(name=simulation_name, geometric_data_dir=geometric_data_dir,
                 personalisation_data_dir=personalisation_data_dir, max_cores_used=max_cores_used, verbose=verbose)
+
+fields.generate_infarct_borderzone_Wallman(visualise=True)
+quit()
 # fields.generate_infarct_borderzone()
 # fields.generate_celltype(save=True)
 #
